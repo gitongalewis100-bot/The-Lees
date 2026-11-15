@@ -97,7 +97,8 @@ select.in{padding-right:12px}
 .ibtn:hover{color:var(--ink);background:var(--bg)}
 .ibtn.on{color:var(--accent)}
 .ibtn.danger{color:var(--rose)}
-.avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:var(--serif);font-size:15px;flex:none}
+.avatar{width:36px;height:36px;aspect-ratio:1/1;overflow:hidden;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:var(--serif);font-size:15px;flex:none}
+.avatar img{width:100%;height:100%;object-fit:cover;aspect-ratio:1/1;display:block}
 .avatar.lewis{background:var(--lilac)}
 .avatar.agnes{background:var(--sage)}
 
@@ -108,6 +109,10 @@ select.in{padding-right:12px}
 .greet .mono{margin-top:6px;color:var(--muted)}
 .journal-btn{width:48px;height:48px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--accent)}
 .navrow{display:flex;gap:8px;flex-wrap:wrap;padding:4px 0 8px}
+.homegrid{display:grid;grid-template-columns:1.55fr 1fr;gap:8px;align-items:stretch}
+.navbtn.settings-box{width:100%;height:100%;min-height:168px;flex-direction:column;align-items:flex-start;justify-content:center;font-size:16px;padding:18px 16px;gap:10px}
+.tools2{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start}
+.tools2 .navbtn{width:100%}
 .navbtn{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:16px;background:color-mix(in srgb,var(--surface) 86%,transparent);border:1px solid var(--line);white-space:nowrap;font-size:13px;color:var(--ink);flex:none;box-shadow:var(--shadow)}
 .navbtn.on{border-color:var(--accent);color:var(--accent)}
 .navbtn.danger{color:var(--rose)}
@@ -194,25 +199,27 @@ mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 
 .quote{display:flex;flex-direction:column;gap:1px;padding:6px 10px;margin-bottom:6px;border-left:2px solid var(--accent);border-radius:8px;background:rgba(154,90,72,.08);font-size:12.5px;color:var(--muted)}
 .quote b{font-weight:normal;color:var(--accent);font-size:11.5px}
 .quote span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.photo{display:block;width:min(250px,68vw);max-height:330px;object-fit:cover;border-radius:12px;cursor:zoom-in;background:var(--line);transition:filter .3s}
+.photo{display:block;width:100%;height:100%;object-fit:cover;border-radius:12px;cursor:zoom-in;background:var(--line)}
+.phframe{width:min(250px,68vw);aspect-ratio:4/3;border-radius:12px;overflow:hidden;background:var(--line)}
 .stack{display:flex;align-items:center;gap:8px;margin-top:3px;color:var(--muted);padding:0 4px;flex-wrap:wrap;font-family:var(--mono);font-size:10.5px}
 .heart{color:var(--accent);display:inline-flex;align-items:center;gap:3px}
 .heartbtn{position:relative;width:28px;height:28px;display:inline-grid;place-items:center;color:var(--muted)}
 .heartbtn svg{fill:none;stroke:currentColor}
 .heartbtn.on{color:#e0245e}
 .heartbtn.on svg{fill:#e0245e;stroke:#e0245e}
-.heartbtn.pop svg{animation:heartpop .42s var(--ease)}
+.heartbtn.pop svg{animation:heartpop .55s var(--ease)}
 .heartbtn.shrink svg{animation:heartshrink .28s var(--ease)}
 .heartcount{font-size:12px;color:var(--muted);min-width:1ch}
 .emojicount{font-size:13px}
 .igheart{position:absolute;left:50%;top:42%;z-index:3;font-size:64px;color:#e0245e;pointer-events:none;animation:igheart .7s var(--ease) forwards}
 .bits{position:absolute;width:6px;height:6px;border-radius:50%;background:#e0245e;pointer-events:none;animation:bit .55s ease-out forwards}
-@keyframes heartpop{0%{transform:scale(.55)}45%{transform:scale(1.35)}100%{transform:scale(1)}}
+@keyframes heartpop{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}
 @keyframes heartshrink{0%{transform:scale(1)}100%{transform:scale(.75)}}
 @keyframes igheart{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}35%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.4)}}
 @keyframes bit{to{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.4)}}
 .row.fresh.in{opacity:1}
-.scratch{position:absolute;inset:0;z-index:2;width:100%;height:100%;border-radius:inherit;touch-action:none;cursor:crosshair}
+.scratch{position:absolute;inset:0;z-index:2;width:100%;height:100%;border-radius:inherit;touch-action:none;cursor:crosshair;transition:opacity .9s ease}
+.scratch.gone{opacity:0;pointer-events:none}
 .msg.reblur .text,.msg.reblur .photo,.msg.reblur .voice{filter:blur(9px);transition:filter .45s ease}
 .msg.shimmer::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);animation:shim .6s ease;pointer-events:none}
 @keyframes shim{from{transform:translateX(-120%)}to{transform:translateX(120%)}}
@@ -247,7 +254,18 @@ mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 
 .act{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:58px;padding:8px 6px;border-radius:12px;color:var(--ink);font-size:11px;flex:none}
 .act:hover{background:var(--bg)}
 .act.danger{color:var(--rose)}
-.act .i{width:18px;height:18px}
+.vmenu{position:fixed;z-index:46;min-width:220px;max-width:calc(100vw - 24px);background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:6px;display:flex;flex-direction:column}
+.vmenu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:12px;border-radius:12px;font-size:15px;color:var(--ink)}
+.vmenu button.danger{color:var(--rose)}
+.vmenu button:active{background:var(--bg)}
+.vmenu hr{border:0;border-top:1px solid var(--line);margin:4px 8px}
+.vmenu .react-row{display:none;justify-content:space-between;padding:4px 6px 8px}
+.vmenu .react-row.open{display:flex}
+.vmenu .react-row button{width:44px;height:44px;justify-content:center;font-size:22px;padding:0}
+.fx2{position:fixed;pointer-events:none;z-index:50}
+.effectchip{padding:2px 16px 0;font-size:13px;color:var(--muted);min-height:18px}
+.effectchip:empty{display:none;min-height:0;padding:0}
+.schedprev{display:flex;justify-content:flex-end;margin:0 0 10px}
 #themeBar{top:calc(env(safe-area-inset-top,0px) + 66px)}
 #themeBar .acts{display:flex;gap:8px;overflow-x:auto;padding:4px;scrollbar-width:none}
 #themeBar .acts::-webkit-scrollbar{display:none}
@@ -405,7 +423,6 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   <div class="scroll">
     <div class="greet">
       <div><div class="hdr" id="greet"></div><div class="mono" id="dateLine"></div></div>
-      <button id="journalBtn" class="journal-btn lift" type="button" aria-label="Open journal"><svg class="i" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg></button>
     </div>
     <nav class="navrow" id="navrow" aria-label="Sections"></nav>
 
@@ -447,6 +464,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   <div id="list" aria-live="polite"></div>
   <div id="typing"></div>
   <button id="toBottom" class="hidden">Latest</button>
+  <div id="effectChip" class="effectchip"></div>
   <div id="replyBar" class="hidden" style="display:none;align-items:center;gap:10px;margin:0 12px;padding:8px 12px;border-radius:14px 14px 0 0;background:var(--surface);border:1px solid var(--line);border-bottom:0;font-size:13px">
     <span id="replyLabel" class="mono" style="color:var(--accent)"></span>
     <span id="replyText" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)"></span>
@@ -468,6 +486,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     <button id="send" type="button" aria-label="Send"><svg class="i" viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
   </footer>
   <div id="actionBar" class="bar hidden"><div class="acts" id="acts"></div></div>
+  <div id="vmenu" class="vmenu hidden"></div>
 </section>
 
 <!-- Full-screen panels: Notes reading, Notes composer, Settings, Moments, Archive, Scheduled -->
@@ -484,7 +503,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
 <div id="menuDummy"></div>
 <div id="sheet" class="hidden"><div class="scrim" id="sheetScrim"></div><div id="sheetBody"></div></div>
 <div id="notice" class="hidden"></div>
-<div id="lightbox" class="hidden" style="position:fixed;inset:0;z-index:70;background:rgba(10,8,7,.92);display:flex;align-items:center;justify-content:center;padding:24px"><img id="lbImg" alt="Photo" style="max-width:100%;max-height:100%;border-radius:14px"><button id="lbX" class="ibtn" aria-label="Close" style="position:absolute;top:14px;right:14px;color:#fff"><svg class="i" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+<div id="lightbox" class="hidden" style="position:fixed;inset:0;z-index:70;background:rgba(10,8,7,.92);display:flex;align-items:center;justify-content:center;padding:24px"><img id="lbImg" alt="Photo" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:14px"><button id="lbX" class="ibtn" aria-label="Close" style="position:absolute;top:14px;right:14px;color:#fff"><svg class="i" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous"></script>
 <script>
@@ -492,7 +511,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   /* ================= Icons ================= */
   const ICON = {
     chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
-    book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
+    book: '<path d="M2 5.5C4.5 4 7.5 4 11 5.5V20c-3.5-1.5-6.5-1.5-9 0z"/><path d="M22 5.5C19.5 4 16.5 4 13 5.5V20c3.5-1.5 6.5-1.5 9 0z"/><path d="M12 5.2v15"/>',
     star: '<path d="M12 2l3 7 7 .6-5.3 4.7 1.6 7.2L12 17.8 5.7 21.5l1.6-7.2L2 9.6 9 9z"/>',
     archive: '<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
@@ -651,15 +670,47 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       setTimeout(() => s.remove(), 2600);
     }
   }
+  function burstAt(x, y, kind, count) {
+    const colours = ["#e0245e", "#f0a6bd", "#b4456a", "#f5d78e", "#8fb8c4"];
+    const n = count || 8;
+    for (let i = 0; i < n; i++) {
+      const bit = document.createElement("div");
+      bit.className = "fx2";
+      bit.style.left = x + "px";
+      bit.style.top = y + "px";
+      if (kind === "heart") { bit.textContent = "♥"; bit.style.color = "#e0245e"; bit.style.fontSize = (13 + Math.random() * 6) + "px"; }
+      else if (kind === "star") { bit.textContent = "✦"; bit.style.color = colours[i % colours.length]; bit.style.fontSize = "15px"; }
+      else { bit.style.width = "7px"; bit.style.height = "7px"; bit.style.borderRadius = "2px"; bit.style.background = colours[i % colours.length]; }
+      document.body.appendChild(bit);
+      const a = Math.random() * Math.PI * 2, d = 30 + Math.random() * 40;
+      const dx = Math.cos(a) * d, dy = kind === "confetti" ? Math.abs(Math.sin(a)) * d + 30 : Math.sin(a) * d - 20;
+      const finish = () => bit.remove();
+      if (reduceMotion() || !bit.animate) { setTimeout(finish, 400); continue; }
+      bit.animate([
+        { transform: "translate(-50%,-50%) scale(.5)", opacity: 1 },
+        { transform: "translate(calc(-50% + " + dx + "px), calc(-50% + " + dy + "px)) scale(1)", opacity: 0 }
+      ], { duration: 700 + Math.random() * 250, easing: "cubic-bezier(.2,.8,.2,1)", fill: "forwards" }).onfinish = finish;
+    }
+  }
+  function fxAt(node, kind) {
+    if (!node) return;
+    const r = node.getBoundingClientRect();
+    burstAt(r.left + r.width / 2, r.top + r.height / 2, kind, kind === "confetti" ? 16 : 8);
+  }
+  function landEffect(node, effect) {
+    if (!effect || effect === "none") return;
+    if (effect === "hearts") fxAt(node, "heart");
+    else if (effect === "confetti") fxAt(node, "confetti");
+    else if (effect === "sparkle") fxAt(node, "star");
+    else if (effect === "petals") burst("✿", 12);
+    else if (effect === "glow" && node) { const row = node.closest(".row"); if (row) { row.classList.add("glow"); setTimeout(() => row.classList.remove("glow"), 2100); } }
+  }
 
   function playEffect(m) {
     if (!m || m.deleted) return;
-    if (m.effect === "hearts" || (!m.effect && EFFECT_RE.test(m.text || ""))) burst("♥", 14);
-    else if (m.effect === "petals") burst("✿", 12);
-    else if (m.effect === "glow") {
-      const row = $("list").querySelector(`[data-row="${m.id}"]`);
-      if (row) { row.classList.add("glow"); setTimeout(() => row.classList.remove("glow"), 2100); }
-    }
+    const row = $("list").querySelector(`[data-row="${m.id}"] .msg`);
+    if (m.effect && m.effect !== "none") { if (row) landEffect(row, m.effect); else pendingFx.add(m.id); return; }
+    if (EFFECT_RE.test(m.text || "")) burst("♥", 14);
   }
 
   function chime() {
@@ -681,6 +732,45 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   function ensureAudio() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+  let noiseBuf = null, lastGrain = 0;
+  function noiseBuffer() {
+    const c = ensureAudio();
+    if (!noiseBuf) {
+      noiseBuf = c.createBuffer(1, c.sampleRate * 0.12, c.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
+    }
+    return noiseBuf;
+  }
+  function grainSound(speed) {
+    if (S(me || "Lewis").sound === false) return;
+    const now = performance.now();
+    if (now - lastGrain < 55) return;
+    lastGrain = now;
+    try {
+      const c = ensureAudio(), s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+      s.buffer = noiseBuffer();
+      f.type = "bandpass"; f.frequency.value = 2200 + Math.random() * 1200; f.Q.value = 1.2;
+      g.gain.value = Math.min(0.035, Math.max(0.008, speed * 0.0015));
+      s.connect(f).connect(g).connect(c.destination);
+      s.start();
+    } catch {}
+  }
+  function popSound() {
+    if (S(me || "Lewis").sound === false) return;
+    try {
+      const c = ensureAudio(), o = c.createOscillator(), g = c.createGain(), t = c.currentTime;
+      o.type = "sine";
+      o.frequency.setValueAtTime(560, t);
+      o.frequency.exponentialRampToValueAtTime(180, t + 0.1);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.12, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
+      o.connect(g).connect(c.destination);
+      o.start(t); o.stop(t + 0.16);
+    } catch {}
   }
 
   /* ================= Sensitive words ================= */
@@ -733,7 +823,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     urlCache.set(id, u);
     return u;
   }
-  function revokeMedia() { urlCache.forEach(u => URL.revokeObjectURL(u)); urlCache.clear(); }
+  function revokeMedia() { urlCache.forEach(u => { if (typeof u === "string") URL.revokeObjectURL(u); }); urlCache.clear(); signedCache.forEach(hit => { if (hit && String(hit.url).startsWith("blob:")) URL.revokeObjectURL(hit.url); }); signedCache.clear(); }
   const readURL = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
   const b64ToBlob = (dataURL) => fetch(dataURL).then(r => r.blob());
 
@@ -776,10 +866,14 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       editingId = null;
       clearBar();
     } else {
-      const m = addMessage({ kind: "text", text, effect: "none" });
+      const m = addMessage({ kind: "text", text, effect: effectChoice || "none" });
       if (!m) return;
       clearBar();
       haptic("send");
+      if (effectChoice && effectChoice !== "none") pendingFx.add(m.id);
+      effectChoice = "none";
+      const chip = $("effectChip");
+      if (chip) chip.textContent = "";
     }
     input.value = "";
     autosize();
@@ -992,19 +1086,29 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   }
 
   function imageNode(m) {
+    const frame = el("div", "phframe");
     const img = new Image();
     img.className = "photo";
     img.alt = "Photo";
+    img.loading = "lazy";
+    img.decoding = "async";
+    img.dataset.mid = m.mid || "";
+    frame.appendChild(img);
     const fail = () => {
       const card = el("div", "text", "Photo unavailable");
-      if (img.parentNode) img.replaceWith(card);
+      if (frame.parentNode) frame.replaceWith(card);
     };
     img.addEventListener("error", fail);
-    mediaURL(m.mid).then(u => { if (u) img.src = u; else fail(); }).catch(fail);
-    return img;
+    mediaURL(m.mid).then(u => {
+      if (!u) { fail(); return; }
+      if (img.getAttribute("src") !== u) img.src = u;
+    }).catch(fail);
+    return frame;
   }
 
   let unreadN = 0, focusDay = null, chatDay = null, justHeart = null, calCursor = new Date();
+  let effectChoice = "none";
+  const pendingFx = new Set();
   const reduceMotion = () => !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
   function likedByMe(m) { return (m.hearts || []).includes(me); }
   function heartCount(m) { return (m.hearts || []).filter(h => String(h).indexOf(":") < 0).length; }
@@ -1040,60 +1144,96 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   function attachScratch(card, text) {
     const canvas = el("canvas", "scratch");
     card.appendChild(canvas);
-    const cover = () => {
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    let w = 0, h = 0, down = false, last = null, drew = false, revealed = false, timer = null, sampler = null;
+    function paintCover() {
+      ctx.globalCompositeOperation = "source-over";
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      const g = ctx.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, "#dcc7cf");
+      g.addColorStop(1, "#c9aab7");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+    }
+    function size() {
       const r = card.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.max(1, Math.round(r.width * dpr));
-      canvas.height = Math.max(1, Math.round(r.height * dpr));
-      const g = canvas.getContext("2d");
-      g.setTransform(dpr, 0, 0, dpr, 0, 0);
-      g.globalCompositeOperation = "source-over";
-      g.fillStyle = "#c4b6aa";
-      g.fillRect(0, 0, r.width || 1, r.height || 1);
-    };
-    requestAnimationFrame(cover);
-    let started = false, drawing = false;
-    const at = (e) => {
-      const r = canvas.getBoundingClientRect();
-      return [e.clientX - r.left, e.clientY - r.top];
-    };
-    const scratch = (x, y) => {
-      const g = canvas.getContext("2d");
-      g.globalCompositeOperation = "destination-out";
-      g.beginPath();
-      g.arc(x, y, 18, 0, Math.PI * 2);
-      g.fill();
-      if (!started) {
-        started = true;
-        setTimeout(() => {
-          card.classList.add("reblur");
-          if (!reduceMotion()) card.classList.add("shimmer");
-          canvas.style.transition = reduceMotion() ? "none" : "opacity .45s ease";
-          canvas.style.opacity = "0";
-          setTimeout(() => {
-            cover();
-            requestAnimationFrame(() => { canvas.style.opacity = "1"; });
-            setTimeout(() => card.classList.remove("shimmer"), 700);
-          }, reduceMotion() ? 0 : 460);
-        }, revealMs(text));
-      }
-    };
+      w = Math.max(1, Math.round(r.width * dpr));
+      h = Math.max(1, Math.round(r.height * dpr));
+      canvas.width = w;
+      canvas.height = h;
+      paintCover();
+    }
+    function clearedShare() {
+      if (!w || !h) return 0;
+      const d = ctx.getImageData(0, 0, w, h).data;
+      let clear = 0, total = 0;
+      for (let i = 3; i < d.length; i += 36) { total++; if (d[i] < 16) clear++; }
+      return total ? clear / total : 0;
+    }
+    function revealAll() {
+      if (revealed) return;
+      revealed = true;
+      canvas.classList.add("gone");
+      stopSampler();
+    }
+    function startSampler() { if (!sampler) sampler = setInterval(() => { if (clearedShare() >= 0.6) revealAll(); }, 220); }
+    function stopSampler() { clearInterval(sampler); sampler = null; }
+    function reblur() {
+      card.classList.remove("shimmer");
+      canvas.classList.add("gone");
+      paintCover();
+      revealed = false;
+      drew = false;
+      requestAnimationFrame(() => requestAnimationFrame(() => canvas.classList.remove("gone")));
+    }
+    function startCountdown() {
+      clearTimeout(timer);
+      timer = setTimeout(reblur, revealMs(text));
+    }
+    const pos = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    function stroke(a, b) {
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "rgba(0,0,0,1)";
+      ctx.lineWidth = 16 * dpr;
+      ctx.beginPath();
+      ctx.moveTo(a.x * dpr, a.y * dpr);
+      ctx.lineTo(b.x * dpr, b.y * dpr);
+      ctx.stroke();
+    }
     canvas.addEventListener("pointerdown", (e) => {
-      drawing = true;
-      e.stopPropagation();
+      if (!w) size();
+      down = true;
+      last = pos(e);
+      clearTimeout(timer);
+      startSampler();
       try { canvas.setPointerCapture(e.pointerId); } catch {}
-      const [x, y] = at(e);
-      scratch(x, y);
     });
     canvas.addEventListener("pointermove", (e) => {
-      if (!drawing) return;
-      e.stopPropagation();
-      const [x, y] = at(e);
-      scratch(x, y);
+      if (!down || revealed) return;
+      const p = pos(e);
+      const speed = Math.hypot(p.x - last.x, p.y - last.y);
+      if (speed < 0.5) return;
+      stroke(last, p);
+      drew = true;
+      grainSound(speed);
+      if (speed > 6 && navigator.vibrate && (drew && Math.round(speed) % 3 === 0)) { try { navigator.vibrate(8); } catch {} }
+      last = p;
     });
-    const up = (e) => { drawing = false; if (e) e.stopPropagation(); };
-    canvas.addEventListener("pointerup", up);
-    canvas.addEventListener("pointercancel", up);
+    const lift = () => {
+      if (!down) return;
+      down = false;
+      stopSampler();
+      if (clearedShare() >= 0.6) revealAll();
+      if (drew) startCountdown();
+    };
+    canvas.addEventListener("pointerup", lift);
+    canvas.addEventListener("pointercancel", lift);
+    requestAnimationFrame(size);
+    card._reblur = reblur;
   }
 
   function buildRow(m, seen, isLastMine) {
@@ -1132,9 +1272,15 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       const live = thread().find(x => x.id === card.dataset.id) || m;
       if (card._tap && now - card._tap < 300) {
         card._tap = 0;
-        if (!likedByMe(live)) popHeart(card);
-        toggleHeart(live.id);
+        if (!likedByMe(live)) { popHeart(card); toggleHeart(live.id); }
+        else popHeart(card);
       } else card._tap = now;
+    });
+    card.addEventListener("dblclick", (e) => {
+      if (e.target.closest(".scratch,.heartbtn,.vplay,.vspeed,.bars,.edlabel")) return;
+      const live = thread().find(x => x.id === card.dataset.id) || m;
+      if (!likedByMe(live)) { popHeart(card); toggleHeart(live.id); }
+      else popHeart(card);
     });
     row.appendChild(card);
 
@@ -1150,7 +1296,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     hb.innerHTML = ic("heart", "sm");
     if (justHeart && justHeart.id === m.id) {
       if (!reduceMotion()) hb.classList.add(justHeart.on ? "pop" : "shrink");
-      if (justHeart.on) burstHeart(hb);
+      if (justHeart.on) { burstHeart(hb); popSound(); }
       justHeart = null;
     }
     hb.addEventListener("click", (e) => {
@@ -1208,7 +1354,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       hb.setAttribute("aria-label", on ? "Unlike" : "Like");
       if (justHeart && justHeart.id === m.id) {
         if (!reduceMotion()) hb.classList.add(justHeart.on ? "pop" : "shrink");
-        if (justHeart.on) burstHeart(hb);
+        if (justHeart.on) { burstHeart(hb); popSound(); }
         justHeart = null;
       }
     }
@@ -1349,6 +1495,13 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       if (hit) hit.scrollIntoView({ block: "center" });
       focusDay = null;
     }
+    for (const id of [...pendingFx]) {
+      const node = box.querySelector('[data-row="' + id + '"] .msg');
+      if (!node) continue;
+      pendingFx.delete(id);
+      const m = thread().find(x => x.id === id);
+      if (m) landEffect(node, m.effect);
+    }
     renderChips();
     renderPresence();
   }
@@ -1475,44 +1628,86 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     $("input").focus();
   }
 
-  /* ================= Thin action bar (long press) ================= */
+  /* ================= Vertical message menu (long press) ================= */
   let actionFor = null;
+  function closeActions() {
+    $("actionBar").classList.add("hidden");
+    const menu = $("vmenu");
+    if (menu) { menu.classList.add("hidden"); menu.textContent = ""; }
+    actionFor = null;
+  }
+  function reactPop(card, emoji) {
+    const r = card.getBoundingClientRect();
+    const span = el("div", "fx2", emoji);
+    span.style.left = (r.right - 18) + "px";
+    span.style.top = r.top + "px";
+    span.style.fontSize = "24px";
+    document.body.appendChild(span);
+    const done = () => span.remove();
+    if (reduceMotion() || !span.animate) setTimeout(done, 400);
+    else span.animate([
+      { transform: "translate(-50%,-50%) scale(.5)", opacity: 0 },
+      { transform: "translate(-50%,-70%) scale(1.1)", opacity: 1, offset: .5 },
+      { transform: "translate(-50%,-110%) scale(1)", opacity: 0 }
+    ], { duration: 800, easing: "cubic-bezier(.2,.8,.25,1)" }).onfinish = done;
+  }
   function openActions(m) {
     closeThemeBar();
     actionFor = m.id;
-    const acts = $("acts");
-    acts.textContent = "";
-    const reacts = el("div", "reacts");
-    for (const em of ["❤", "😂", "😢", "👍"]) {
-      const rb = el("button", "act", em);
-      rb.type = "button";
-      rb.addEventListener("click", (e) => { e.stopPropagation(); closeActions(); setEmoji(m.id, em); });
-      reacts.appendChild(rb);
-    }
+    const menu = $("vmenu");
+    menu.textContent = "";
+    const card = document.querySelector('.msg[data-id="' + m.id + '"]');
     const mine = m.from === me;
     const age = Date.now() - m.ts;
-    const items = [];
-    const add = (icon, label, fn, danger) => items.push({ icon, label, fn, danger });
-    if (!m.deleted && mine && m.kind === "text") add("edit", "Edit", () => startEdit(m));
-    if (!m.deleted) add("reply", "Reply", () => setReply(m));
-    if (!m.deleted && m.kind === "text" && m.text) add("copy", "Copy text", () => copyMessage(m));
-    if (!m.deleted) add("heart", "Heart", () => toggleHeart(m.id));
-    if (!m.deleted) items.push({ reacts: true });
-    if (!m.deleted) add("pin", cacheShared.pinnedId === m.id ? "Unpin" : "Pin", () => setPinned(m.id));
-    if (!m.deleted) add((m.hiddenBy || []).includes(me) ? "eye" : "eyeoff", (m.hiddenBy || []).includes(me) ? "Unhide" : "Hide", () => setHidden(m.id, !(m.hiddenBy || []).includes(me)));
-    add("trash", "Delete for me", () => deleteForMe(m.id), true);
-    if (mine && age < DELETE_ALL_MS && !m.deleted) add("trash", "Delete for both", () => deleteForEveryone(m.id), true);
-    if (!m.deleted) add("pin", m.moment ? "Moment off" : "Moment on", () => setMoment(m.id, !m.moment));
-    for (const item of items) {
-      if (item.reacts) { acts.appendChild(reacts); continue; }
-      const b = el("button", "act" + (item.danger ? " danger" : ""));
-      b.innerHTML = ic(item.icon) + `<span>${item.label}</span>`;
-      b.addEventListener("click", (e) => { e.stopPropagation(); closeActions(); item.fn(); });
-      acts.appendChild(b);
+    const hidden = (m.hiddenBy || []).includes(me);
+    const add = (label, fn, danger) => {
+      const b = el("button", danger ? "danger" : "", label);
+      b.type = "button";
+      b.addEventListener("click", (e) => { e.stopPropagation(); closeActions(); fn(); });
+      menu.appendChild(b);
+    };
+    if (!m.deleted) add("Reply", () => setReply(m));
+    if (!m.deleted && m.kind === "text" && m.text) add("Copy text", () => copyMessage(m));
+    if (!m.deleted && mine && m.kind === "text") add("Edit", () => startEdit(m));
+    if (!m.deleted) {
+      const react = el("button", "", "React");
+      react.type = "button";
+      const row = el("div", "react-row");
+      for (const em of [["♥", "❤"], ["😂", "😂"], ["😮", "😮"], ["👍", "👍"]]) {
+        const rb = el("button", "", em[0]);
+        rb.type = "button";
+        rb.addEventListener("click", (e) => {
+          e.stopPropagation();
+          closeActions();
+          if (card) reactPop(card, em[0]);
+          if (em[0] === "♥") { if (!likedByMe(m)) toggleHeart(m.id); }
+          else setEmoji(m.id, em[1]);
+        });
+        row.appendChild(rb);
+      }
+      react.addEventListener("click", (e) => { e.stopPropagation(); row.classList.toggle("open"); });
+      menu.appendChild(react);
+      menu.appendChild(row);
     }
-    $("actionBar").classList.remove("hidden");
+    if (!m.deleted) menu.appendChild(el("hr"));
+    if (!m.deleted) add(cacheShared.pinnedId === m.id ? "Unpin" : "Pin", () => setPinned(m.id));
+    if (!m.deleted) add(hidden ? "Unhide" : "Hide", () => setHidden(m.id, !hidden));
+    add("Delete for me", () => deleteForMe(m.id), true);
+    if (mine && age < DELETE_ALL_MS && !m.deleted) add("Delete for both", () => deleteForEveryone(m.id), true);
+    if (!m.deleted) add(m.moment ? "Moment off" : "Moment on", () => setMoment(m.id, !m.moment));
+    menu.classList.remove("hidden");
+    const anchor = card || document.querySelector('[data-row="' + m.id + '"]');
+    const r = anchor ? anchor.getBoundingClientRect() : { left: 16, right: 200, top: 80, bottom: 140 };
+    const mw = menu.offsetWidth || 240;
+    const mh = menu.offsetHeight || 360;
+    let top = r.bottom + 8;
+    if (top + mh > window.innerHeight - 12) top = Math.max(12, r.top - mh - 8);
+    let left = mine ? r.right - mw : r.left;
+    left = Math.max(12, Math.min(left, window.innerWidth - mw - 12));
+    top = Math.max(12, Math.min(top, window.innerHeight - mh - 12));
+    menu.style.top = top + "px";
+    menu.style.left = left + "px";
   }
-  function closeActions() { $("actionBar").classList.add("hidden"); actionFor = null; }
 
   /* ================= Theme bar (long press on empty space) ================= */
   function openThemeBar() {
@@ -1826,6 +2021,9 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   function openSettings() {
     openPanel("Settings", NAME[me], (body) => {
       const sh = SH(), s = S(me);
+      body.appendChild(group("Our space", [
+        btnRow("Journal", "book", () => openJournal())
+      ]));
       body.appendChild(group("Shared · both of you", [
         btnRow("Theme · " + (THEMES.find(t => t.id === sh.theme) || THEMES[0]).name, "palette", () => openThemeBar()),
         prow("Archive old messages", "Moved to Archive, never deleted", selectCtl(ARCHIVE, sh.archiveDays, (v) => { setSH({ archiveDays: Number(v) }); render(); notice("Archive updated"); })),
@@ -1905,6 +2103,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
 
       body.appendChild(group("Security", [
         btnRow("Change passphrase", "key", () => changePassphrase()),
+        btnRow("Recovery questions", "key", () => editRecovery()),
         btnRow("Sign out on other devices", "logout", () => confirmSignOut("other"), true),
         btnRow("Sign out", "logout", () => confirmSignOut("this"), true)
       ]));
@@ -2130,26 +2329,32 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const av = $("homeAvatar");
     av.className = "avatar " + me.toLowerCase();
     av.textContent = me === "Lewis" ? "L" : "A";
-    const jb = $("journalBtn");
-    if (jb) jb.classList.toggle("on", unreadNotesCount() > 0);
+    bindAvatar(av);
 
     const nav = $("navrow");
     nav.textContent = "";
+    nav.className = "navrow homegrid";
+    const settings = el("button", "navbtn lift settings-box");
+    settings.type = "button";
+    settings.innerHTML = ic("gear", "sm") + "<span>Settings</span>";
+    settings.addEventListener("click", () => openSettings());
+    const tools = el("div", "tools2");
     const items = [
       ["star", "Moments", () => openMoments(), false],
       ["calendar", "Calendar", () => openCalendar(), false],
       ["archive", "Archive", () => openArchive(), false],
       ["search", "Search", () => openChat(true), false],
       ["shield", shield ? "Shield on" : "Shield", () => { shield = !shield; haptic("press"); render(); }, shield],
-      ["gear", "Settings", () => openSettings(), false],
       ["logout", "Sign out", () => confirmSignOut("this"), true]
     ];
     for (const [icon, label, fn, on] of items) {
       const b = el("button", "navbtn lift" + (on === true ? " on" : "") + (icon === "logout" ? " danger" : ""));
+      b.type = "button";
       b.innerHTML = ic(icon, "sm") + `<span>${label}</span>`;
       b.addEventListener("click", fn);
-      nav.appendChild(b);
+      tools.appendChild(b);
     }
+    nav.append(settings, tools);
 
     const people = $("people");
     people.textContent = "";
@@ -2157,7 +2362,11 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const otherBtn = el("button", "person hero lift");
     const unreadChat = unreadN;
     otherBtn.innerHTML = `<div class="avatar ${other2.toLowerCase()}">${other2 === "Lewis" ? "L" : "A"}</div><div class="grow"><div class="n">${NAME[other2]}</div><div class="s">${htmlEsc(S(other2).status || "Open the conversation")}</div></div>${unreadChat ? `<span class="badge">${unreadChat}</span>` : ic("chat", "sm")}`;
-    otherBtn.addEventListener("click", () => openChat());
+    otherBtn.addEventListener("click", (e) => {
+      const av = e.target.closest(".avatar");
+      if (av) { openAvatar(av); return; }
+      openChat();
+    });
     people.appendChild(otherBtn);
     fillAvatars();
   }
@@ -2205,12 +2414,23 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     }
   }
 
-  function selectSide(side) {
+  async function selectSide(side) {
     chosen = side;
     if (side) store.set(KEY.last, side);
     document.querySelectorAll(".side").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.side === side)));
     if (!side) { showLockMode(null); return; }
-    showLockMode(accountOf(side) ? "signin" : "setup");
+    if (accountOf(side)) { showLockMode("signin"); return; }
+    const client = cloudClient();
+    if (client) {
+      const res = await client.rpc("recovery_prompts", { p_side: side });
+      const row = (res.data || [])[0];
+      if (row) {
+        rememberSide(side, { known: true, qs: [{ q: QUESTIONS[row.q1] }, { q: QUESTIONS[row.q2] }] });
+        showLockMode("signin");
+        return;
+      }
+    }
+    showLockMode("setup");
   }
 
   function applyRemembered() {
@@ -2779,6 +2999,27 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     if (e.key === "Enter" && !e.shiftKey && !coarse) { e.preventDefault(); sendText(); }
   });
 
+  function openEffects() {
+    const choices = [["none", "None"], ["hearts", "Hearts"], ["confetti", "Confetti"], ["sparkle", "Sparkle"]];
+    sheetOpen((body) => {
+      body.appendChild(el("h3", "fp-title", "Effect"));
+      const list = el("div", "effects");
+      choices.forEach(([id, name]) => {
+        const b = el("button", "choice" + (effectChoice === id ? " on" : ""));
+        b.append(el("b", "", name), el("small", "", effectChoice === id ? "Selected" : ""));
+        b.addEventListener("click", () => {
+          effectChoice = id;
+          const chip = $("effectChip");
+          if (chip) chip.textContent = id === "none" ? "" : name;
+          sheetClose();
+        });
+        list.appendChild(b);
+      });
+      body.appendChild(list);
+    });
+    $("sheetScrim").onclick = () => sheetClose();
+  }
+
   function openSchedulePicker() {
     const now = new Date();
     const at = (h, m, addDays) => { const d = new Date(now); d.setDate(d.getDate() + (addDays || 0)); d.setHours(h, m, 0, 0); return d.getTime(); };
@@ -2789,9 +3030,26 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       body.appendChild(el("div", "gh", "Arrival effect"));
       const eff = el("div", "kinds");
       const effs = [["hearts", "Hearts"], ["petals", "Petals"], ["glow", "Glow"], ["none", "None"]];
-      const drawE = () => { eff.textContent = ""; effs.forEach(([k, t]) => { const c = el("button", "chip" + (effect === k ? " on" : ""), t); c.addEventListener("click", () => { effect = k; drawE(); }); eff.appendChild(c); }); };
+      const drawE = () => { eff.textContent = ""; effs.forEach(([k, t]) => { const c = el("button", "chip" + (effect === k ? " on" : ""), t); c.type = "button"; c.addEventListener("click", () => { effect = k; drawE(); }); eff.appendChild(c); }); };
       drawE();
       body.appendChild(eff);
+      const preview = el("div", "schedprev");
+      const bubble = el("div", "msg");
+      const pv = el("div", "text", "Good night, dear.");
+      bubble.appendChild(pv);
+      preview.appendChild(bubble);
+      const phrases = el("div", "kinds");
+      ["Good night, dear.", "Good day, dear."].forEach((phrase, i) => {
+        const c = el("button", "chip" + (i === 0 ? " on" : ""), phrase);
+        c.type = "button";
+        c.addEventListener("click", () => {
+          pv.textContent = phrase;
+          phrases.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === c));
+        });
+        phrases.appendChild(c);
+      });
+      body.appendChild(preview);
+      body.appendChild(phrases);
       const quick = [
         ["In 10 seconds", Date.now() + 10000],
         ["In 1 hour", Date.now() + 3600000],
@@ -2873,7 +3131,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   let sendHold = 0, sendSuppress = false;
   $("send").addEventListener("pointerdown", () => {
     sendSuppress = false;
-    sendHold = setTimeout(() => { sendHold = 0; sendSuppress = true; haptic("press"); openSchedulePicker(); }, 500);
+    sendHold = setTimeout(() => { sendHold = 0; sendSuppress = true; haptic("press"); openEffects(); }, 500);
   });
   ["pointerup", "pointercancel", "pointerleave"].forEach(ev => $("send").addEventListener(ev, () => clearTimeout(sendHold)));
 
@@ -2941,7 +3199,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       haptic("press");
       card.classList.remove("pressing");
       openActions(m);
-    }, 500);
+    }, 480);
   });
   $("list").addEventListener("pointermove", (e) => {
     if (pressStart && Math.hypot(e.clientX - pressStart[0], e.clientY - pressStart[1]) > 10) { cancelPress(); endReveal(); }
@@ -2969,6 +3227,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     if (img && img.src && !img.closest(".blurred:not(.revealed)")) { $("lbImg").src = img.src; $("lightbox").classList.remove("hidden"); }
   });
   document.addEventListener("pointerdown", (e) => {
+    if (!e.target.closest("#vmenu") && !e.target.closest(".msg") && !$("vmenu").classList.contains("hidden")) closeActions();
     if (!e.target.closest("#actionBar") && !e.target.closest(".msg") && !$("actionBar").classList.contains("hidden")) closeActions();
     if (!e.target.closest("#themeBar") && !$("themeBar").classList.contains("hidden") && !e.target.closest("#list")) closeThemeBar();
   });
@@ -3209,6 +3468,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
         reloadAll().then(() => {
           if (!unlocked) return;
           const fresh = cameIn(prev);
+          fresh.forEach(m => { if (m.effect && m.effect !== "none") pendingFx.add(m.id); });
           render();
           noteDelivered(prevSched);
           if (fresh.length && view === "chat" && !document.hidden) markRead();
@@ -3276,23 +3536,56 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
 
   async function fillAvatars() {
     const letter = (side) => side === "Lewis" ? "L" : "A";
-    const set = async (side, el) => {
-      if (!el || !side) return;
+    const set = async (side, node) => {
+      if (!node || !side) return;
       const path = (cacheMembers[side] || {}).avatar_path;
-      if (!path) { el.textContent = letter(side); return; }
+      if (!path) {
+        if (node.dataset.path) { node.dataset.path = ""; node.textContent = letter(side); }
+        else if (!node.textContent) node.textContent = letter(side);
+        return;
+      }
+      if (node.dataset.path === path && node.querySelector("img")) return;
       const url = await signedAvatar(path);
-      if (!url) { el.textContent = letter(side); return; }
+      if (!url) { node.textContent = letter(side); return; }
+      if (node.dataset.path === path && node.querySelector("img") && node.querySelector("img").src === url) return;
       const img = document.createElement("img");
       img.alt = "";
-      img.style.cssText = "width:100%;height:100%;object-fit:cover;border-radius:50%";
-      img.onerror = () => { el.textContent = letter(side); };
+      img.style.cssText = "width:100%;height:100%;object-fit:cover;aspect-ratio:1/1;display:block";
+      img.onerror = () => { node.textContent = letter(side); };
       img.src = url;
-      el.textContent = "";
-      el.appendChild(img);
+      node.dataset.path = path;
+      node.textContent = "";
+      node.appendChild(img);
     };
     await set(me, $("homeAvatar"));
     await set(other(), document.querySelector("#people .person .avatar"));
     await set(other(), $("chatAvatar"));
+  }
+  function openAvatar(node) {
+    if (!node) return;
+    const img = node.querySelector("img");
+    const view = $("lbImg");
+    if (img && img.src) view.src = img.src;
+    else {
+      const c = document.createElement("canvas");
+      c.width = 800; c.height = 800;
+      const g = c.getContext("2d");
+      g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--lilac").trim() || "#7d6a9b";
+      g.fillRect(0, 0, 800, 800);
+      g.fillStyle = "#fff";
+      g.font = "280px Georgia, serif";
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillText((node.textContent || " ").trim().slice(0, 1), 400, 420);
+      view.src = c.toDataURL("image/png");
+    }
+    view.alt = "Profile photo";
+    $("lightbox").classList.remove("hidden");
+  }
+  function bindAvatar(node) {
+    if (!node || node.dataset.boundPic) return;
+    node.dataset.boundPic = "1";
+    node.addEventListener("click", (e) => { e.stopPropagation(); openAvatar(node); });
   }
 
   async function setAppIcon(file) {
@@ -3354,10 +3647,14 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     if (unlocked) render();
   }
   async function signedAvatar(path) {
+    if (!path) return null;
+    const cached = readSigned("av:" + path);
+    if (cached) return cached;
     const client = cloudClient();
-    if (!client || !path) return null;
+    if (!client) return null;
     const r = await client.storage.from("media").createSignedUrl(path, 600);
-    return r.data && r.data.signedUrl ? r.data.signedUrl : null;
+    if (!r.data || !r.data.signedUrl) return null;
+    return putSigned("av:" + path, r.data.signedUrl, 600);
   }
   async function pushMember() {
     const client = cloudClient();
@@ -3489,7 +3786,12 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     }
     const reply = replyTo ? { id: replyTo.id, from: replyTo.from, preview: replyTo.preview } : null;
     const clientId = uid();
-    const local = addMessage({ kind: "text", text, effect: "none", replyTo: reply, clientId });
+    const fx = effectChoice || "none";
+    effectChoice = "none";
+    const chip = $("effectChip");
+    if (chip) chip.textContent = "";
+    const local = addMessage({ kind: "text", text, effect: fx, replyTo: reply, clientId });
+    if (fx !== "none" && local) pendingFx.add(local.id);
     clearBar();
     input.value = "";
     autosize();
@@ -3498,17 +3800,17 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     render({ stick: true });
     if (!client || !navigator.onLine) {
       const box = outbox();
-      box.push({ kind: "text", text, effect: "none", replyTo: reply, clientId, localId: local.id });
+      box.push({ kind: "text", text, effect: fx, replyTo: reply, clientId, localId: local.id });
       saveOutbox(box);
       notice("Waiting to send", "It will send when you are back online.");
       return;
     }
     const ins = await client.from("messages").insert({
-      pair_id: pairId, sender_id: myUserId, kind: "text", text, effect: "none", reply_to: reply, client_id: clientId
+      pair_id: pairId, sender_id: myUserId, kind: "text", text, effect: fx, reply_to: reply, client_id: clientId
     }).select().maybeSingle();
     if (ins.error) {
       const box = outbox();
-      box.push({ kind: "text", text, effect: "none", replyTo: reply, clientId, localId: local.id });
+      box.push({ kind: "text", text, effect: fx, replyTo: reply, clientId, localId: local.id });
       saveOutbox(box);
       notice("Waiting to send", ins.error.message, { error: true });
       return;
@@ -3846,6 +4148,30 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     if (upd.error) { notice("Couldn't change the passphrase", upd.error.message, { error: true }); return; }
     notice("Passphrase changed", "Use the new one the next time you sign in.");
   }
+  async function editRecovery() {
+    const client = cloudClient();
+    if (!client) return;
+    const v = await formPanel({
+      title: "Recovery questions",
+      desc: "Choose each question and edit each answer. You are not asked again at sign-in.",
+      fields: [
+        { key: "q1", label: "First question", type: "select", options: QUESTIONS, value: 0 },
+        { key: "a1", label: "First answer", placeholder: "Answer" },
+        { key: "q2", label: "Second question", type: "select", options: QUESTIONS, value: 1 },
+        { key: "a2", label: "Second answer", placeholder: "Answer" }
+      ],
+      submit: "Save recovery"
+    });
+    if (!v) return;
+    const q1 = +v.q1, q2 = +v.q2;
+    const a1 = normAnswer(v.a1), a2 = normAnswer(v.a2);
+    if (q1 === q2) { notice("Choose two different questions", "", { error: true }); return; }
+    if (a1.length < 2 || a2.length < 2) { notice("Write both answers", "", { error: true }); return; }
+    const rec = await client.functions.invoke("setup-recovery", { body: { q1, q2, a1, a2 } });
+    if (rec.error || (rec.data && rec.data.error)) { notice("Couldn't save recovery", (rec.data && rec.data.error) || "Try again.", { error: true }); return; }
+    rememberSide(me, { known: true, qs: [{ q: QUESTIONS[q1] }, { q: QUESTIONS[q2] }] });
+    notice("Recovery saved", "Sign-in still asks only for your passphrase.");
+  }
   async function signOutEverywhere() {
     const client = cloudClient();
     if (!client) return;
@@ -3853,23 +4179,33 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     if (res.error) { notice("Couldn't sign out the other devices", res.error.message, { error: true }); return; }
     notice("Other devices signed out", "They will need the passphrase the next time they open this.");
   }
+  const signedCache = new Map();
+  function readSigned(id) {
+    const hit = signedCache.get(id);
+    if (!hit) return null;
+    if (hit.exp - Date.now() > 60000) return hit.url;
+    return null;
+  }
+  function putSigned(id, url, ttl) {
+    signedCache.set(id, { url, exp: Date.now() + ttl * 1000 });
+    return url;
+  }
   async function mediaURL(id) {
     if (!id) return null;
-    if (urlCache.has(id)) return urlCache.get(id);
+    const cached = readSigned(id);
+    if (cached) return cached;
     try {
       if (String(id).startsWith("local-")) {
         const b = await getBlob(id);
         if (!b) return null;
         const u = URL.createObjectURL(b);
-        urlCache.set(id, u);
-        return u;
+        return putSigned(id, u, 86400);
       }
       const client = cloudClient();
       if (!client) return null;
       const signed = await client.storage.from("media").createSignedUrl(id, 600);
       if (signed.error || !signed.data || !signed.data.signedUrl) return null;
-      urlCache.set(id, signed.data.signedUrl);
-      return signed.data.signedUrl;
+      return putSigned(id, signed.data.signedUrl, 600);
     } catch { return null; }
   }
   function seenMap() { return cacheSeen; }
@@ -3877,7 +4213,8 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   // Start.
   applyTheme();
   if (document.hidden) document.body.classList.add("private");
-  $("journalBtn").addEventListener("click", () => { if (unlocked) openJournal(); });
+  bindAvatar($("homeAvatar"));
+  bindAvatar($("chatAvatar"));
   primeMic(false);
   const askMicOnGesture = () => { if (!micPrimed && !micGestureTried) primeMic(true); };
   document.addEventListener("pointerdown", askMicOnGesture, true);

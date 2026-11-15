@@ -254,7 +254,7 @@ declare
   s text;
   m public.messages;
   token text;
-  allowed text[] := array['❤','😂','😢','👍'];
+  allowed text[] := array['❤','😂','😮','👍','😢'];
 begin
   if not (p_emoji = any (allowed)) then raise exception 'bad emoji'; end if;
   s := public.my_side();
@@ -266,7 +266,7 @@ begin
   update public.messages
     set hearts = coalesce((
       select array_agg(x) from unnest(hearts) x
-      where x <> all (array[s || ':❤', s || ':😂', s || ':😢', s || ':👍'])
+      where x <> all (array[s || ':❤', s || ':😂', s || ':😮', s || ':👍', s || ':😢'])
     ), '{}')
     where id = p_id;
   if not (token = any (m.hearts)) then
