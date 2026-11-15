@@ -76,13 +76,13 @@ Deno.serve(async (req) => {
     const locked = count >= 5;
     await admin.from("recovery_attempts").upsert({
       user_id: member.user_id,
-      failure_count: locked ? 0 : count,
+      failure_count: count,
       locked_until: locked ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null,
     });
     return Response.json({ error: GENERIC }, { status: 400 });
   }
-  if (password.length < 8) {
-    return Response.json({ error: "Use at least 8 characters." }, { status: 400 });
+  if (password.length < 4) {
+    return Response.json({ error: "Use at least 4 characters." }, { status: 400 });
   }
   const updated = await admin.auth.admin.updateUserById(member.user_id, { password });
   if (updated.error) return Response.json({ error: GENERIC }, { status: 400 });

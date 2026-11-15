@@ -401,6 +401,8 @@ select cron.schedule('deliver-due', '* * * * *', 'select public.deliver_due_mess
 
 alter table public.pairs enable row level security;
 alter table public.pair_settings enable row level security;
+alter table public.pair_members add column if not exists avatar_path text;
+
 alter table public.pair_members enable row level security;
 alter table public.messages enable row level security;
 alter table public.notes enable row level security;
@@ -534,6 +536,7 @@ grant update (theme, archive_days) on public.pair_settings to authenticated;
 grant select on public.pair_members to authenticated;
 revoke update on public.pair_members from authenticated;
 grant update (status, tz, haptics, sound, auto_blur, shake, blur_words) on public.pair_members to authenticated;
+grant update (avatar_path) on public.pair_members to authenticated;
 revoke all on public.messages from authenticated;
 grant select, insert on public.messages to authenticated;
 grant update (text, edited, edited_at, history) on public.messages to authenticated;

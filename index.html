@@ -206,9 +206,6 @@ mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 
 .tchip{display:flex;align-items:center;gap:8px;padding:7px 12px 7px 8px;border-radius:999px;border:1px solid var(--line);font-size:12.5px;flex:none;white-space:nowrap}
 .tchip.on{border-color:var(--accent)}
 .swatch{width:20px;height:20px;border-radius:50%;border:1px solid var(--line-strong);flex:none}
-#undoBar{bottom:calc(74px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:10px;padding:10px 12px;font-size:13px}
-#undoBar .grow{flex:1}
-#undoBar .bar-rule{width:3px;align-self:stretch;border-radius:3px;background:var(--accent)}
 
 /* Notices (structured system messages) */
 #notice{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 10px);z-index:80;display:flex;gap:12px;padding:12px 14px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:0 10px 30px rgba(0,0,0,.16);animation:up .35s var(--ease) both}
@@ -328,8 +325,8 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
 
   <form id="setupForm" class="form" autocomplete="off">
     <p class="fp-desc" style="margin:0">First time on this side. Create your passphrase and two recovery questions. Only you know the answers.</p>
-    <input id="sp1" class="in plain" type="password" placeholder="New passphrase (8+ characters)" autocapitalize="none" spellcheck="false">
-    <input id="sp2" class="in plain" type="password" placeholder="Repeat passphrase" autocapitalize="none" spellcheck="false">
+    <div style="position:relative"><input id="sp1" class="in plain" type="password" placeholder="New passphrase (4+ characters)" autocapitalize="none" spellcheck="false"><button id="peek1" type="button" aria-label="Show passphrase" style="position:absolute;right:8px;top:50%;transform:translateY(-50%)"><svg class="i sm" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+    <div style="position:relative"><input id="sp2" class="in plain" type="password" placeholder="Repeat passphrase" autocapitalize="none" spellcheck="false"><button id="peek2" type="button" aria-label="Show passphrase" style="position:absolute;right:8px;top:50%;transform:translateY(-50%)"><svg class="i sm" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <select id="sq1" class="in"></select>
     <input id="sa1" class="in plain" placeholder="Answer" autocapitalize="none" spellcheck="false">
     <select id="sq2" class="in"></select>
@@ -343,7 +340,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     <input id="ra1" class="in plain" placeholder="Answer" autocapitalize="none" spellcheck="false">
     <label class="mono muted" id="rq2l"></label>
     <input id="ra2" class="in plain" placeholder="Answer" autocapitalize="none" spellcheck="false">
-    <input id="rp1" class="in plain" type="password" placeholder="New passphrase (8+ characters)" autocapitalize="none" spellcheck="false">
+    <div style="position:relative"><input id="rp1" class="in plain" type="password" placeholder="New passphrase (4+ characters)" autocapitalize="none" spellcheck="false"><button id="peek3" type="button" aria-label="Show passphrase" style="position:absolute;right:8px;top:50%;transform:translateY(-50%)"><svg class="i sm" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <button class="btn" type="submit">Set new passphrase</button>
     <button id="recCancelBtn" class="link" type="button" style="align-self:center">Back</button>
   </form>
@@ -413,14 +410,13 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   </div>
   <footer id="footer">
     <button id="attach" class="tool" aria-label="Attach photos or audio"><svg class="i" viewBox="0 0 24 24"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7L14 4.5a3.5 3.5 0 0 1 5 5L10.5 18a2 2 0 0 1-3-3L16 6.5"/></svg></button>
-    <input id="file" type="file" accept="image/*,audio/*" multiple hidden>
+    <input id="file" type="file" accept="image/*" multiple hidden>
     <button id="mic" class="tool" aria-label="Record voice note"><svg class="i" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
     <button id="clock" class="tool" aria-label="Send later"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>
     <textarea id="input" rows="1" placeholder="Write something…" aria-label="Message"></textarea>
     <button id="send" type="button" aria-label="Send"><svg class="i" viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
   </footer>
   <div id="actionBar" class="bar hidden"><div class="acts" id="acts"></div></div>
-  <div id="undoBar" class="bar hidden"><span class="bar-rule"></span><span class="grow" id="undoText">Sent</span><button id="undoBtn" class="btn sm">Undo</button></div>
 </section>
 
 <!-- Full-screen panels: Notes reading, Notes composer, Settings, Moments, Archive, Scheduled -->
@@ -499,6 +495,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   const SENSITIVE_BUILTIN = "love you,i love you,miss you,missing you,darling,honey,dear,babe,baby,sweetheart,sweetie,my love,my heart,beautiful,gorgeous,handsome,cutie,princess,prince,angel,kiss,kisses,hug,hugs,cuddle,cuddles,snuggle,hold you,hold your hand,holding hands,thinking of you,think about you,dream about you,dreaming of you,forever,always yours,yours,mine,only you,you're mine,my everything,my world,my person,soulmate,proposal,propose,marry,marriage,wedding,ring,engagement,promise,future,together,our future,move in,meet my family,my mum,my mom,my dad,my family,your family,parents,relationship,girlfriend,boyfriend,partner,wife,husband,fiance,fiancee,crush,butterflies,blush,shy,nervous,secret,our secret,don't tell,between us,nobody knows,hide,private,personal,cry,crying,tears,sad,lonely,scared,afraid,worried,hurt,hurting,sorry,forgive,apologize,fight,argument,upset,jealous,jealousy,trust,cheat,lie,lied,ex,exes,past,rumour,rumor,gossip,pregnant,body,nude,naked,undress,sexy,hot,turn me on,miss your touch,your voice,your smile,your eyes,your laugh,i dream,i need you,need you,want you,wish you were here,come home,home soon,i'm coming,visit,visa,flight,airport,goodbye,bye love,good night,goodnight,sleep well,sweet dreams,morning love,good morning my,i'm proud,proud of you,so proud,you're amazing,you're special,special,precious,treasure,cherish,adore,adorable,cute,lovely,pretty,stunning,my queen,my king,queen,king,mine forever,yes i do,i'm yours,hold me,miss your hugs,sweet,my sweet,my darling,my honey,my babe,my dear,dearest,beloved,love of my life,my star,my moon,my sunshine,sunshine,sugar,pumpkin,sweetness,bae,boo,hun,luv,ily,ilysm,xoxo,mwah,smooch,flirt,flirting,date,dating,romance,romantic,candle,candlelight,dinner for two,just us,our night,our day,alone with you,you and me,just you and me,secret love,crush on you,your touch,your kiss,your hug,your arms,your lips,lips,arms,shoulder,neck,hair,bed,bedroom,shower,bath,lingerie,tease,teasing,naughty,wink,wicked";
   const TERMS = SENSITIVE_BUILTIN.split(",").map(s => s.trim()).filter(Boolean);
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const htmlEsc = function (s) { return String(s == null ? "" : s).split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;").split(String.fromCharCode(34)).join("&quot;").split(String.fromCharCode(39)).join("&#39;"); };
 
   /* ================= State and helpers ================= */
   const $ = (id) => document.getElementById(id);
@@ -512,7 +509,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   let me = null, chosen = store.get(KEY.last, null), unlocked = false, lastActivity = Date.now(), lastTypingSent = 0;
   let view = "lock", replyTo = null, editingId = null, query = "", filter = "all", dateFilter = "", matches = [], matchIdx = -1, shield = false;
   let audioCtx = null, rec = null, recStream = null, recChunks = [], recStart = 0, recRAF = 0, recTimer = 0, recAnalyser = null, recHistory = [];
-  let knownIds = new Set(), prevUnread = 0, undo = null, undoTimer = 0, shakeTimes = [], sensCache = { key: "", re: null };
+  let knownIds = new Set(), prevUnread = 0, shakeTimes = [], sensCache = { key: "", re: null };
   let dragDepth = 0, posTimer = 0;
   const voiceCache = new Map(), urlCache = new Map();
   const baseTitle = "Notes";
@@ -726,7 +723,6 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       const m = addMessage({ kind: "text", text, effect: "none" });
       if (!m) return;
       clearBar();
-      showUndo(m.id);
       haptic("send");
     }
     input.value = "";
@@ -735,24 +731,6 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     saveDraft(true);
     render();
     scrollBottom();
-  }
-
-  function showUndo(id) {
-    undo = id;
-    $("undoText").textContent = "Message sent";
-    $("undoBar").classList.remove("hidden");
-    clearTimeout(undoTimer);
-    undoTimer = setTimeout(hideUndo, UNDO_MS);
-  }
-  function hideUndo() { undo = null; $("undoBar").classList.add("hidden"); clearTimeout(undoTimer); }
-  function doUndo() {
-    if (!undo) return;
-    const id = undo;
-    hideUndo();
-    saveThread(thread().filter(x => x.id !== id));
-    $("input").value = "";
-    render();
-    notice("Message withdrawn", "It was removed before anyone saw it.");
   }
 
   function scheduleText(sendAt, effect) {
@@ -1189,16 +1167,14 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const acts = $("acts");
     acts.textContent = "";
     const mine = m.from === me;
-    const list = [
-      ["heart", (m.hearts || []).includes(me) ? "Unheart" : "Heart", () => toggleHeart(m.id)],
-      ["reply", "Reply", () => setReply(m)]
-    ];
-    if (m.kind === "text") list.push(["copy", "Copy", () => navigator.clipboard?.writeText(m.text).then(() => notice("Copied")).catch(() => notice("Copy blocked", "", { error: true }))]);
-    if (mine && m.kind === "text") list.push(["edit", "Edit", () => startEdit(m)]);
-    list.push(["pin", m.moment ? "Unpin" : "Moment", () => setMoment(m.id, !m.moment)]);
-    list.push([(m.hiddenBy || []).includes(me) ? "eye" : "eyeoff", (m.hiddenBy || []).includes(me) ? "Reveal" : "Blur", () => setHidden(m.id, !(m.hiddenBy || []).includes(me))]);
-    if (m.edited) list.push(["history", "History", () => openHistory(m)]);
-    list.push(["trash", "Delete", () => openDelete(m), true]);
+    const age = Date.now() - m.ts;
+    const list = [];
+    if (mine && m.kind === "text" && !m.deleted) list.push(["edit", "Edit", () => startEdit(m)]);
+    list.push(["heart", (m.hearts || []).includes(me) ? "Unheart" : "Heart", () => toggleHeart(m.id)]);
+    list.push([(m.hiddenBy || []).includes(me) ? "eye" : "eyeoff", (m.hiddenBy || []).includes(me) ? "Reveal" : "Hide", () => setHidden(m.id, !(m.hiddenBy || []).includes(me))]);
+    list.push(["trash", "Delete for me", () => deleteForMe(m.id), true]);
+    if (mine && age < DELETE_ALL_MS && !m.deleted) list.push(["trash", "Delete for both", () => deleteForEveryone(m.id), true]);
+    list.push(["pin", m.moment ? "Moment off" : "Moment on", () => setMoment(m.id, !m.moment)]);
     for (const [icon, label, fn, danger] of list) {
       const b = el("button", "act" + (danger ? " danger" : ""));
       b.innerHTML = ic(icon) + `<span>${label}</span>`;
@@ -1437,6 +1413,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       status.addEventListener("change", () => setS(me, { status: status.value.trim() }));
       body.appendChild(group("Your side", [
         prow("Status", "Shown to her under your name", status),
+        (() => { const b = el("button", "btn sm", "Choose photo"); b.addEventListener("click", () => { const f = el("input"); f.type = "file"; f.accept = "image/*"; f.addEventListener("change", () => { if (f.files[0]) uploadAvatar(f.files[0]); }); f.click(); }); return prow("Photo", "Shown on your home card", b); })(),
         prow("Time zone", "Shown to her as your local time", selectCtl(ZONES.concat(ZONES.includes(s.tz) ? [] : [s.tz]).map(z => [z, z]), s.tz, (v) => setS(me, { tz: v }))),
         prow("Haptics", "Gentle vibration on actions", toggle(s.haptics, (v) => { setS(me, { haptics: v }); if (v) haptic("press"); })),
         prow("Sounds", "A soft chime on arrival", toggle(s.sound, (v) => setS(me, { sound: v }))),
@@ -1488,8 +1465,8 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
 
       body.appendChild(group("Security", [
         btnRow("Change passphrase", "key", () => changePassphrase()),
-        btnRow("Sign out on other devices", "logout", () => signOutEverywhere(), true),
-        btnRow("Sign out", "logout", () => lock(), true)
+        btnRow("Sign out on other devices", "logout", () => confirmSignOut("other"), true),
+        btnRow("Sign out", "logout", () => confirmSignOut("this"), true)
       ]));
     }, "home");
   }
@@ -1650,7 +1627,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       ["search", "Search", () => openChat(true), false],
       ["shield", shield ? "Shield on" : "Shield", () => { shield = !shield; haptic("press"); render(); }, shield],
       ["gear", "Settings", () => openSettings(), false],
-      ["logout", "Sign out", () => lock(), true]
+      ["logout", "Sign out", () => confirmSignOut("this"), true]
     ];
     for (const [icon, label, fn, on, badge] of items) {
       const b = el("button", "navbtn" + (on === true ? " on" : "") + (icon === "logout" ? " danger" : ""));
@@ -1685,14 +1662,15 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const people = $("people");
     people.textContent = "";
     const meBtn = el("button", "person");
-    meBtn.innerHTML = `<div class="avatar ${me.toLowerCase()}">${me === "Lewis" ? "L" : "A"}</div><div class="grow"><div class="n">${NAME[me]}</div><div class="s">${S(me).status || "Open your conversation"}</div></div>${ic("chat", "sm")}`;
+    meBtn.innerHTML = `<div class="avatar ${me.toLowerCase()}">${me === "Lewis" ? "L" : "A"}</div><div class="grow"><div class="n">${NAME[me]}</div><div class="s">${htmlEsc(S(me).status || "Open your conversation")}</div></div>${ic("chat", "sm")}`;
     meBtn.addEventListener("click", () => openChat());
     people.appendChild(meBtn);
     const other2 = other();
     const otherBtn = el("button", "person");
-    otherBtn.innerHTML = `<div class="avatar ${other2.toLowerCase()}">${other2 === "Lewis" ? "L" : "A"}</div><div class="grow"><div class="n">${NAME[other2]}</div><div class="s">${S(other2).status || "Open the conversation"}</div></div>${unreadList().length ? `<span class="badge">${unreadList().length}</span>` : ic("chat", "sm")}`;
+    otherBtn.innerHTML = `<div class="avatar ${other2.toLowerCase()}">${other2 === "Lewis" ? "L" : "A"}</div><div class="grow"><div class="n">${NAME[other2]}</div><div class="s">${htmlEsc(S(other2).status || "Open the conversation")}</div></div>${unreadList().length ? `<span class="badge">${unreadList().length}</span>` : ic("chat", "sm")}`;
     otherBtn.addEventListener("click", () => openChat());
     people.appendChild(otherBtn);
+    fillAvatars();
 
     // Journal feed
     const feed = $("feed");
@@ -1822,14 +1800,12 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   function lock() {
     clearTimeout(saveDraft.h);
     clearTimeout(posTimer);
-    clearTimeout(undoTimer);
     if (!unlocked) return;
     savePosition();
     saveDraft(true);
     stopRecording(false);
     removeSession();
     unlocked = false;
-    hideUndo();
     closeActions(); closeThemeBar(); hideSearch(); sheetClose();
     closeLightbox();
     clearBar();
@@ -1892,7 +1868,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const p1 = $("sp1").value, p2 = $("sp2").value;
     const q1 = +$("sq1").value, q2 = +$("sq2").value;
     const a1 = normAnswer($("sa1").value), a2 = normAnswer($("sa2").value);
-    if (p1.length < 8) { $("lockErr").textContent = "Use at least 8 characters."; return; }
+    if (p1.length < 4) { $("lockErr").textContent = "Use at least 4 characters."; return; }
     if (p1 !== p2) { $("lockErr").textContent = "The two passphrases don't match."; haptic("error"); return; }
     if (q1 === q2) { $("lockErr").textContent = "Choose two different questions."; return; }
     if (a1.length < 2 || a2.length < 2) { $("lockErr").textContent = "Write both answers."; return; }
@@ -1923,7 +1899,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       haptic("error");
       return;
     }
-    if (p.length < 8) { $("lockErr").textContent = "Use at least 8 characters."; return; }
+    if (p.length < 4) { $("lockErr").textContent = "Use at least 4 characters."; return; }
     const salt = randHex(16);
     const all = store.get(KEY.auth, {});
     all[chosen] = { ...acc, salt, h: await hashWith(salt, p) };
@@ -1954,7 +1930,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       desc: "Enter your current passphrase, then choose a new one. Only your side changes.",
       fields: [
         { key: "cur", label: "Current passphrase", type: "password" },
-        { key: "next", label: "New passphrase", type: "password", placeholder: "At least 8 characters" },
+        { key: "next", label: "New passphrase", type: "password", placeholder: "At least 4 characters" },
         { key: "again", label: "Repeat new passphrase", type: "password" }
       ],
       submit: "Change passphrase",
@@ -1962,7 +1938,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     });
     if (!v) return;
     if ((await hashWith(acc.salt, v.cur)) !== acc.h) { notice("Current passphrase is wrong", "Nothing was changed.", { error: true }); return; }
-    if (v.next.length < 8) { notice("Too short", "Use at least 8 characters.", { error: true }); return; }
+    if (v.next.length < 4) { notice("Too short", "Use at least 4 characters.", { error: true }); return; }
     if (v.next !== v.again) { notice("Those don't match", "Type the new passphrase twice.", { error: true }); return; }
     const salt = randHex(16);
     const all = store.get(KEY.auth, {});
@@ -1971,6 +1947,20 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     notice("Passphrase changed", "Use the new one the next time you sign in.");
   }
 
+
+  async function confirmSignOut(which) {
+    const ok = await choicePanel({
+      title: "Sign out of The Lees?",
+      desc: which === "other" ? "You will be signed out on other devices. This device stays signed in." : "You will need your passphrase to open The Lees again.",
+      options: [
+        { label: "Cancel", value: "no" },
+        { label: "Sign out", value: "yes", danger: true }
+      ]
+    });
+    if (ok !== "yes") return;
+    if (which === "other") signOutEverywhere();
+    else lock();
+  }
   function signOutEverywhere() {
     store.set(KEY.sessions, store.get(KEY.sessions, []).filter(x => x.id === sessionId));
     notice("Other devices signed out", "They will lock the next time they are used.");
@@ -2271,7 +2261,6 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     if (!$("input").value.trim()) { notice("Write the message first", "Then choose when it should arrive."); return; }
     openSchedulePicker();
   });
-  $("undoBtn").addEventListener("click", doUndo);
   $("input").addEventListener("input", () => {
     autosize();
     saveDraft();
@@ -2282,7 +2271,9 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     }
   });
   $("input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey && window.matchMedia("(pointer:fine)").matches) { e.preventDefault(); sendText(); }
+    if (e.isComposing || e.keyCode === 229) return;
+    const coarse = window.matchMedia("(pointer: coarse)").matches;
+    if (e.key === "Enter" && !e.shiftKey && !coarse) { e.preventDefault(); sendText(); }
   });
 
   function openSchedulePicker() {
@@ -2374,6 +2365,13 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     shakeTimes.push(now);
     if (shakeTimes.length >= 2) { shakeTimes = []; haptic("error"); lock(); }
   });
+
+  
+  let sendHold = 0;
+  $("send").addEventListener("pointerdown", () => {
+    sendHold = setTimeout(() => { sendHold = 0; haptic("press"); openSchedulePicker(); }, 500);
+  });
+  ["pointerup", "pointercancel", "pointerleave"].forEach(ev => $("send").addEventListener(ev, () => clearTimeout(sendHold)));
 
   $("attach").addEventListener("click", () => $("file").click());
   $("file").addEventListener("change", (e) => { handleFiles(e.target.files); e.target.value = ""; });
@@ -2587,7 +2585,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       client.from("pair_settings").select("*").eq("pair_id", pairId).maybeSingle(),
       client.from("messages").select("*").eq("pair_id", pairId).order("created_at"),
       client.from("notes").select("*").eq("pair_id", pairId),
-      client.from("scheduled_messages").select("*").eq("pair_id", pairId).eq("cancelled", false).is("delivered_at", null),
+      client.from("scheduled_messages").select("*").eq("pair_id", pairId).eq("sender_id", myUserId).eq("cancelled", false).is("delivered_at", null),
       client.from("read_markers").select("*").eq("pair_id", pairId),
       client.from("note_reads").select("note_id").eq("user_id", myUserId)
     ]);
@@ -2615,7 +2613,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     cloudChannel = client.channel("pair-" + pairId)
       .on("postgres_changes", { event: "*", schema: "public", table: "messages", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
       .on("postgres_changes", { event: "*", schema: "public", table: "notes", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
-      .on("postgres_changes", { event: "*", schema: "public", table: "scheduled_messages", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "scheduled_messages", filter: "sender_id=eq." + myUserId }, () => reloadAll().then(() => { if (unlocked) render(); }))
       .on("postgres_changes", { event: "*", schema: "public", table: "read_markers", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
       .on("postgres_changes", { event: "*", schema: "public", table: "pair_settings", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) { applyTheme(); render(); } }))
       .on("postgres_changes", { event: "*", schema: "public", table: "pair_members", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
@@ -2654,6 +2652,75 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const client = cloudClient();
     if (!client || !pairId) return;
     await client.from("pair_settings").update({ theme: cacheShared.theme, archive_days: Number(cacheShared.archiveDays) || 0 }).eq("pair_id", pairId);
+  }
+
+
+  async function fillAvatars() {
+    const set = async (side, el) => {
+      const path = (cacheMembers[side] || {}).avatar_path;
+      if (!path) return;
+      const url = await signedAvatar(path);
+      if (!url) return;
+      const img = document.createElement("img");
+      img.alt = "";
+      img.style.cssText = "width:100%;height:100%;object-fit:cover;border-radius:50%";
+      img.onerror = () => img.remove();
+      img.src = url;
+      el.textContent = "";
+      el.appendChild(img);
+    };
+    const meAv = document.querySelector("#people .person .avatar");
+    const otherAv = document.querySelectorAll("#people .person .avatar")[1];
+    if (meAv) set(me, meAv);
+    if (otherAv) set(other(), otherAv);
+    const home = $("homeAvatar");
+    if (home) {
+      const path = (cacheMembers[me] || {}).avatar_path;
+      const url = path ? await signedAvatar(path) : null;
+      if (url) {
+        const img = document.createElement("img");
+        img.alt = "";
+        img.style.cssText = "width:100%;height:100%;object-fit:cover;border-radius:50%";
+        img.onerror = () => { home.textContent = me === "Lewis" ? "L" : "A"; };
+        img.src = url;
+        home.textContent = "";
+        home.appendChild(img);
+      }
+    }
+  }
+  async function uploadAvatar(file) {
+    const client = cloudClient();
+    if (!client || !pairId || !myUserId) return;
+    const url = URL.createObjectURL(file);
+    let blob;
+    try {
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+      const max = 512;
+      const s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * s);
+      c.height = Math.round(img.height * s);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      blob = await new Promise(res => c.toBlob(res, "image/jpeg", 0.85));
+    } finally { URL.revokeObjectURL(url); }
+    if (!blob) { notice("Couldn't use that photo", "", { error: true }); return; }
+    const prev = (cacheMembers[me] || {}).avatar_path;
+    const path = pairId + "/avatars/" + myUserId + "-" + Date.now() + ".jpg";
+    const up = await client.storage.from("media").upload(path, blob, { contentType: "image/jpeg", upsert: false });
+    if (up.error) { notice("Couldn't upload that photo", up.error.message, { error: true }); return; }
+    const upd = await client.from("pair_members").update({ avatar_path: path }).eq("user_id", myUserId);
+    if (upd.error) { await client.storage.from("media").remove([path]); notice("Couldn't save that photo", upd.error.message, { error: true }); return; }
+    if (prev && prev !== path) await client.storage.from("media").remove([prev]);
+    if (cacheMembers[me]) cacheMembers[me].avatar_path = path;
+    notice("Photo saved");
+    await reloadAll();
+    if (unlocked) render();
+  }
+  async function signedAvatar(path) {
+    const client = cloudClient();
+    if (!client || !path) return null;
+    const r = await client.storage.from("media").createSignedUrl(path, 600);
+    return r.data && r.data.signedUrl ? r.data.signedUrl : null;
   }
   async function pushMember() {
     const client = cloudClient();
@@ -2792,7 +2859,6 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
         } else {
           cacheThread = thread().filter(x => x.id !== local.id);
           await reloadAll();
-          showUndo(ins.data.id);
           haptic("send");
         }
       }
@@ -2804,19 +2870,6 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     saveDraft(true);
     render();
     scrollBottom();
-  }
-  async function doUndo() {
-    if (!undo) return;
-    const id = undo;
-    hideUndo();
-    const client = cloudClient();
-    if (client) {
-      const gone = await client.rpc("delete_for_both", { p_id: id });
-      if (gone.error) { notice("Couldn't withdraw that", gone.error.message, { error: true }); return; }
-    }
-    cacheThread = thread().filter(x => x.id !== id);
-    render();
-    notice("Message withdrawn", "It was removed before anyone saw it.");
   }
   async function scheduleText(sendAt, effect) {
     const input = $("input");
@@ -2985,7 +3038,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const p1 = $("sp1").value, p2 = $("sp2").value;
     const q1 = +$("sq1").value, q2 = +$("sq2").value;
     const a1 = normAnswer($("sa1").value), a2 = normAnswer($("sa2").value);
-    if (p1.length < 8) { $("lockErr").textContent = "Use at least 8 characters."; return; }
+    if (p1.length < 4) { $("lockErr").textContent = "Use at least 4 characters."; return; }
     if (p1 !== p2) { $("lockErr").textContent = "The two passphrases don't match."; haptic("error"); return; }
     if (q1 === q2) { $("lockErr").textContent = "Choose two different questions."; return; }
     if (a1.length < 2 || a2.length < 2) { $("lockErr").textContent = "Write both answers."; return; }
@@ -3056,6 +3109,19 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       p.type = show ? "text" : "password";
       $("peek").setAttribute("aria-label", show ? "Hide passphrase" : "Show passphrase");
     });
+  ["peek1","peek2","peek3"].forEach(id => {
+    const b = $(id);
+    if (!b) return;
+    b.addEventListener("click", (e) => {
+      e.preventDefault();
+      const inp = id === "peek1" ? $("sp1") : id === "peek2" ? $("sp2") : $("rp1");
+      if (!inp) return;
+      const show = inp.type === "password";
+      inp.type = show ? "text" : "password";
+      b.setAttribute("aria-label", show ? "Hide passphrase" : "Show passphrase");
+    });
+  });
+
     if ($("sq2")) $("sq2").selectedIndex = 1;
   }
   async function loadPrompts() {
@@ -3075,14 +3141,14 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       desc: "Enter your current passphrase, then choose a new one. Only your side changes.",
       fields: [
         { key: "cur", label: "Current passphrase", type: "password" },
-        { key: "next", label: "New passphrase", type: "password", placeholder: "At least 8 characters" },
+        { key: "next", label: "New passphrase", type: "password", placeholder: "At least 4 characters" },
         { key: "again", label: "Repeat new passphrase", type: "password" }
       ],
       submit: "Change passphrase",
       validate: (x) => null
     });
     if (!v) return;
-    if (v.next.length < 8) { notice("Too short", "Use at least 8 characters.", { error: true }); return; }
+    if (v.next.length < 4) { notice("Too short", "Use at least 4 characters.", { error: true }); return; }
     if (v.next !== v.again) { notice("Those don't match", "Type the new passphrase twice.", { error: true }); return; }
     const check = await client.auth.signInWithPassword({ email: SIDE_EMAIL[me], password: v.cur });
     if (check.error) { notice("Current passphrase is wrong", "Nothing was changed.", { error: true }); return; }
