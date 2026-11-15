@@ -328,7 +328,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
 
   <form id="setupForm" class="form" autocomplete="off">
     <p class="fp-desc" style="margin:0">First time on this side. Create your passphrase and two recovery questions. Only you know the answers.</p>
-    <input id="sp1" class="in plain" type="password" placeholder="New passphrase (4+ characters)" autocapitalize="none" spellcheck="false">
+    <input id="sp1" class="in plain" type="password" placeholder="New passphrase (8+ characters)" autocapitalize="none" spellcheck="false">
     <input id="sp2" class="in plain" type="password" placeholder="Repeat passphrase" autocapitalize="none" spellcheck="false">
     <select id="sq1" class="in"></select>
     <input id="sa1" class="in plain" placeholder="Answer" autocapitalize="none" spellcheck="false">
@@ -343,7 +343,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     <input id="ra1" class="in plain" placeholder="Answer" autocapitalize="none" spellcheck="false">
     <label class="mono muted" id="rq2l"></label>
     <input id="ra2" class="in plain" placeholder="Answer" autocapitalize="none" spellcheck="false">
-    <input id="rp1" class="in plain" type="password" placeholder="New passphrase (4+ characters)" autocapitalize="none" spellcheck="false">
+    <input id="rp1" class="in plain" type="password" placeholder="New passphrase (8+ characters)" autocapitalize="none" spellcheck="false">
     <button class="btn" type="submit">Set new passphrase</button>
     <button id="recCancelBtn" class="link" type="button" style="align-self:center">Back</button>
   </form>
@@ -355,7 +355,6 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   <div class="topbar">
     <div class="avatar" id="homeAvatar"></div>
     <div class="grow"><div class="title" id="homeTitle">Journal</div><div class="sub" id="homeSub"></div></div>
-    <button id="homeTriple" class="ibtn" aria-label="Panic lock (triple tap)" style="display:none"></button>
   </div>
   <div class="scroll">
     <div class="greet"><div class="hdr" id="greet"></div><div class="mono" id="dateLine"></div></div>
@@ -440,6 +439,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
 <div id="notice" class="hidden"></div>
 <div id="lightbox" class="hidden" style="position:fixed;inset:0;z-index:70;background:rgba(10,8,7,.92);display:flex;align-items:center;justify-content:center;padding:24px"><img id="lbImg" alt="Photo" style="max-width:100%;max-height:100%;border-radius:14px"><button id="lbX" class="ibtn" aria-label="Close" style="position:absolute;top:14px;right:14px;color:#fff"><svg class="i" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous"></script>
 <script>
 (() => {
   /* ================= Icons ================= */
@@ -482,7 +482,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
 
   /* ================= Constants ================= */
   const NAME = { Lewis: "Mr. Lees", Agnes: "Mrs. Lees" };
-  const KEY = { thread: "pp-thread", notes: "pp-notes", sched: "pp-scheduled", shared: "pp-shared", settings: "pp-settings", auth: "pp-auth", sessions: "pp-sessions", typing: "pp-typing", seen: "pp-seen", drafts: "pp-drafts", pos: "pp-pos", fail: "pp-fail", last: "pp-last-side", nread: "pp-notes-read" };
+  const KEY = { thread: "pp-thread", notes: "pp-notes", sched: "pp-scheduled", shared: "pp-shared", settings: "pp-settings", auth: "pp-auth", sessions: "pp-sessions", typing: "pp-typing", seen: "pp-seen", drafts: "pp-drafts", pos: "pp-pos", fail: "pp-fail", last: "pp-last-side", nread: "pp-notes-read", known: "pp-known-sides", outbox: "pp-outbox" };
   const QUESTIONS = ["The name of the first place we went together?", "Your childhood nickname?", "The name of your first school?", "A word only the two of us would know?", "Your favourite dish from home?", "The name of your first pet?", "The street you grew up on?", "The name of a teacher you still remember?"];
   const THEMES = [
     { id: "warm", name: "Warm Paper", sw: "#f8f4ee" }, { id: "ink", name: "Ink Night", sw: "#171412" },
@@ -517,16 +517,16 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   const voiceCache = new Map(), urlCache = new Map();
   const baseTitle = "Notes";
 
-  const thread = () => store.get(KEY.thread, []);
-  const notesAll = () => store.get(KEY.notes, []);
-  const sched = () => store.get(KEY.sched, []);
-  const SH = () => ({ theme: "warm", archiveDays: 0, ...store.get(KEY.shared, {}) });
-  const setSH = (p) => store.set(KEY.shared, { ...SH(), ...p });
+  const thread = () => cacheThread;
+  const notesAll = () => cacheNotes;
+  const sched = () => cacheSched;
+  const SH = () => ({ theme: "warm", archiveDays: 0, ...cacheShared });
+  const setSH = (p) => { cacheShared = { ...SH(), ...p }; void pushShared(); };
   const DEF = () => ({ haptics: true, sound: true, autoBlur: true, status: "", tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", blurWords: [], shake: false });
-  const S = (side) => ({ ...DEF(), ...((store.get(KEY.settings, {}))[side] || {}) });
-  const setS = (side, p) => { const all = store.get(KEY.settings, {}); all[side] = { ...S(side), ...p }; store.set(KEY.settings, all); };
+  const S = (side) => ({ ...DEF(), ...(cacheMembers[side] || {}) });
+  const setS = (side, p) => { cacheMembers[side] = { ...S(side), ...p }; if (side === me) void pushMember(); };
   const other = () => (me === "Lewis" ? "Agnes" : "Lewis");
-  const accountOf = (side) => (store.get(KEY.auth, {})[side] || null);
+  const accountOf = (side) => (store.get(KEY.known, {})[side] || null);
   const fmtDay = (ts) => {
     const d = new Date(ts), now = new Date();
     if (d.toDateString() === now.toDateString()) return "Today";
@@ -707,7 +707,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     if (m) { clearBar(); render(); scrollBottom(); haptic("send"); }
   }
 
-  function sendText(editOnly) {
+  function sendText() {
     const input = $("input");
     const text = input.value.trim();
     if (!text) return;
@@ -932,7 +932,10 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       if (audio.paused) {
         voiceCache.forEach(w => { if (w._audio !== audio) w._audio.pause(); });
         audio.playbackRate = rate;
-        audio.play().catch(() => notice("Playback blocked", "Tap play again."));
+        audio.play().catch((err) => {
+          const missing = !audio.getAttribute("src") && !audio.src;
+          notice(missing || (err && err.name !== "NotAllowedError") ? "Voice note unavailable" : "Playback blocked", missing ? "The recording could not be loaded." : "Tap play again.", { error: true });
+        });
       } else audio.pause();
     });
     audio.addEventListener("play", () => { btn.innerHTML = ic("pause"); });
@@ -954,7 +957,12 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const img = new Image();
     img.className = "photo";
     img.alt = "Photo";
-    mediaURL(m.mid).then(u => { if (u) img.src = u; });
+    const fail = () => {
+      const card = el("div", "text", "Photo unavailable");
+      if (img.parentNode) img.replaceWith(card);
+    };
+    img.addEventListener("error", fail);
+    mediaURL(m.mid).then(u => { if (u) img.src = u; else fail(); }).catch(fail);
     return img;
   }
 
@@ -984,6 +992,8 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     meta.appendChild(el("span", "", fmtTime(m.ts)));
     if (m.edited) { const e = el("button", "edlabel", "edited"); e.dataset.hist = m.id; meta.appendChild(e); }
     if (m.moment) meta.appendChild(el("span", "", "· moment"));
+    if (m.late) meta.appendChild(el("span", "", "· delivered late"));
+    if (m.pending) meta.appendChild(el("span", "", "· waiting to send"));
     if (m.hearts && m.hearts.length) { const h = el("span", "heart"); h.innerHTML = ic("heart", "sm") + m.hearts.length; meta.appendChild(h); }
     row.appendChild(meta);
 
@@ -995,7 +1005,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   }
 
   function unreadList() {
-    const seen = store.get(KEY.seen, {});
+    const seen = cacheSeen;
     const cut = seen[me] || 0;
     return visibleList().filter(m => m.from !== me && m.ts > cut);
   }
@@ -1023,7 +1033,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const box = $("list");
     const near = nearBottom();
     const searching = !!query || filter !== "all" || !!dateFilter;
-    const seen = store.get(KEY.seen, {});
+    const seen = cacheSeen;
     const lastMine = [...list].reverse().find(m => m.from === me);
     const unread = unreadList();
     const firstUnreadId = unread.length ? unread[0].id : null;
@@ -1092,8 +1102,8 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
 
   function renderPresence() {
     if (!me) return;
-    const t = store.get(KEY.typing, null);
-    const typing = t && t.who !== me && Date.now() - t.ts < 3000;
+    const remote = (typeof presenceState !== "undefined" && presenceState[other()]) || null;
+    const typing = !!(remote && remote.typing && Date.now() - (remote.ts || 0) < 4000);
     const p = $("presence");
     p.classList.toggle("live", !!typing);
     let zoneTime = "";
@@ -1121,9 +1131,8 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
 
   function markRead() {
     if (!unlocked || document.hidden || view !== "chat") return;
-    const seen = store.get(KEY.seen, {});
-    seen[me] = Date.now();
-    store.set(KEY.seen, seen);
+    cacheSeen[me] = Date.now();
+    void pushRead();
     document.title = baseTitle;
     $("toBottom").classList.add("hidden");
   }
@@ -1140,12 +1149,13 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   }
 
   function savePosition() {
-    if (view !== "chat") return;
+    const side = me;
+    if (view !== "chat" || !side) return;
     const box = $("list");
     const top = [...box.querySelectorAll(".row")].find(r => r.getBoundingClientRect().bottom > box.getBoundingClientRect().top + 8);
     if (!top) return;
     const pos = store.get(KEY.pos, {});
-    pos[me] = top.dataset.row;
+    pos[side] = top.dataset.row;
     store.set(KEY.pos, pos);
   }
 
@@ -1609,7 +1619,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
         if (editing) { saveNoteEdit(editing.id, t); if (kind !== editing.kind) { const l = notesAll(); const n = l.find(x => x.id === editing.id); if (n) { n.kind = kind; store.set(KEY.notes, l); } } }
         else addNote(kind, t);
         notice(editing ? "Note updated" : "Note shared", NAME[other()] + " will see it on their side.");
-        openPanel === openPanel && showView("home");
+        showView("home");
         renderHome();
       });
       body.appendChild(share);
@@ -1632,8 +1642,9 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const nav = $("navrow");
     nav.textContent = "";
     const unsentCount = sched().filter(s => s.from === me).length;
+    const chatBadge = unreadList().length || unsentCount || 0;
     const items = [
-      ["chat", "Chat", () => openChat(), false, unsentCount ? unsentCount : 0],
+      ["chat", "Chat", () => openChat(), false, chatBadge],
       ["star", "Moments", () => openMoments(), false],
       ["archive", "Archive", () => openArchive(), false],
       ["search", "Search", () => openChat(true), false],
@@ -1679,9 +1690,8 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     people.appendChild(meBtn);
     const other2 = other();
     const otherBtn = el("button", "person");
-    const unreadFromOther = unreadList().length;
-    otherBtn.innerHTML = `<div class="avatar ${other2.toLowerCase()}">${other2 === "Lewis" ? "L" : "A"}</div><div class="grow"><div class="n">${NAME[other2]}</div><div class="s">${S(other2).status || "Read their notes"}</div></div>${unreadNotesCount() ? `<span class="badge">${unreadNotesCount()}</span>` : ""}`;
-    otherBtn.addEventListener("click", () => { if (latestNote(other2)) openNoteReading(other2); else notice(NAME[other2] + " hasn't written a note yet"); });
+    otherBtn.innerHTML = `<div class="avatar ${other2.toLowerCase()}">${other2 === "Lewis" ? "L" : "A"}</div><div class="grow"><div class="n">${NAME[other2]}</div><div class="s">${S(other2).status || "Open the conversation"}</div></div>${unreadList().length ? `<span class="badge">${unreadList().length}</span>` : ic("chat", "sm")}`;
+    otherBtn.addEventListener("click", () => openChat());
     people.appendChild(otherBtn);
 
     // Journal feed
@@ -1750,8 +1760,8 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     $("lockErr").textContent = "";
     if (mode === "recover" && chosen) {
       const acc = accountOf(chosen);
-      $("rq1l").textContent = acc.qs[0].q;
-      $("rq2l").textContent = acc.qs[1].q;
+      if (acc && acc.qs) { $("rq1l").textContent = acc.qs[0].q; $("rq2l").textContent = acc.qs[1].q; }
+      void loadPrompts();
     }
   }
 
@@ -1810,6 +1820,9 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   }
 
   function lock() {
+    clearTimeout(saveDraft.h);
+    clearTimeout(posTimer);
+    clearTimeout(undoTimer);
     if (!unlocked) return;
     savePosition();
     saveDraft(true);
@@ -1843,7 +1856,8 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
 
   function saveDraft(immediate) {
     if (!me) return;
-    const run = () => { const d = store.get(KEY.drafts, {}); d[me] = $("input").value; store.set(KEY.drafts, d); };
+    const side = me;
+    const run = () => { if (!side) return; const d = store.get(KEY.drafts, {}); d[side] = $("input").value; store.set(KEY.drafts, d); };
     if (immediate) run(); else { clearTimeout(saveDraft.h); saveDraft.h = setTimeout(run, 400); }
   }
 
@@ -1878,7 +1892,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const p1 = $("sp1").value, p2 = $("sp2").value;
     const q1 = +$("sq1").value, q2 = +$("sq2").value;
     const a1 = normAnswer($("sa1").value), a2 = normAnswer($("sa2").value);
-    if (p1.length < 4) { $("lockErr").textContent = "Use at least 4 characters."; return; }
+    if (p1.length < 8) { $("lockErr").textContent = "Use at least 8 characters."; return; }
     if (p1 !== p2) { $("lockErr").textContent = "The two passphrases don't match."; haptic("error"); return; }
     if (q1 === q2) { $("lockErr").textContent = "Choose two different questions."; return; }
     if (a1.length < 2 || a2.length < 2) { $("lockErr").textContent = "Write both answers."; return; }
@@ -1909,7 +1923,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       haptic("error");
       return;
     }
-    if (p.length < 4) { $("lockErr").textContent = "Use at least 4 characters."; return; }
+    if (p.length < 8) { $("lockErr").textContent = "Use at least 8 characters."; return; }
     const salt = randHex(16);
     const all = store.get(KEY.auth, {});
     all[chosen] = { ...acc, salt, h: await hashWith(salt, p) };
@@ -1940,7 +1954,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       desc: "Enter your current passphrase, then choose a new one. Only your side changes.",
       fields: [
         { key: "cur", label: "Current passphrase", type: "password" },
-        { key: "next", label: "New passphrase", type: "password", placeholder: "At least 4 characters" },
+        { key: "next", label: "New passphrase", type: "password", placeholder: "At least 8 characters" },
         { key: "again", label: "Repeat new passphrase", type: "password" }
       ],
       submit: "Change passphrase",
@@ -1948,7 +1962,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     });
     if (!v) return;
     if ((await hashWith(acc.salt, v.cur)) !== acc.h) { notice("Current passphrase is wrong", "Nothing was changed.", { error: true }); return; }
-    if (v.next.length < 4) { notice("Too short", "Use at least 4 characters.", { error: true }); return; }
+    if (v.next.length < 8) { notice("Too short", "Use at least 8 characters.", { error: true }); return; }
     if (v.next !== v.again) { notice("Those don't match", "Type the new passphrase twice.", { error: true }); return; }
     const salt = randHex(16);
     const all = store.get(KEY.auth, {});
@@ -2016,10 +2030,12 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       saveThread(list);
       const nl = notesAll(), nh = new Set(nl.map(n => n.id));
       for (const n of data.notes || []) if (!nh.has(n.id)) nl.push(n);
-      store.set(KEY.notes, nl);
+      cacheNotes = nl;
+      if (data.shared) setSH(data.shared);
+      if (data.settings) { for (const side of Object.keys(data.settings)) setS(side, data.settings[side]); }
       render();
       renderHome();
-      notice("Backup restored", "Everything was merged into your journal and conversation.");
+      notice("Backup restored", "Messages, notes, shared settings, and each side's settings were merged.");
     } catch { notice("Couldn't open that backup", "Check the passphrase, or make sure the file is complete.", { error: true }); }
   }
 
@@ -2160,7 +2176,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   async function handleFiles(files) {
     for (const f of [...files]) {
       try {
-        if (f.type.startsWith("image/")) await addMedia("image", await compressImage(f), {});
+        if (f.type.startsWith("image/")) { const blob = await compressImage(f); if (!blob) { notice("Couldn't save that photo", "Try a different image.", { error: true }); continue; } await addMedia("image", blob, {}); }
         else if (f.type.startsWith("audio/")) await addMedia("audio", f, { dur: await audioDuration(f), mime: f.type });
         else notice("That file type isn't supported", "Choose a photo or an audio file.", { error: true });
       } catch { notice("Couldn't add " + (f.name || "that file"), "", { error: true }); }
@@ -2262,7 +2278,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const now = Date.now();
     if (now - lastTypingSent > 1500) {
       lastTypingSent = now;
-      store.set(KEY.typing, $("input").value.trim() ? { who: me, ts: now } : null);
+      trackTyping(!!$("input").value.trim());
     }
   });
   $("input").addEventListener("keydown", (e) => {
@@ -2314,7 +2330,8 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     $("sheetScrim").onclick = () => sheetClose();
   }
 
-  $("signout").addEventListener("click", lock);
+  const signoutBtn = $("signout");
+  if (signoutBtn) signoutBtn.addEventListener("click", lock);
   $("searchBtn").addEventListener("click", () => toggleSearch($("searchbar").classList.contains("hidden")));
   $("qClose").addEventListener("click", () => hideSearch());
   $("qPrev").addEventListener("click", () => stepMatch(-1));
@@ -2336,7 +2353,6 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     notice(shield ? "Shield is on" : "Shield is off", shield ? "Every message is blurred until you turn it off." : "");
   });
   $("back").addEventListener("click", () => goBack());
-  $("homeTriple").style.display = "none";
 
   // Triple tap the name on the journal to lock at once.
   let taps = [];
@@ -2517,11 +2533,597 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   }, 1000);
   setInterval(applyTheme, 60 * 1000);
 
+
+  /* ================= Shared journal on Supabase ================= */
+  const SB_URL = "https://emimwlpsfchndxaxzswh.supabase.co";
+  const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtaW13bHBzZmNobmR4YXh6c3doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ3NDg0NTQsImV4cCI6MjExMDMyNDQ1NH0.RVVgRCNJJO588H2EDAkjftploDFVXIKmy2zvv-iJldA";
+  const SIDE_EMAIL = { Lewis: "lewis@the-lees.app", Agnes: "agnes@the-lees.app" };
+  let sb = null, pairId = null, myUserId = null, sideOfUser = {}, userOfSide = {};
+  let cacheThread = [], cacheNotes = [], cacheSched = [], cacheShared = { theme: "warm", archiveDays: 0 };
+  let cacheMembers = {}, cacheSeen = {}, cacheNread = {}, presenceState = {};
+  let cloudChannel = null, presenceChannel = null, lastPull = 0;
+
+  function needSecure() {
+    if (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1") return true;
+    notice("This page needs a secure connection", "Open it with https, then try again.", { error: true });
+    return false;
+  }
+  function cloudClient() {
+    if (!needSecure()) return null;
+    if (!window.supabase || !window.supabase.createClient) {
+      notice("The connection library did not load", "Reload the page and try again.", { error: true });
+      return null;
+    }
+    if (!sb) sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+    return sb;
+  }
+  function rememberSide(side, prompts) {
+    const known = store.get(KEY.known, {});
+    known[side] = prompts || known[side] || { known: true };
+    store.set(KEY.known, known);
+  }
+  function rowSide(userId) { return sideOfUser[userId] || null; }
+  function msgFromRow(r) {
+    return {
+      id: r.id, from: rowSide(r.sender_id), ts: new Date(r.created_at).getTime(),
+      hearts: r.hearts || [], kind: r.kind, text: r.text || "", mid: r.media_path || null,
+      replyTo: r.reply_to || null, effect: r.effect || "none", hiddenBy: r.hidden_for || [],
+      deletedFor: r.deleted_for || [], deleted: !!r.deleted, moment: !!r.moment,
+      history: r.history || [], edited: !!r.edited, editedAt: r.edited_at ? new Date(r.edited_at).getTime() : null,
+      late: !!r.late, dur: r.dur || 0, noArchive: !!r.no_archive, pending: false
+    };
+  }
+  function noteFromRow(r) {
+    return { id: r.id, from: r.side, kind: r.kind, text: r.text, ts: new Date(r.created_at).getTime(), edited: !!r.edited };
+  }
+  function memberView(row) {
+    return { status: row.status || "", tz: row.tz || "UTC", haptics: row.haptics !== false, sound: row.sound !== false, autoBlur: row.auto_blur !== false, shake: !!row.shake, blurWords: row.blur_words || [] };
+  }
+  async function reloadAll() {
+    const client = cloudClient();
+    if (!client || !pairId) return;
+    const [members, settings, messages, notes, scheduled, reads, nreads] = await Promise.all([
+      client.from("pair_members").select("*").eq("pair_id", pairId),
+      client.from("pair_settings").select("*").eq("pair_id", pairId).maybeSingle(),
+      client.from("messages").select("*").eq("pair_id", pairId).order("created_at"),
+      client.from("notes").select("*").eq("pair_id", pairId),
+      client.from("scheduled_messages").select("*").eq("pair_id", pairId).eq("cancelled", false).is("delivered_at", null),
+      client.from("read_markers").select("*").eq("pair_id", pairId),
+      client.from("note_reads").select("note_id").eq("user_id", myUserId)
+    ]);
+    sideOfUser = {}; userOfSide = {}; cacheMembers = {};
+    for (const row of members.data || []) {
+      sideOfUser[row.user_id] = row.side;
+      userOfSide[row.side] = row.user_id;
+      cacheMembers[row.side] = memberView(row);
+    }
+    if (settings.data) cacheShared = { theme: settings.data.theme || "warm", archiveDays: settings.data.archive_days || 0 };
+    const pending = cacheThread.filter(m => m.pending);
+    cacheThread = (messages.data || []).map(msgFromRow).concat(pending);
+    cacheNotes = (notes.data || []).map(noteFromRow);
+    cacheSched = (scheduled.data || []).filter(s => s.side === me).map(s => ({ id: s.id, from: s.side, text: s.text, effect: s.effect, sendAt: new Date(s.send_at).getTime(), createdAt: new Date(s.created_at).getTime() }));
+    cacheSeen = {};
+    for (const r of reads.data || []) cacheSeen[r.side] = new Date(r.read_at).getTime();
+    cacheNread = {};
+    for (const r of nreads.data || []) cacheNread[r.note_id] = true;
+    applyTheme();
+  }
+  function subscribePair() {
+    const client = cloudClient();
+    if (!client || !pairId) return;
+    if (cloudChannel) client.removeChannel(cloudChannel);
+    cloudChannel = client.channel("pair-" + pairId)
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "notes", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "scheduled_messages", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "read_markers", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "pair_settings", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) { applyTheme(); render(); } }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "pair_members", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
+      .subscribe();
+    if (presenceChannel) client.removeChannel(presenceChannel);
+    presenceChannel = client.channel("presence-" + pairId, { config: { presence: { key: me } } });
+    presenceChannel.on("presence", { event: "sync" }, () => {
+      presenceState = {};
+      const state = presenceChannel.presenceState() || {};
+      for (const [side, rows] of Object.entries(state)) {
+        const row = rows[0];
+        if (row) presenceState[side] = row;
+      }
+      if (unlocked) renderPresence();
+    });
+    presenceChannel.subscribe(async (status) => {
+      if (status === "SUBSCRIBED") await presenceChannel.track({ typing: false, ts: Date.now() });
+    });
+  }
+  async function openCloud(side) {
+    const client = cloudClient();
+    if (!client) return false;
+    const { data: sessionData } = await client.auth.getSession();
+    const session = sessionData.session;
+    if (!session) { notice("Sign in again", "The session did not start.", { error: true }); return false; }
+    myUserId = session.user.id;
+    const claimed = await client.rpc("claim_side", { p_side: side });
+    if (claimed.error) { notice("Couldn't open your side", claimed.error.message, { error: true }); return false; }
+    pairId = claimed.data;
+    await reloadAll();
+    subscribePair();
+    flushOutbox();
+    return true;
+  }
+  async function pushShared() {
+    const client = cloudClient();
+    if (!client || !pairId) return;
+    await client.from("pair_settings").update({ theme: cacheShared.theme, archive_days: Number(cacheShared.archiveDays) || 0 }).eq("pair_id", pairId);
+  }
+  async function pushMember() {
+    const client = cloudClient();
+    if (!client || !me) return;
+    const s = S(me);
+    await client.from("pair_members").update({
+      status: s.status || "", tz: s.tz || "UTC", haptics: !!s.haptics, sound: !!s.sound,
+      auto_blur: !!s.autoBlur, shake: !!s.shake, blur_words: s.blurWords || []
+    }).eq("user_id", myUserId);
+  }
+  async function pushRead() {
+    const client = cloudClient();
+    if (!client || !pairId || !me) return;
+    await client.from("read_markers").upsert({ pair_id: pairId, user_id: myUserId, side: me, read_at: new Date(cacheSeen[me] || Date.now()).toISOString() });
+  }
+  function outbox() { return store.get(KEY.outbox, []); }
+  function saveOutbox(list) { store.set(KEY.outbox, list); }
+  function markWaiting(localId) {
+    const m = cacheThread.find(x => x.id === localId);
+    if (m) m.pending = true;
+  }
+  async function flushOutbox() {
+    const client = cloudClient();
+    if (!client || !pairId || !navigator.onLine) return;
+    const left = [];
+    for (const item of outbox()) {
+      try {
+        if (item.kind === "text") {
+          const ins = await client.from("messages").insert({
+            pair_id: pairId, sender_id: myUserId, kind: "text", text: item.text, effect: item.effect || "none",
+            reply_to: item.replyTo || null, client_id: item.clientId
+          }).select().maybeSingle();
+          if (ins.error && !/duplicate/i.test(ins.error.message)) throw ins.error;
+          cacheThread = cacheThread.filter(m => m.id !== item.localId);
+        } else if (item.kind === "image" || item.kind === "audio") {
+          const blob = await getBlob(item.blobId);
+          if (!blob) throw new Error("missing file");
+          const path = pairId + "/" + item.clientId;
+          const up = await client.storage.from("media").upload(path, blob, { contentType: blob.type || "application/octet-stream", upsert: true });
+          if (up.error) throw up.error;
+          const ins = await client.from("messages").insert({
+            pair_id: pairId, sender_id: myUserId, kind: item.kind, media_path: path, dur: item.dur || null, client_id: item.clientId
+          }).select().maybeSingle();
+          if (ins.error) {
+            await client.storage.from("media").remove([path]);
+            throw ins.error;
+          }
+          await delBlob(item.blobId);
+          cacheThread = cacheThread.filter(m => m.id !== item.localId);
+        }
+      } catch { left.push(item); }
+    }
+    saveOutbox(left);
+    await reloadAll();
+    if (unlocked) render();
+  }
+  window.addEventListener("online", () => { if (unlocked) flushOutbox(); });
+
+  function saveThread(list) { cacheThread = list; return true; }
+  function addMessage(partial) {
+    const localId = "local-" + uid();
+    const m = { id: localId, from: me, ts: Date.now(), hearts: [], kind: "text", pending: true, ...partial };
+    if (replyTo) m.replyTo = { id: replyTo.id, from: replyTo.from, preview: replyTo.preview };
+    cacheThread = thread().concat([m]);
+    return m;
+  }
+  async function addMedia(kind, blob, extra) {
+    if (!blob) { notice("Couldn't save that file", "The photo or recording was empty.", { error: true }); return; }
+    const clientId = uid();
+    const localId = "local-" + clientId;
+    try { await putBlob(localId, blob); }
+    catch { notice("Couldn't save that file", "Storage may be full.", { error: true }); return; }
+    const m = { id: localId, from: me, ts: Date.now(), hearts: [], kind, mid: localId, pending: true, dur: extra.dur || 0, effect: "none" };
+    cacheThread = thread().concat([m]);
+    clearBar(); render(); scrollBottom();
+    const client = cloudClient();
+    const path = pairId + "/" + clientId;
+    try {
+      if (!client || !navigator.onLine) throw new Error("offline");
+      const up = await client.storage.from("media").upload(path, blob, { contentType: blob.type || (kind === "image" ? "image/jpeg" : "audio/webm"), upsert: false });
+      if (up.error) throw up.error;
+      const ins = await client.from("messages").insert({
+        pair_id: pairId, sender_id: myUserId, kind, media_path: path, dur: extra.dur || null, client_id: clientId
+      }).select().maybeSingle();
+      if (ins.error) {
+        await client.storage.from("media").remove([path]);
+        throw ins.error;
+      }
+      await delBlob(localId);
+      cacheThread = thread().filter(x => x.id !== localId);
+      await reloadAll();
+      render();
+      haptic("send");
+    } catch {
+      markWaiting(localId);
+      const box = outbox();
+      box.push({ kind, clientId, blobId: localId, dur: extra.dur || null, localId });
+      saveOutbox(box);
+      render();
+      notice("Waiting to send", "It will send when you are back online.");
+    }
+  }
+  async function sendText() {
+    const input = $("input");
+    const text = input.value.trim();
+    if (!text) return;
+    const client = cloudClient();
+    if (editingId) {
+      const m = thread().find(x => x.id === editingId);
+      if (m && client) {
+        const history = (m.history || []).concat([{ text: m.text, ts: m.editedAt || m.ts }]);
+        const upd = await client.from("messages").update({ text, edited: true, edited_at: new Date().toISOString(), history }).eq("id", m.id);
+        if (upd.error) { notice("Couldn't save the edit", upd.error.message, { error: true }); return; }
+        await reloadAll();
+      }
+      editingId = null;
+      clearBar();
+    } else {
+      const reply = replyTo ? { id: replyTo.id, from: replyTo.from, preview: replyTo.preview } : null;
+      const clientId = uid();
+      const local = addMessage({ kind: "text", text, effect: "none", replyTo: reply });
+      if (!client || !navigator.onLine) {
+        const box = outbox();
+        box.push({ kind: "text", text, effect: "none", replyTo: reply, clientId, localId: local.id });
+        saveOutbox(box);
+        notice("Waiting to send", "It will send when you are back online.");
+      } else {
+        const ins = await client.from("messages").insert({
+          pair_id: pairId, sender_id: myUserId, kind: "text", text, effect: "none", reply_to: reply, client_id: clientId
+        }).select().maybeSingle();
+        if (ins.error) {
+          const box = outbox();
+          box.push({ kind: "text", text, effect: "none", replyTo: reply, clientId, localId: local.id });
+          saveOutbox(box);
+          notice("Waiting to send", ins.error.message, { error: true });
+        } else {
+          cacheThread = thread().filter(x => x.id !== local.id);
+          await reloadAll();
+          showUndo(ins.data.id);
+          haptic("send");
+        }
+      }
+      clearBar();
+    }
+    input.value = "";
+    autosize();
+    trackTyping(false);
+    saveDraft(true);
+    render();
+    scrollBottom();
+  }
+  async function doUndo() {
+    if (!undo) return;
+    const id = undo;
+    hideUndo();
+    const client = cloudClient();
+    if (client) {
+      const gone = await client.rpc("delete_for_both", { p_id: id });
+      if (gone.error) { notice("Couldn't withdraw that", gone.error.message, { error: true }); return; }
+    }
+    cacheThread = thread().filter(x => x.id !== id);
+    render();
+    notice("Message withdrawn", "It was removed before anyone saw it.");
+  }
+  async function scheduleText(sendAt, effect) {
+    const input = $("input");
+    const text = input.value.trim();
+    if (!text) { notice("Nothing to schedule", "Write a message first, then choose when it should arrive.", { error: true }); return; }
+    const client = cloudClient();
+    if (!client) return;
+    const ins = await client.from("scheduled_messages").insert({
+      pair_id: pairId, sender_id: myUserId, side: me, text, effect: effect || "none", send_at: new Date(sendAt).toISOString()
+    });
+    if (ins.error) { notice("Couldn't schedule that", ins.error.message, { error: true }); return; }
+    input.value = "";
+    autosize();
+    saveDraft(true);
+    haptic("schedule");
+    await reloadAll();
+    renderChips();
+    notice("Scheduled", "Will arrive " + fmtDateTime(sendAt) + ".");
+  }
+  async function deliverDue() {
+    if (!unlocked) return;
+    if (Date.now() - lastPull < 15000) return;
+    lastPull = Date.now();
+    await reloadAll();
+    if (view === "chat" || view === "home") render();
+  }
+  async function cancelScheduled(id) {
+    const client = cloudClient();
+    if (!client) return;
+    const gone = await client.rpc("cancel_scheduled", { p_id: id });
+    if (gone.error) { notice("Couldn't cancel that", gone.error.message, { error: true }); return; }
+    await reloadAll();
+    renderChips();
+  }
+  async function toggleHeart(id) {
+    const client = cloudClient();
+    if (!client) return;
+    const res = await client.rpc("set_reaction", { p_id: id });
+    if (res.error) { notice("Couldn't update that", res.error.message, { error: true }); return; }
+    haptic("heart");
+    await reloadAll();
+    render();
+  }
+  async function setHidden(id, on) {
+    const client = cloudClient();
+    if (!client) return;
+    const res = await client.rpc("set_hidden", { p_id: id, p_on: on });
+    if (res.error) { notice("Couldn't update that", res.error.message, { error: true }); return; }
+    await reloadAll();
+    render();
+    haptic("press");
+    notice(on ? "Blurred for you" : "Visible again", on ? "Hold the message to read it." : "");
+  }
+  async function setMoment(id, on) {
+    const client = cloudClient();
+    if (!client) return;
+    const res = await client.rpc("set_moment", { p_id: id, p_on: on });
+    if (res.error) { notice("Couldn't update that", res.error.message, { error: true }); return; }
+    await reloadAll();
+    render();
+    haptic("pin");
+    notice(on ? "Pinned to Moments" : "Removed from Moments", on ? "You will find it under Moments." : "");
+  }
+  async function deleteForMe(id) {
+    const client = cloudClient();
+    if (!client) return;
+    const res = await client.rpc("delete_for_me", { p_id: id });
+    if (res.error) { notice("Couldn't delete that", res.error.message, { error: true }); return; }
+    await reloadAll();
+    render();
+    notice("Deleted from your view", "The other side still has it.");
+  }
+  async function deleteForEveryone(id) {
+    const client = cloudClient();
+    if (!client) return;
+    const m = thread().find(x => x.id === id);
+    if (m && m.mid && String(m.mid).startsWith("local-")) await delBlob(m.mid);
+    voiceCache.get(id)?._audio.pause();
+    voiceCache.delete(id);
+    const res = await client.rpc("delete_for_both", { p_id: id });
+    if (res.error) { notice("Couldn't delete that", res.error.message, { error: true }); return; }
+    await reloadAll();
+    render();
+    haptic("error");
+    notice("Deleted for both", "The message now shows as deleted on both sides.");
+  }
+  function markNotesRead(side) {
+    const ids = notesFrom(side).map(n => n.id);
+    ids.forEach(id => { cacheNread[id] = true; });
+    const client = cloudClient();
+    if (!client || !myUserId) return;
+    const rows = ids.map(id => ({ user_id: myUserId, note_id: id }));
+    if (rows.length) client.from("note_reads").upsert(rows);
+  }
+  function unreadNotesCount() {
+    return notesFrom(other()).filter(n => !cacheNread[n.id]).length;
+  }
+  async function addNote(kind, text) {
+    const client = cloudClient();
+    if (!client) return;
+    const ins = await client.from("notes").insert({ pair_id: pairId, author_id: myUserId, side: me, kind, text: text.slice(0, NOTE_MAX) });
+    if (ins.error) { notice("Couldn't share that note", ins.error.message, { error: true }); return; }
+    haptic("pin");
+    await reloadAll();
+  }
+  async function saveNoteEdit(id, text) {
+    const client = cloudClient();
+    if (!client) return;
+    const upd = await client.from("notes").update({ text: text.slice(0, NOTE_MAX), edited: true }).eq("id", id);
+    if (upd.error) { notice("Couldn't save the note", upd.error.message, { error: true }); return; }
+    await reloadAll();
+  }
+  async function removeNote(id) {
+    const client = cloudClient();
+    if (!client) return;
+    const gone = await client.from("notes").delete().eq("id", id);
+    if (gone.error) { notice("Couldn't delete that note", gone.error.message, { error: true }); return; }
+    await reloadAll();
+  }
+  async function trackTyping(on) {
+    if (presenceChannel) {
+      try { await presenceChannel.track({ typing: !!on, ts: Date.now() }); } catch {}
+    }
+  }
+  async function unlock(side) {
+    me = side;
+    store.set(KEY.last, side);
+    unlocked = true;
+    lastActivity = Date.now();
+    ensureAudio();
+    $("input").value = (store.get(KEY.drafts, {})[me]) || "";
+    autosize();
+    const opened = await openCloud(side);
+    if (!opened) { unlocked = false; me = null; showView("lock"); return; }
+    rememberSide(side);
+    prevUnread = unreadList().length;
+    applyTheme();
+    showView("home");
+    renderHome();
+    deliverDue();
+    haptic("recv");
+  }
+  async function cloudSignIn(e) {
+    e.preventDefault();
+    if (!chosen) return;
+    const client = cloudClient();
+    if (!client) return;
+    const password = $("pass").value;
+    $("pass").value = "";
+    const res = await client.auth.signInWithPassword({ email: SIDE_EMAIL[chosen], password });
+    if (res.error) {
+      $("lockErr").textContent = "That isn't right.";
+      haptic("error");
+      const p = $("pass");
+      p.classList.remove("shake"); void p.offsetWidth; p.classList.add("shake");
+      return;
+    }
+    $("lockErr").textContent = "";
+    rememberSide(chosen);
+    unlock(chosen);
+  }
+  async function cloudSetup(e) {
+    e.preventDefault();
+    const client = cloudClient();
+    if (!client) return;
+    const p1 = $("sp1").value, p2 = $("sp2").value;
+    const q1 = +$("sq1").value, q2 = +$("sq2").value;
+    const a1 = normAnswer($("sa1").value), a2 = normAnswer($("sa2").value);
+    if (p1.length < 8) { $("lockErr").textContent = "Use at least 8 characters."; return; }
+    if (p1 !== p2) { $("lockErr").textContent = "The two passphrases don't match."; haptic("error"); return; }
+    if (q1 === q2) { $("lockErr").textContent = "Choose two different questions."; return; }
+    if (a1.length < 2 || a2.length < 2) { $("lockErr").textContent = "Write both answers."; return; }
+    const res = await client.auth.signUp({ email: SIDE_EMAIL[chosen], password: p1 });
+    if (res.error) {
+      if (/already/i.test(res.error.message)) {
+        showLockMode("signin");
+        $("lockErr").textContent = "Sign in with your passphrase.";
+        return;
+      }
+      $("lockErr").textContent = res.error.message;
+      return;
+    }
+    if (!res.data.session) {
+      const again = await client.auth.signInWithPassword({ email: SIDE_EMAIL[chosen], password: p1 });
+      if (again.error) { $("lockErr").textContent = again.error.message; return; }
+    }
+    ["sp1", "sp2", "sa1", "sa2"].forEach(id => $(id).value = "");
+    const opened = await (async () => { me = chosen; return openCloud(chosen); })();
+    if (!opened) { $("lockErr").textContent = "The side could not be opened."; return; }
+    const rec = await client.functions.invoke("setup-recovery", { body: { q1, q2, a1, a2 } });
+    if (rec.error || (rec.data && rec.data.error)) {
+      notice("Passphrase saved, recovery answers were not", "Open Settings later and try again.", { error: true });
+    }
+    rememberSide(chosen, { known: true, qs: [{ q: QUESTIONS[q1] }, { q: QUESTIONS[q2] }] });
+    unlocked = true;
+    lastActivity = Date.now();
+    ensureAudio();
+    prevUnread = 0;
+    applyTheme();
+    showView("home");
+    renderHome();
+    haptic("recv");
+  }
+  async function cloudRecover(e) {
+    e.preventDefault();
+    const client = cloudClient();
+    if (!client) return;
+    const password = $("rp1").value;
+    const res = await client.functions.invoke("recovery-reset", {
+      body: { side: chosen, a1: normAnswer($("ra1").value), a2: normAnswer($("ra2").value), password }
+    });
+    const payload = res.data || {};
+    if (res.error || payload.error) {
+      $("lockErr").textContent = payload.error || "Those answers don't match.";
+      haptic("error");
+      return;
+    }
+    ["ra1", "ra2", "rp1"].forEach(id => $(id).value = "");
+    showLockMode("signin");
+    $("lockErr").textContent = "New passphrase saved. Sign in with it.";
+  }
+  function rebindAuthForms() {
+    const swap = (id) => {
+      const node = $(id);
+      const copy = node.cloneNode(true);
+      node.replaceWith(copy);
+      return copy;
+    };
+    swap("lockForm").addEventListener("submit", cloudSignIn);
+    swap("setupForm").addEventListener("submit", cloudSetup);
+    swap("recoverForm").addEventListener("submit", cloudRecover);
+    $("forgot").addEventListener("click", () => { showLockMode("recover"); void loadPrompts(); });
+    $("recCancelBtn").addEventListener("click", () => showLockMode("signin"));
+    $("peek").addEventListener("click", () => {
+      const p = $("pass");
+      const show = p.type === "password";
+      p.type = show ? "text" : "password";
+      $("peek").setAttribute("aria-label", show ? "Hide passphrase" : "Show passphrase");
+    });
+    if ($("sq2")) $("sq2").selectedIndex = 1;
+  }
+  async function loadPrompts() {
+    const client = cloudClient();
+    if (!client || !chosen) return;
+    const res = await client.rpc("recovery_prompts", { p_side: chosen });
+    const row = (res.data || [])[0];
+    if (!row) { $("rq1l").textContent = "Recovery is not set up on this side."; $("rq2l").textContent = ""; return; }
+    $("rq1l").textContent = QUESTIONS[row.q1] || "";
+    $("rq2l").textContent = QUESTIONS[row.q2] || "";
+  }
+  async function changePassphrase() {
+    const client = cloudClient();
+    if (!client) return;
+    const v = await formPanel({
+      title: "Change passphrase",
+      desc: "Enter your current passphrase, then choose a new one. Only your side changes.",
+      fields: [
+        { key: "cur", label: "Current passphrase", type: "password" },
+        { key: "next", label: "New passphrase", type: "password", placeholder: "At least 8 characters" },
+        { key: "again", label: "Repeat new passphrase", type: "password" }
+      ],
+      submit: "Change passphrase",
+      validate: (x) => null
+    });
+    if (!v) return;
+    if (v.next.length < 8) { notice("Too short", "Use at least 8 characters.", { error: true }); return; }
+    if (v.next !== v.again) { notice("Those don't match", "Type the new passphrase twice.", { error: true }); return; }
+    const check = await client.auth.signInWithPassword({ email: SIDE_EMAIL[me], password: v.cur });
+    if (check.error) { notice("Current passphrase is wrong", "Nothing was changed.", { error: true }); return; }
+    const upd = await client.auth.updateUser({ password: v.next });
+    if (upd.error) { notice("Couldn't change the passphrase", upd.error.message, { error: true }); return; }
+    notice("Passphrase changed", "Use the new one the next time you sign in.");
+  }
+  async function signOutEverywhere() {
+    const client = cloudClient();
+    if (!client) return;
+    const res = await client.auth.signOut({ scope: "others" });
+    if (res.error) { notice("Couldn't sign out the other devices", res.error.message, { error: true }); return; }
+    notice("Other devices signed out", "They will need the passphrase the next time they open this.");
+  }
+  async function mediaURL(id) {
+    if (!id) return null;
+    if (urlCache.has(id)) return urlCache.get(id);
+    try {
+      if (String(id).startsWith("local-")) {
+        const b = await getBlob(id);
+        if (!b) return null;
+        const u = URL.createObjectURL(b);
+        urlCache.set(id, u);
+        return u;
+      }
+      const client = cloudClient();
+      if (!client) return null;
+      const signed = await client.storage.from("media").createSignedUrl(id, 600);
+      if (signed.error || !signed.data || !signed.data.signedUrl) return null;
+      urlCache.set(id, signed.data.signedUrl);
+      return signed.data.signedUrl;
+    } catch { return null; }
+  }
+  function seenMap() { return cacheSeen; }
+
   // Start.
   applyTheme();
   if (document.hidden) document.body.classList.add("private");
   applyRemembered();
   autosize();
+  rebindAuthForms();
   $("pass").focus();
 })();
 </script>
