@@ -513,6 +513,22 @@ create policy note_reads_update on public.note_reads
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
+
+create table if not exists public.journal_entries (
+  id uuid primary key default gen_random_uuid(),
+  pair_id uuid not null references public.pairs(id) on delete cascade,
+  author_id uuid not null default auth.uid() references auth.users(id),
+  side text not null check (side in ('Lewis','Agnes')),
+  kind text not null check (kind in ('diary','note')),
+  text text not null check (char_length(text) <= 10000),
+  created_at timestamptz not null default now()
+);
+alter table public.journal_entries enable row level security;
+create policy journal_read on public.journal_entries for select to authenticated using (pair_id in (select pair_id from public.pair_members where user_id = auth.uid()));
+create policy journal_insert on public.journal_entries for insert to authenticated with check (pair_id in (select pair_id from public.pair_members where user_id = auth.uid()) and author_id = auth.uid() and side = (select side from public.pair_members where user_id = auth.uid()));
+grant select, insert on public.journal_entries to authenticated;
+revoke all on public.journal_entries from anon;
+
 -- ---------- privileges ----------
 
 revoke all on public.recovery_answers from public, anon, authenticated;
@@ -532,7 +548,9 @@ grant usage on schema public to authenticated;
 
 grant select on public.pairs to authenticated;
 revoke update on public.pair_settings from authenticated;
+alter table public.pair_settings add column if not exists app_icon text check (app_icon is null or char_length(app_icon) <= 300000);
 grant update (theme, archive_days) on public.pair_settings to authenticated;
+grant update (app_icon) on public.pair_settings to authenticated;
 grant select on public.pair_members to authenticated;
 revoke update on public.pair_members from authenticated;
 grant update (status, tz, haptics, sound, auto_blur, shake, blur_words) on public.pair_members to authenticated;

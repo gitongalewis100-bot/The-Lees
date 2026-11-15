@@ -7,7 +7,11 @@
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
 <title>Notes</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📓</text></svg>">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="The Lees">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="icon" href="/icon-192.png">
 <style>
 :root{
   --bg:#f8f4ee;--surface:#fffdf9;--ink:#2a2420;--muted:#8c8179;--line:#ebe2d7;--line-strong:#dcd0c2;
@@ -1399,6 +1403,57 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     return r;
   }
 
+
+  function openJournal() {
+    openPanel("Journal", "Yours and hers", (body) => {
+      const add = el("button", "btn", "New entry");
+      add.addEventListener("click", () => openJournalComposer());
+      body.appendChild(add);
+      const list = el("div", "");
+      list.style.marginTop = "14px";
+      const entries = (cacheJournal || []).slice().sort((a, b) => b.ts - a.ts);
+      if (!entries.length) list.appendChild(el("p", "fp-desc", "No entries yet."));
+      for (const e of entries) {
+        const card = el("div", "note-card");
+        const top = el("div", "top");
+        top.append(el("span", "kind", e.kind === "diary" ? "Diary" : "Note"), el("span", "", NAME[e.from] || e.from));
+        card.appendChild(top);
+        card.appendChild(el("div", "txt", e.text));
+        card.appendChild(el("div", "mono muted", fmtDateTime(e.ts)));
+        list.appendChild(card);
+      }
+      body.appendChild(list);
+    });
+  }
+  function openJournalComposer() {
+    sheetOpen((body) => {
+      body.appendChild(el("h3", "fp-title", "New entry"));
+      const ta = el("textarea", "in plain");
+      ta.placeholder = "Write...";
+      ta.style.minHeight = "80px";
+      body.appendChild(ta);
+      const row = el("div", "");
+      row.style.display = "flex"; row.style.gap = "8px"; row.style.marginTop = "10px";
+      const diary = el("button", "btn", "Add to diary");
+      const note = el("button", "btn ghost", "Note only");
+      diary.addEventListener("click", async () => { if (ta.value.trim()) { await saveJournal(ta.value.trim(), "diary"); sheetClose(); openJournal(); } });
+      note.addEventListener("click", async () => { if (ta.value.trim()) { await saveJournal(ta.value.trim(), "note"); sheetClose(); openJournal(); } });
+      row.append(diary, note);
+      body.appendChild(row);
+    });
+  }
+  async function saveJournal(text, kind) {
+    const client = cloudClient();
+    if (!client || !pairId) return;
+    await client.from("journal_entries").insert({ pair_id: pairId, side: me, kind, text });
+    await reloadJournal();
+  }
+  async function reloadJournal() {
+    const client = cloudClient();
+    if (!client || !pairId) return;
+    const r = await client.from("journal_entries").select("*").eq("pair_id", pairId).order("created_at", { ascending: false });
+    cacheJournal = (r.data || []).map(e => ({ id: e.id, from: e.side, kind: e.kind, text: e.text, ts: new Date(e.created_at).getTime() }));
+  }
   function openSettings() {
     openPanel("Settings", NAME[me], (body) => {
       const sh = SH(), s = S(me);
@@ -1413,6 +1468,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       status.addEventListener("change", () => setS(me, { status: status.value.trim() }));
       body.appendChild(group("Your side", [
         prow("Status", "Shown to her under your name", status),
+        (() => { const b = el("button", "btn sm", "Choose"); b.addEventListener("click", () => { const f = el("input"); f.type = "file"; f.accept = "image/*"; f.addEventListener("change", () => { if (f.files[0]) setAppIcon(f.files[0]); }); f.click(); }); return prow("App icon", "Shown on both devices", b); })(),
         (() => { const b = el("button", "btn sm", "Choose photo"); b.addEventListener("click", () => { const f = el("input"); f.type = "file"; f.accept = "image/*"; f.addEventListener("change", () => { if (f.files[0]) uploadAvatar(f.files[0]); }); f.click(); }); return prow("Photo", "Shown on your home card", b); })(),
         prow("Time zone", "Shown to her as your local time", selectCtl(ZONES.concat(ZONES.includes(s.tz) ? [] : [s.tz]).map(z => [z, z]), s.tz, (v) => setS(me, { tz: v }))),
         prow("Haptics", "Gentle vibration on actions", toggle(s.haptics, (v) => { setS(me, { haptics: v }); if (v) haptic("press"); })),
@@ -1627,6 +1683,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       ["search", "Search", () => openChat(true), false],
       ["shield", shield ? "Shield on" : "Shield", () => { shield = !shield; haptic("press"); render(); }, shield],
       ["gear", "Settings", () => openSettings(), false],
+      ["edit", "Journal", () => openJournal(), false],
       ["logout", "Sign out", () => confirmSignOut("this"), true]
     ];
     for (const [icon, label, fn, on, badge] of items) {
@@ -1661,10 +1718,6 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     // People
     const people = $("people");
     people.textContent = "";
-    const meBtn = el("button", "person");
-    meBtn.innerHTML = `<div class="avatar ${me.toLowerCase()}">${me === "Lewis" ? "L" : "A"}</div><div class="grow"><div class="n">${NAME[me]}</div><div class="s">${htmlEsc(S(me).status || "Open your conversation")}</div></div>${ic("chat", "sm")}`;
-    meBtn.addEventListener("click", () => openChat());
-    people.appendChild(meBtn);
     const other2 = other();
     const otherBtn = el("button", "person");
     otherBtn.innerHTML = `<div class="avatar ${other2.toLowerCase()}">${other2 === "Lewis" ? "L" : "A"}</div><div class="grow"><div class="n">${NAME[other2]}</div><div class="s">${htmlEsc(S(other2).status || "Open the conversation")}</div></div>${unreadList().length ? `<span class="badge">${unreadList().length}</span>` : ic("chat", "sm")}`;
@@ -2527,8 +2580,10 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     renderPresence();
     deliverDue();
     if (rec || [...voiceCache.values()].some(w => !w._audio.paused)) lastActivity = Date.now();
-    if (Date.now() - lastActivity > IDLE_MS) lock();
-  }, 1000);
+    if (Date.now() - lastActivity > IDLE_MS) { lock(); $("lockErr").textContent = "Signed out after 5 minutes of inactivity."; }
+  }, 15000);
+  ["keydown", "touchstart", "scroll"].forEach(ev => document.addEventListener(ev, () => { lastActivity = Date.now(); }, { passive: true }));
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && unlocked && Date.now() - lastActivity > IDLE_MS) { lock(); $("lockErr").textContent = "Signed out after 5 minutes of inactivity."; } });
   setInterval(applyTheme, 60 * 1000);
 
 
@@ -2537,7 +2592,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtaW13bHBzZmNobmR4YXh6c3doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ3NDg0NTQsImV4cCI6MjExMDMyNDQ1NH0.RVVgRCNJJO588H2EDAkjftploDFVXIKmy2zvv-iJldA";
   const SIDE_EMAIL = { Lewis: "lewis@the-lees.app", Agnes: "agnes@the-lees.app" };
   let sb = null, pairId = null, myUserId = null, sideOfUser = {}, userOfSide = {};
-  let cacheThread = [], cacheNotes = [], cacheSched = [], cacheShared = { theme: "warm", archiveDays: 0 };
+  let cacheThread = [], cacheNotes = [], cacheSched = [], cacheJournal = [], cacheShared = { theme: "warm", archiveDays: 0, appIcon: null };
   let cacheMembers = {}, cacheSeen = {}, cacheNread = {}, presenceState = {};
   let cloudChannel = null, presenceChannel = null, lastPull = 0;
 
@@ -2595,7 +2650,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       userOfSide[row.side] = row.user_id;
       cacheMembers[row.side] = memberView(row);
     }
-    if (settings.data) cacheShared = { theme: settings.data.theme || "warm", archiveDays: settings.data.archive_days || 0 };
+    if (settings.data) { cacheShared = { theme: settings.data.theme || "warm", archiveDays: settings.data.archive_days || 0, appIcon: settings.data.app_icon || null }; if (cacheShared.appIcon) applyAppIcon(cacheShared.appIcon); }
     const pending = cacheThread.filter(m => m.pending);
     cacheThread = (messages.data || []).map(msgFromRow).concat(pending);
     cacheNotes = (notes.data || []).map(noteFromRow);
@@ -2687,6 +2742,37 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
         home.appendChild(img);
       }
     }
+  }
+
+  async function setAppIcon(file) {
+    const url = URL.createObjectURL(file);
+    let dataUrl;
+    try {
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+      const c = document.createElement("canvas");
+      c.width = 512; c.height = 512;
+      const g = c.getContext("2d");
+      const s = Math.max(512 / img.width, 512 / img.height);
+      const w = img.width * s, h = img.height * s;
+      g.drawImage(img, (512 - w) / 2, (512 - h) / 2, w, h);
+      dataUrl = c.toDataURL("image/jpeg", 0.85);
+    } finally { URL.revokeObjectURL(url); }
+    if (!dataUrl || dataUrl.length > 300000) { notice("Image too large", "", { error: true }); return; }
+    const client = cloudClient();
+    if (!client || !pairId) return;
+    const upd = await client.from("pair_settings").update({ app_icon: dataUrl }).eq("pair_id", pairId);
+    if (upd.error) { notice("Couldn't save icon", upd.error.message, { error: true }); return; }
+    applyAppIcon(dataUrl);
+    notice("Icon saved");
+  }
+  function applyAppIcon(dataUrl) {
+    if (!dataUrl) return;
+    let link = document.querySelector('link[rel="apple-touch-icon"]');
+    if (!link) { link = document.createElement("link"); link.rel = "apple-touch-icon"; document.head.appendChild(link); }
+    link.href = dataUrl;
+    let fav = document.querySelector('link[rel="icon"]');
+    if (!fav) { fav = document.createElement("link"); fav.rel = "icon"; document.head.appendChild(fav); }
+    fav.href = dataUrl;
   }
   async function uploadAvatar(file) {
     const client = cloudClient();
@@ -3021,12 +3107,20 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     $("pass").value = "";
     const res = await client.auth.signInWithPassword({ email: SIDE_EMAIL[chosen], password });
     if (res.error) {
+      const fails = (store.get(KEY.fail, {})[chosen] || 0) + 1;
+      const all = store.get(KEY.fail, {});
+      all[chosen] = fails;
+      store.set(KEY.fail, all);
       $("lockErr").textContent = "That isn't right.";
+      if (fails >= 4) { $("forgot").classList.remove("hidden"); showLockMode("recover"); }
       haptic("error");
       const p = $("pass");
       p.classList.remove("shake"); void p.offsetWidth; p.classList.add("shake");
       return;
     }
+    const all = store.get(KEY.fail, {});
+    all[chosen] = 0;
+    store.set(KEY.fail, all);
     $("lockErr").textContent = "";
     rememberSide(chosen);
     unlock(chosen);
@@ -3187,10 +3281,20 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   // Start.
   applyTheme();
   if (document.hidden) document.body.classList.add("private");
-  applyRemembered();
-  autosize();
-  rebindAuthForms();
-  $("pass").focus();
+  (async () => {
+    const client = cloudClient();
+    if (client) {
+      const { data } = await client.auth.getSession();
+      if (data.session) {
+        const side = Object.keys(SIDE_EMAIL).find(k => SIDE_EMAIL[k] === data.session.user.email);
+        if (side) { me = side; chosen = side; const ok = await openCloud(side); if (ok) { unlocked = true; showView("home"); renderHome(); return; } }
+      }
+    }
+    applyRemembered();
+    autosize();
+    rebindAuthForms();
+    $("pass").focus();
+  })();
 })();
 </script>
 </body>
