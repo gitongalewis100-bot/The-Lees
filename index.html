@@ -170,16 +170,18 @@ select.in{padding-right:12px}
 mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 2px}
 .hit{outline:2px solid var(--accent);outline-offset:4px;border-radius:20px}
 
-#list{flex:1;overflow-y:auto;padding:14px 14px 10px;display:flex;flex-direction:column;gap:4px;overscroll-behavior:contain;user-select:none;-webkit-user-select:none}
-#list .text,#list .photo{user-select:text;-webkit-user-select:text}
+#list{flex:1;overflow-y:auto;overflow-anchor:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:14px 14px 10px;display:flex;flex-direction:column;gap:4px}
+#list .text,#list .photo{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .day{align-self:center;color:var(--muted);font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;margin:12px 0 8px;padding:4px 12px;background:var(--surface);border:1px solid var(--line);border-radius:999px;text-transform:uppercase}
 .newline{align-self:stretch;display:flex;align-items:center;gap:10px;color:var(--accent);margin:12px 0 8px}
 .newline::before,.newline::after{content:"";flex:1;height:1px;background:var(--accent);opacity:.35}
-.row{display:flex;flex-direction:column;max-width:80%;animation:pop .35s var(--ease) both;margin-bottom:4px}
+.row{display:flex;flex-direction:column;max-width:80%;margin-bottom:4px}
+.row.fresh{opacity:0}
+.row.fresh.in{opacity:1;transition:opacity .2s var(--ease)}
 .row.mine{align-self:flex-end;align-items:flex-end}
 .row.theirs{align-self:flex-start;align-items:flex-start}
 .row.glow .msg{animation:glow 2s var(--ease)}
-.msg{position:relative;padding:10px 14px 8px;border-radius:18px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:var(--shadow);transition:transform .2s var(--ease);-webkit-touch-callout:none}
+.msg{position:relative;padding:10px 14px 8px;border-radius:18px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:var(--shadow);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
 .mine .msg{background:var(--mine);color:var(--mine-ink);border-bottom-right-radius:6px}
 .theirs .msg{background:var(--theirs);border:1px solid var(--line);border-bottom-left-radius:6px}
 .msg.flash{animation:flash 1.3s var(--ease)}
@@ -209,8 +211,7 @@ mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 
 @keyframes heartshrink{0%{transform:scale(1)}100%{transform:scale(.75)}}
 @keyframes igheart{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}35%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.4)}}
 @keyframes bit{to{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.4)}}
-.row.rise{opacity:0;transform:translateY(14px);animation:none}
-.row.rise.in{opacity:1;transform:none;transition:opacity .45s var(--ease),transform .45s var(--ease)}
+.row.fresh.in{opacity:1}
 .scratch{position:absolute;inset:0;z-index:2;width:100%;height:100%;border-radius:inherit;touch-action:none;cursor:crosshair}
 .msg.reblur .text,.msg.reblur .photo,.msg.reblur .voice{filter:blur(9px);transition:filter .45s ease}
 .msg.shimmer::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);animation:shim .6s ease;pointer-events:none}
@@ -221,7 +222,7 @@ mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 
 .calday.on{border-color:var(--accent);color:var(--accent)}
 .calnav{display:flex;align-items:center;gap:8px;margin-bottom:10px}
 @media (prefers-reduced-motion: reduce){
-  .row.rise,.row.rise.in,.heartbtn.pop svg,.heartbtn.shrink svg,.igheart,.bits,.msg.shimmer::after{animation:none!important;transition:none!important;opacity:1;transform:none}
+  .row.fresh,.row.fresh.in,.heartbtn.pop svg,.heartbtn.shrink svg,.igheart,.bits,.msg.shimmer::after{animation:none!important;transition:none!important;opacity:1;transform:none}
 }
 .edlabel{color:var(--muted);text-decoration:underline;text-underline-offset:2px}
 .receipt{margin-top:3px;color:var(--muted);padding-right:4px;font-family:var(--mono);font-size:10px;letter-spacing:.06em}
@@ -271,6 +272,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
 #input{flex:1;resize:none;min-height:42px;max-height:128px;padding:10px 14px;border:1px solid var(--line);border-radius:21px;background:var(--bg);outline:none;line-height:1.35;font-size:15px;transition:border-color .2s}
 #input:focus{border-color:var(--accent)}
 #send{width:42px;height:42px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none;transition:transform .15s var(--ease),opacity .2s}
+#mic,#send{touch-action:manipulation}
 #send:active{transform:scale(.92)}
 #send:disabled{opacity:.35}
 #recbar{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--surface);border-top:1px solid var(--line)}
@@ -557,7 +559,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   const sessionId = uid();
   let me = null, chosen = store.get(KEY.last, null), unlocked = false, lastActivity = Date.now(), lastTypingSent = 0;
   let view = "lock", replyTo = null, editingId = null, query = "", filter = "all", dateFilter = "", matches = [], matchIdx = -1, shield = false;
-  let audioCtx = null, rec = null, recStream = null, recChunks = [], recStart = 0, recRAF = 0, recTimer = 0, recAnalyser = null, recHistory = [];
+  let audioCtx = null, rec = null, recStream = null, recChunks = [], recStart = 0, recRAF = 0, recTimer = 0, recAnalyser = null, recHistory = [], recWantStop = false;
   let knownIds = new Set(), prevUnread = 0, shakeTimes = [], sensCache = { key: "", re: null };
   let dragDepth = 0, posTimer = 0;
   const voiceCache = new Map(), urlCache = new Map();
@@ -1096,7 +1098,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
 
   function buildRow(m, seen, isLastMine) {
     const mine = m.from === me;
-    const row = el("div", "row rise " + (mine ? "mine" : "theirs"));
+    const row = el("div", "row " + (mine ? "mine" : "theirs"));
     row.dataset.row = m.id;
     row.dataset.ts = String(m.ts);
     const card = el("div", "msg");
@@ -1125,12 +1127,13 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       else if (shield) card.classList.add("blurred");
     }
     card.addEventListener("pointerup", (e) => {
-      if (e.target.closest(".scratch")) return;
+      if (e.target.closest(".scratch,.heartbtn,.vplay,.vspeed,.bars,.edlabel")) return;
       const now = Date.now();
-      if (card._tap && now - card._tap < 320) {
+      const live = thread().find(x => x.id === card.dataset.id) || m;
+      if (card._tap && now - card._tap < 300) {
         card._tap = 0;
-        popHeart(card);
-        if (!likedByMe(m)) toggleHeart(m.id);
+        if (!likedByMe(live)) popHeart(card);
+        toggleHeart(live.id);
       } else card._tap = now;
     });
     row.appendChild(card);
@@ -1138,9 +1141,9 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const meta = el("div", "stack");
     meta.appendChild(el("span", "", fmtTime(m.ts)));
     if (m.edited) { const e = el("button", "edlabel", "edited"); e.dataset.hist = m.id; meta.appendChild(e); }
-    if (m.moment) meta.appendChild(el("span", "", "· moment"));
+    if (m.moment) { const s = el("span", "", "· moment"); s.dataset.mom = "1"; meta.appendChild(s); }
     if (m.late) meta.appendChild(el("span", "", "· delivered late"));
-    if (m.pending) meta.appendChild(el("span", "", "· waiting to send"));
+    if (m.pending) { const s = el("span", "", "· waiting to send"); s.dataset.pend = "1"; meta.appendChild(s); }
     const hb = el("button", "heartbtn" + (likedByMe(m) ? " on" : ""));
     hb.type = "button";
     hb.setAttribute("aria-label", likedByMe(m) ? "Unlike" : "Like");
@@ -1150,7 +1153,11 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       if (justHeart.on) burstHeart(hb);
       justHeart = null;
     }
-    hb.addEventListener("click", (e) => { e.stopPropagation(); toggleHeart(m.id); });
+    hb.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const live = thread().find(x => x.id === card.dataset.id);
+      toggleHeart(live ? live.id : card.dataset.id);
+    });
     meta.append(hb, el("span", "heartcount", String(heartCount(m))));
     for (const [emo, n] of Object.entries(emojiCounts(m))) meta.appendChild(el("span", "emojicount", emo + " " + n));
     row.appendChild(meta);
@@ -1177,15 +1184,58 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     return true;
   }
 
-  function render() {
+  function render(opts) {
     if (!unlocked) return;
-    if (view === "chat") renderChat();
+    if (view === "chat") renderChat(opts || {});
     else if (view === "home") renderHome();
     else if (view === "panel") renderPanel();
     renderBanner();
   }
 
-  function renderChat() {
+  function rowKey(m) { return "m:" + (m.clientId || m.id); }
+  function structureRev(m) {
+    return [m.kind, m.deleted ? 1 : 0, m.text || "", m.mid || "", (m.hiddenBy || []).join(","), m.replyTo ? (m.replyTo.id + ":" + m.replyTo.preview) : "", shield ? 1 : 0, query || ""].join("\u0001");
+  }
+  function chromeRev(m, seen, isLastMine) {
+    const seenAt = isLastMine ? (seen[other()] || 0) : 0;
+    return [(m.hearts || []).join(","), m.edited ? 1 : 0, m.pending ? 1 : 0, m.moment ? 1 : 0, m.late ? 1 : 0, isLastMine ? 1 : 0, seenAt >= m.ts ? seenAt : 0].join("\u0001");
+  }
+  function paintChrome(row, m, seen, isLastMine) {
+    const hb = row.querySelector(".heartbtn");
+    if (hb) {
+      const on = likedByMe(m);
+      hb.classList.toggle("on", on);
+      hb.setAttribute("aria-label", on ? "Unlike" : "Like");
+      if (justHeart && justHeart.id === m.id) {
+        if (!reduceMotion()) hb.classList.add(justHeart.on ? "pop" : "shrink");
+        if (justHeart.on) burstHeart(hb);
+        justHeart = null;
+      }
+    }
+    const hc = row.querySelector(".heartcount");
+    if (hc) hc.textContent = String(heartCount(m));
+    row.querySelectorAll(".emojicount").forEach(n => n.remove());
+    const meta = row.querySelector(".stack");
+    if (meta) {
+      for (const [emo, n] of Object.entries(emojiCounts(m))) meta.appendChild(el("span", "emojicount", emo + " " + n));
+      const pend = row.querySelector("[data-pend]");
+      if (m.pending && !pend) { const s = el("span", "", "· waiting to send"); s.dataset.pend = "1"; meta.appendChild(s); }
+      if (!m.pending && pend) pend.remove();
+      const mom = row.querySelector("[data-mom]");
+      if (m.moment && !mom) { const s = el("span", "", "· moment"); s.dataset.mom = "1"; meta.appendChild(s); }
+      if (!m.moment && mom) mom.remove();
+    }
+    let receipt = row.querySelector(".receipt");
+    if (isLastMine) {
+      const s = seen[other()] || 0;
+      const text = s >= m.ts ? "SEEN " + fmtTime(s) : "DELIVERED";
+      if (!receipt) row.appendChild(el("div", "receipt", text));
+      else receipt.textContent = text;
+    } else if (receipt) receipt.remove();
+  }
+
+  function renderChat(opts) {
+    opts = opts || {};
     const list = visibleList();
     const box = $("list");
     const near = nearBottom();
@@ -1194,41 +1244,103 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const lastMine = [...list].reverse().find(m => m.from === me);
     const unread = firstUnread();
     const firstUnreadId = unread ? unread.id : null;
-    const shown = list.filter(m => matchesFilter(m) && (!query || (m.kind === "text" && m.text.toLowerCase().includes(query))));
+    const shown = list.filter(m => matchesFilter(m) && (!query || (m.kind === "text" && (m.text || "").toLowerCase().includes(query))));
     matches = query ? shown.filter(m => m.kind === "text").map(m => m.id) : [];
     if (!query) matchIdx = -1;
     else if (matchIdx < 0 || matchIdx >= matches.length) matchIdx = matches.length - 1;
 
-    box.textContent = "";
+    const want = [];
     const pinned = (typeof cacheShared !== "undefined" && cacheShared.pinnedId && thread().find(x => x.id === cacheShared.pinnedId && !x.deleted)) || null;
-    if (pinned) {
-      const bar = el("button", "pinbar");
-      bar.type = "button";
-      bar.textContent = "Pinned · " + (pinned.kind === "text" ? (pinned.text || "") : pinned.kind).slice(0, 90);
-      bar.addEventListener("click", () => {
-        const row = box.querySelector('[data-row="' + pinned.id + '"]');
-        if (row) row.scrollIntoView({ block: "center" });
-      });
-      box.appendChild(bar);
-    }
-    if (!list.length) {
-      const e = el("div", "empty");
-      e.append(el("b", "", "Nothing written yet."), document.createTextNode("Start with a line, a photo, or your voice."));
-      box.appendChild(e);
-    }
+    if (pinned) want.push({ key: "pin", pin: pinned });
+    if (!list.length) want.push({ key: "empty" });
     let lastDay = "";
-    for (const m of shown) {
+    shown.forEach((m, idx) => {
       const day = fmtDay(m.ts);
-      if (day !== lastDay) { box.appendChild(el("div", "day", day)); lastDay = day; }
-      if (m.id === firstUnreadId && !searching) box.appendChild(el("div", "newline mono", "New"));
-      box.appendChild(buildRow(m, seen, m === lastMine));
+      if (day !== lastDay) { want.push({ key: "day:" + day, day }); lastDay = day; }
+      if (m.id === firstUnreadId && !searching) want.push({ key: "new" });
+      want.push({ key: rowKey(m), msg: m, last: m === lastMine, end: idx === shown.length - 1 });
+    });
+    if (searching && !shown.length) want.push({ key: "nomatch" });
+
+    const have = new Map();
+    [...box.children].forEach(n => { if (n.dataset.key) have.set(n.dataset.key, n); });
+    let addedAtEnd = false;
+    const next = [];
+    for (const item of want) {
+      let node = have.get(item.key);
+      if (item.msg) {
+        const struct = structureRev(item.msg);
+        const chrome = chromeRev(item.msg, seen, item.last);
+        if (!node) {
+          node = buildRow(item.msg, seen, item.last);
+          node.dataset.key = item.key;
+          node.dataset.struct = struct;
+          node.dataset.chrome = chrome;
+          if (!reduceMotion()) {
+            node.classList.add("fresh");
+            requestAnimationFrame(() => node.classList.add("in"));
+          }
+          if (item.end) addedAtEnd = true;
+        } else {
+          have.delete(item.key);
+          node.dataset.row = item.msg.id;
+          const card = node.querySelector(".msg");
+          if (card) card.dataset.id = item.msg.id;
+          if (node.dataset.struct !== struct) {
+            const neu = buildRow(item.msg, seen, item.last);
+            neu.dataset.key = item.key;
+            neu.dataset.struct = struct;
+            neu.dataset.chrome = chrome;
+            node.replaceWith(neu);
+            node = neu;
+          } else if (node.dataset.chrome !== chrome) {
+            paintChrome(node, item.msg, seen, item.last);
+            node.dataset.chrome = chrome;
+          }
+        }
+      } else if (!node) {
+        if (item.pin) {
+          node = el("button", "pinbar");
+          node.type = "button";
+          node.dataset.key = item.key;
+          node.dataset.pin = item.pin.id;
+          node.textContent = "Pinned · " + (item.pin.kind === "text" ? (item.pin.text || "") : item.pin.kind).slice(0, 90);
+          node.addEventListener("click", () => {
+            const row = box.querySelector('[data-row="' + node.dataset.pin + '"]');
+            if (row) row.scrollIntoView({ block: "center" });
+          });
+        } else if (item.day) {
+          node = el("div", "day", item.day);
+          node.dataset.key = item.key;
+        } else if (item.key === "new") {
+          node = el("div", "newline mono", "New");
+          node.dataset.key = item.key;
+        } else if (item.key === "empty") {
+          node = el("div", "empty");
+          node.dataset.key = item.key;
+          node.append(el("b", "", "Nothing written yet."), document.createTextNode("Start with a line, a photo, or your voice."));
+        } else {
+          node = el("div", "empty", "Nothing matches that search.");
+          node.dataset.key = item.key;
+        }
+      } else {
+        have.delete(item.key);
+        if (item.pin) {
+          node.dataset.pin = item.pin.id;
+          node.textContent = "Pinned · " + (item.pin.kind === "text" ? (item.pin.text || "") : item.pin.kind).slice(0, 90);
+        }
+      }
+      next.push(node);
     }
-    if (searching && !shown.length) box.appendChild(el("div", "empty", "Nothing matches that search."));
+    for (const n of have.values()) n.remove();
+    next.forEach((node, i) => {
+      if (box.children[i] !== node) box.insertBefore(node, box.children[i] || null);
+    });
+
     $("qcount").textContent = query ? (matches.length ? (matchIdx + 1) + " / " + matches.length : "0") : "";
     knownIds = new Set(thread().map(m => m.id));
-    if (near) box.scrollTop = box.scrollHeight;
-    if (query && matches.length) highlightMatch();
-    armRise();
+    if (opts.stick || (addedAtEnd && near)) box.scrollTop = box.scrollHeight;
+    if (opts.seek && query && matches.length) highlightMatch();
     if (focusDay) {
       const hit = [...box.querySelectorAll(".row")].find(r => {
         const ts = Number(r.dataset.ts);
@@ -1239,28 +1351,6 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     }
     renderChips();
     renderPresence();
-  }
-
-  const roseIds = new Set();
-  function armRise() {
-    if (reduceMotion()) {
-      document.querySelectorAll(".row.rise").forEach(n => n.classList.add("in"));
-      return;
-    }
-    if (!armRise.io) {
-      armRise.io = new IntersectionObserver((ents) => {
-        for (const e of ents) {
-          if (!e.isIntersecting) continue;
-          e.target.classList.add("in");
-          roseIds.add(e.target.dataset.row);
-          armRise.io.unobserve(e.target);
-        }
-      }, { root: $("list"), threshold: 0.2 });
-    }
-    $("list").querySelectorAll(".row.rise").forEach(row => {
-      if (roseIds.has(row.dataset.row)) { row.classList.add("in"); return; }
-      armRise.io.observe(row);
-    });
   }
 
   function highlightMatch() {
@@ -1325,7 +1415,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     prevUnread = n;
   }
 
-  function nearBottom() { const b = $("list"); return b.scrollHeight - b.scrollTop - b.clientHeight < 160; }
+  function nearBottom() { const b = $("list"); return b.scrollHeight - b.scrollTop - b.clientHeight <= 80; }
   function scrollBottom() { const b = $("list"); b.scrollTo({ top: b.scrollHeight, behavior: "smooth" }); }
 
   async function markRead() {
@@ -1392,9 +1482,6 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     actionFor = m.id;
     const acts = $("acts");
     acts.textContent = "";
-    const mine = m.from === me;
-    const age = Date.now() - m.ts;
-    const list = [];
     const reacts = el("div", "reacts");
     for (const em of ["❤", "😂", "😢", "👍"]) {
       const rb = el("button", "act", em);
@@ -1402,20 +1489,25 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       rb.addEventListener("click", (e) => { e.stopPropagation(); closeActions(); setEmoji(m.id, em); });
       reacts.appendChild(rb);
     }
-    acts.appendChild(reacts);
-    if (!m.deleted) list.push(["reply", "Reply", () => setReply(m)]);
-    if (m.kind === "text" && m.text && !m.deleted) list.push(["copy", "Copy text", () => copyMessage(m)]);
-    list.push(["pin", cacheShared.pinnedId === m.id ? "Unpin" : "Pin", () => setPinned(m.id)]);
-    if (mine && m.kind === "text" && !m.deleted) list.push(["edit", "Edit", () => startEdit(m)]);
-    list.push(["heart", (m.hearts || []).includes(me) ? "Unheart" : "Heart", () => toggleHeart(m.id)]);
-    list.push([(m.hiddenBy || []).includes(me) ? "eye" : "eyeoff", (m.hiddenBy || []).includes(me) ? "Reveal" : "Hide", () => setHidden(m.id, !(m.hiddenBy || []).includes(me))]);
-    list.push(["trash", "Delete for me", () => deleteForMe(m.id), true]);
-    if (mine && age < DELETE_ALL_MS && !m.deleted) list.push(["trash", "Delete for both", () => deleteForEveryone(m.id), true]);
-    list.push(["pin", m.moment ? "Moment off" : "Moment on", () => setMoment(m.id, !m.moment)]);
-    for (const [icon, label, fn, danger] of list) {
-      const b = el("button", "act" + (danger ? " danger" : ""));
-      b.innerHTML = ic(icon) + `<span>${label}</span>`;
-      b.addEventListener("click", (e) => { e.stopPropagation(); closeActions(); fn(); });
+    const mine = m.from === me;
+    const age = Date.now() - m.ts;
+    const items = [];
+    const add = (icon, label, fn, danger) => items.push({ icon, label, fn, danger });
+    if (!m.deleted && mine && m.kind === "text") add("edit", "Edit", () => startEdit(m));
+    if (!m.deleted) add("reply", "Reply", () => setReply(m));
+    if (!m.deleted && m.kind === "text" && m.text) add("copy", "Copy text", () => copyMessage(m));
+    if (!m.deleted) add("heart", "Heart", () => toggleHeart(m.id));
+    if (!m.deleted) items.push({ reacts: true });
+    if (!m.deleted) add("pin", cacheShared.pinnedId === m.id ? "Unpin" : "Pin", () => setPinned(m.id));
+    if (!m.deleted) add((m.hiddenBy || []).includes(me) ? "eye" : "eyeoff", (m.hiddenBy || []).includes(me) ? "Unhide" : "Hide", () => setHidden(m.id, !(m.hiddenBy || []).includes(me)));
+    add("trash", "Delete for me", () => deleteForMe(m.id), true);
+    if (mine && age < DELETE_ALL_MS && !m.deleted) add("trash", "Delete for both", () => deleteForEveryone(m.id), true);
+    if (!m.deleted) add("pin", m.moment ? "Moment off" : "Moment on", () => setMoment(m.id, !m.moment));
+    for (const item of items) {
+      if (item.reacts) { acts.appendChild(reacts); continue; }
+      const b = el("button", "act" + (item.danger ? " danger" : ""));
+      b.innerHTML = ic(item.icon) + `<span>${item.label}</span>`;
+      b.addEventListener("click", (e) => { e.stopPropagation(); closeActions(); item.fn(); });
       acts.appendChild(b);
     }
     $("actionBar").classList.remove("hidden");
@@ -2080,6 +2172,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     $("chatTitle").textContent = NAME[other()];
     $("shieldBtn").classList.toggle("shieldon", shield);
     showView("chat");
+    fillAvatars();
     const pos = store.get(KEY.pos, {})[me];
     if (fromDay) focusDay = opts.day;
     render();
@@ -2561,11 +2654,30 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   }
 
   async function startRecording() {
-    if (rec) return;
+    if (rec || startRecording.busy) return;
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) { notice("Recording isn't available here", "Attach an audio file instead."); return; }
+    startRecording.busy = true;
+    recWantStop = false;
+    $("footer").classList.add("hidden");
+    $("recbar").classList.remove("hidden");
+    $("rectime").textContent = "0:00";
     let stream;
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
-    catch { notice("Microphone is blocked", "Allow the microphone, or attach an audio file.", { error: true }); return; }
+    catch {
+      $("recbar").classList.add("hidden");
+      $("footer").classList.remove("hidden");
+      startRecording.busy = false;
+      notice("Microphone is blocked", "Allow the microphone, or attach an audio file.", { error: true });
+      return;
+    }
+    if (recWantStop) {
+      stream.getTracks().forEach(t => t.stop());
+      $("recbar").classList.add("hidden");
+      $("footer").classList.remove("hidden");
+      startRecording.busy = false;
+      recWantStop = false;
+      return;
+    }
     ensureAudio();
     recStream = stream;
     recAnalyser = audioCtx.createAnalyser();
@@ -2575,11 +2687,9 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     rec = new MediaRecorder(stream, { ...(type ? { mimeType: type } : {}), audioBitsPerSecond: 32000 });
     recChunks = [];
     rec.ondataavailable = (e) => { if (e.data.size) recChunks.push(e.data); };
-    rec.start(250);
+    rec.start();
     recStart = Date.now();
     recHistory = [];
-    $("footer").classList.add("hidden");
-    $("recbar").classList.remove("hidden");
     drawWave();
     recTimer = setInterval(() => {
       const s = (Date.now() - recStart) / 1000;
@@ -2587,27 +2697,31 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       lastActivity = Date.now();
       if (s * 1000 >= REC_MAX_MS) stopRecording(true);
     }, 200);
+    startRecording.busy = false;
   }
 
   function stopRecording(sendIt) {
+    if (startRecording.busy && !rec) { recWantStop = true; return; }
     if (!rec) return;
     const r = rec;
+    const stream = recStream;
     const dur = Math.max(1, Math.round((Date.now() - recStart) / 1000));
     rec = null;
     cancelAnimationFrame(recRAF);
     clearInterval(recTimer);
+    $("recbar").classList.add("hidden");
+    $("footer").classList.remove("hidden");
     r.onstop = async () => {
-      recStream?.getTracks().forEach(t => t.stop());
+      stream?.getTracks().forEach(t => t.stop());
       recStream = null;
       const chunks = recChunks;
       recChunks = [];
-      $("recbar").classList.add("hidden");
-      $("footer").classList.remove("hidden");
       if (sendIt && chunks.length) {
         const blob = new Blob(chunks, { type: r.mimeType || "audio/webm" });
         await addMedia("audio", blob, { dur, mime: blob.type });
       }
     };
+    try { if (r.state === "recording") r.requestData(); } catch {}
     if (r.state !== "inactive") r.stop(); else r.onstop();
   }
 
@@ -2615,8 +2729,10 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const c = $("wave"), g = c.getContext("2d");
     const dpr = window.devicePixelRatio || 1;
     const w = c.clientWidth, h = c.clientHeight;
-    c.width = w * dpr;
-    c.height = h * dpr;
+    if (c.width !== Math.floor(w * dpr) || c.height !== Math.floor(h * dpr)) {
+      c.width = Math.max(1, Math.floor(w * dpr));
+      c.height = Math.max(1, Math.floor(h * dpr));
+    }
     const buf = new Uint8Array(recAnalyser.frequencyBinCount);
     const loop = () => {
       if (!rec) return;
@@ -2643,7 +2759,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   function closeLightbox() { $("lightbox").classList.add("hidden"); $("lbImg").removeAttribute("src"); }
 
   /* ================= Wiring ================= */
-  $("send").addEventListener("click", () => sendText());
+  $("send").addEventListener("click", () => { if (sendSuppress) { sendSuppress = false; return; } sendText(); });
   $("clock").addEventListener("click", () => {
     if (!$("input").value.trim()) { notice("Write the message first", "Then choose when it should arrive."); return; }
     openSchedulePicker();
@@ -2714,7 +2830,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   $("qClose").addEventListener("click", () => hideSearch());
   $("qPrev").addEventListener("click", () => stepMatch(-1));
   $("qNext").addEventListener("click", () => stepMatch(1));
-  $("q").addEventListener("input", () => { query = $("q").value.trim().toLowerCase(); matchIdx = -1; renderChat(); });
+  $("q").addEventListener("input", () => { query = $("q").value.trim().toLowerCase(); matchIdx = -1; renderChat({ seek: true }); });
   $("q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); stepMatch(e.shiftKey ? -1 : 1); } });
   document.querySelectorAll("#filters .chip").forEach(c => c.addEventListener("click", () => {
     filter = c.dataset.f;
@@ -2754,15 +2870,34 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   });
 
   
-  let sendHold = 0;
+  let sendHold = 0, sendSuppress = false;
   $("send").addEventListener("pointerdown", () => {
-    sendHold = setTimeout(() => { sendHold = 0; haptic("press"); openSchedulePicker(); }, 500);
+    sendSuppress = false;
+    sendHold = setTimeout(() => { sendHold = 0; sendSuppress = true; haptic("press"); openSchedulePicker(); }, 500);
   });
   ["pointerup", "pointercancel", "pointerleave"].forEach(ev => $("send").addEventListener(ev, () => clearTimeout(sendHold)));
 
   $("attach").addEventListener("click", () => $("file").click());
   $("file").addEventListener("change", (e) => { handleFiles(e.target.files); e.target.value = ""; });
-  $("mic").addEventListener("click", () => { ensureAudio(); if (rec) stopRecording(true); else startRecording(); });
+  let homeHold = 0;
+  $("home").addEventListener("pointerdown", (e) => {
+    if (e.target.closest("button,a,input,textarea,select")) return;
+    const start = [e.clientX, e.clientY];
+    homeHold = setTimeout(() => { homeHold = 0; haptic("press"); openThemeBar(); }, 500);
+    const move = (ev) => { if (Math.hypot(ev.clientX - start[0], ev.clientY - start[1]) > 10) { clearTimeout(homeHold); homeHold = 0; } };
+    const up = () => {
+      clearTimeout(homeHold);
+      homeHold = 0;
+      $("home").removeEventListener("pointermove", move);
+      $("home").removeEventListener("pointerup", up);
+      $("home").removeEventListener("pointercancel", up);
+    };
+    $("home").addEventListener("pointermove", move);
+    $("home").addEventListener("pointerup", up);
+    $("home").addEventListener("pointercancel", up);
+  });
+
+  $("mic").addEventListener("click", () => { ensureAudio(); if (rec || startRecording.busy) stopRecording(true); else startRecording(); });
   $("recSend").addEventListener("click", () => stopRecording(true));
   $("recCancel").addEventListener("click", () => stopRecording(false));
   $("replyX").addEventListener("click", clearBar);
@@ -2787,7 +2922,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     if (!card || card.classList.contains("gone")) {
       if (!e.target.closest(".row") && e.button === 0) {
         pressStart = [e.clientX, e.clientY];
-        pressTimer = setTimeout(() => { pressTimer = 0; haptic("press"); openThemeBar(); }, 520);
+        pressTimer = setTimeout(() => { pressTimer = 0; haptic("press"); openThemeBar(); }, 500);
       }
       return;
     }
@@ -2806,7 +2941,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       haptic("press");
       card.classList.remove("pressing");
       openActions(m);
-    }, 420);
+    }, 500);
   });
   $("list").addEventListener("pointermove", (e) => {
     if (pressStart && Math.hypot(e.clientX - pressStart[0], e.clientY - pressStart[1]) > 10) { cancelPress(); endReveal(); }
@@ -2973,14 +3108,14 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       replyTo: r.reply_to || null, effect: r.effect || "none", hiddenBy: r.hidden_for || [],
       deletedFor: r.deleted_for || [], deleted: !!r.deleted, moment: !!r.moment,
       history: r.history || [], edited: !!r.edited, editedAt: r.edited_at ? new Date(r.edited_at).getTime() : null,
-      late: !!r.late, dur: r.dur || 0, noArchive: !!r.no_archive, pending: false
+      late: !!r.late, dur: r.dur || 0, noArchive: !!r.no_archive, pending: false, clientId: r.client_id || null
     };
   }
   function noteFromRow(r) {
     return { id: r.id, from: r.side, kind: r.kind, text: r.text, ts: new Date(r.created_at).getTime(), edited: !!r.edited };
   }
   function memberView(row) {
-    return { status: row.status || "", tz: row.tz || "UTC", haptics: row.haptics !== false, sound: row.sound !== false, autoBlur: row.auto_blur !== false, shake: !!row.shake, blurWords: row.blur_words || [] };
+    return { status: row.status || "", tz: row.tz || "UTC", haptics: row.haptics !== false, sound: row.sound !== false, autoBlur: row.auto_blur !== false, shake: !!row.shake, blurWords: row.blur_words || [], avatar_path: row.avatar_path || "" };
   }
   async function reloadAll() {
     const client = cloudClient();
@@ -3088,7 +3223,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "read_markers", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
       .on("postgres_changes", { event: "*", schema: "public", table: "pair_settings", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) { applyTheme(); render(); } }))
-      .on("postgres_changes", { event: "*", schema: "public", table: "pair_members", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "pair_members", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) { render(); fillAvatars(); } }))
       .subscribe();
     if (presenceChannel) client.removeChannel(presenceChannel);
     presenceChannel = client.channel("presence-" + pairId, { config: { presence: { key: me } } });
@@ -3134,42 +3269,30 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   async function pushShared() {
     const client = cloudClient();
     if (!client || !pairId) return;
-    await client.from("pair_settings").update({ theme: cacheShared.theme, archive_days: Number(cacheShared.archiveDays) || 0 }).eq("pair_id", pairId);
+    const upd = await client.from("pair_settings").update({ theme: cacheShared.theme, archive_days: Number(cacheShared.archiveDays) || 0 }).eq("pair_id", pairId);
+    if (upd.error) notice("Couldn't save that", upd.error.message, { error: true });
   }
 
 
   async function fillAvatars() {
+    const letter = (side) => side === "Lewis" ? "L" : "A";
     const set = async (side, el) => {
+      if (!el || !side) return;
       const path = (cacheMembers[side] || {}).avatar_path;
-      if (!path) return;
+      if (!path) { el.textContent = letter(side); return; }
       const url = await signedAvatar(path);
-      if (!url) return;
+      if (!url) { el.textContent = letter(side); return; }
       const img = document.createElement("img");
       img.alt = "";
       img.style.cssText = "width:100%;height:100%;object-fit:cover;border-radius:50%";
-      img.onerror = () => img.remove();
+      img.onerror = () => { el.textContent = letter(side); };
       img.src = url;
       el.textContent = "";
       el.appendChild(img);
     };
-    const meAv = document.querySelector("#homeAvatar");
-    if (meAv) set(me, meAv);
-    const otherAv = document.querySelector("#people .person .avatar");
-    if (otherAv) set(other(), otherAv);
-    const home = $("homeAvatar");
-    if (home) {
-      const path = (cacheMembers[me] || {}).avatar_path;
-      const url = path ? await signedAvatar(path) : null;
-      if (url) {
-        const img = document.createElement("img");
-        img.alt = "";
-        img.style.cssText = "width:100%;height:100%;object-fit:cover;border-radius:50%";
-        img.onerror = () => { home.textContent = me === "Lewis" ? "L" : "A"; };
-        img.src = url;
-        home.textContent = "";
-        home.appendChild(img);
-      }
-    }
+    await set(me, $("homeAvatar"));
+    await set(other(), document.querySelector("#people .person .avatar"));
+    await set(other(), $("chatAvatar"));
   }
 
   async function setAppIcon(file) {
@@ -3307,9 +3430,9 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const localId = "local-" + clientId;
     try { await putBlob(localId, blob); }
     catch { notice("Couldn't save that file", "Storage may be full.", { error: true }); return; }
-    const m = { id: localId, from: me, ts: Date.now(), hearts: [], kind, mid: localId, pending: true, dur: extra.dur || 0, effect: "none" };
+    const m = { id: localId, from: me, ts: Date.now(), hearts: [], kind, mid: localId, pending: true, dur: extra.dur || 0, effect: "none", clientId };
     cacheThread = thread().concat([m]);
-    clearBar(); render(); scrollBottom();
+    clearBar(); render({ stick: true });
     const client = cloudClient();
     const path = pairId + "/" + clientId;
     try {
@@ -3348,42 +3471,52 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
         const history = (m.history || []).concat([{ text: m.text, ts: m.editedAt || m.ts }]);
         const upd = await client.from("messages").update({ text, edited: true, edited_at: new Date().toISOString(), history }).eq("id", m.id);
         if (upd.error) { notice("Couldn't save the edit", upd.error.message, { error: true }); return; }
+        m.text = text;
+        m.edited = true;
+        m.editedAt = Date.now();
+        m.history = history;
+        render();
         await reloadAll();
       }
       editingId = null;
       clearBar();
-    } else {
-      const reply = replyTo ? { id: replyTo.id, from: replyTo.from, preview: replyTo.preview } : null;
-      const clientId = uid();
-      const local = addMessage({ kind: "text", text, effect: "none", replyTo: reply });
-      if (!client || !navigator.onLine) {
-        const box = outbox();
-        box.push({ kind: "text", text, effect: "none", replyTo: reply, clientId, localId: local.id });
-        saveOutbox(box);
-        notice("Waiting to send", "It will send when you are back online.");
-      } else {
-        const ins = await client.from("messages").insert({
-          pair_id: pairId, sender_id: myUserId, kind: "text", text, effect: "none", reply_to: reply, client_id: clientId
-        }).select().maybeSingle();
-        if (ins.error) {
-          const box = outbox();
-          box.push({ kind: "text", text, effect: "none", replyTo: reply, clientId, localId: local.id });
-          saveOutbox(box);
-          notice("Waiting to send", ins.error.message, { error: true });
-        } else {
-          cacheThread = thread().filter(x => x.id !== local.id);
-          await reloadAll();
-          haptic("send");
-        }
-      }
-      clearBar();
+      input.value = "";
+      autosize();
+      trackTyping(false);
+      saveDraft(true);
+      render();
+      return;
     }
+    const reply = replyTo ? { id: replyTo.id, from: replyTo.from, preview: replyTo.preview } : null;
+    const clientId = uid();
+    const local = addMessage({ kind: "text", text, effect: "none", replyTo: reply, clientId });
+    clearBar();
     input.value = "";
     autosize();
     trackTyping(false);
     saveDraft(true);
+    render({ stick: true });
+    if (!client || !navigator.onLine) {
+      const box = outbox();
+      box.push({ kind: "text", text, effect: "none", replyTo: reply, clientId, localId: local.id });
+      saveOutbox(box);
+      notice("Waiting to send", "It will send when you are back online.");
+      return;
+    }
+    const ins = await client.from("messages").insert({
+      pair_id: pairId, sender_id: myUserId, kind: "text", text, effect: "none", reply_to: reply, client_id: clientId
+    }).select().maybeSingle();
+    if (ins.error) {
+      const box = outbox();
+      box.push({ kind: "text", text, effect: "none", replyTo: reply, clientId, localId: local.id });
+      saveOutbox(box);
+      notice("Waiting to send", ins.error.message, { error: true });
+      return;
+    }
+    cacheThread = thread().filter(x => x.id !== local.id);
+    await reloadAll();
+    haptic("send");
     render();
-    scrollBottom();
   }
   async function scheduleText(sendAt, effect) {
     const input = $("input");
