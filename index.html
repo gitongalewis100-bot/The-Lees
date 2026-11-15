@@ -99,6 +99,10 @@ select.in{padding-right:12px}
 
 /* ---------- Views ---------- */
 .view{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--bg);padding-top:env(safe-area-inset-top,0px);animation:fade .35s var(--ease) both}
+#chat,#panel{animation:none;z-index:4;transition:transform .46s cubic-bezier(.32,.72,0,1)}
+#chat.ios-prep,#panel.ios-prep,#chat.ios-leave,#panel.ios-leave{transform:translateX(100%)}
+#panelBody.ios-body{animation:iosbody .42s cubic-bezier(.32,.72,0,1)}
+@keyframes iosbody{from{transform:translateX(28%);opacity:.55}to{transform:none;opacity:1}}
 .topbar{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--surface);min-height:58px}
 .topbar .grow{flex:1;min-width:0}
 .topbar .title{font-family:var(--serif);font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -113,19 +117,35 @@ select.in{padding-right:12px}
 .avatar.agnes{background:var(--sage)}
 
 /* Home (journal) */
-#home .scroll{flex:1;overflow-y:auto;padding:18px 16px 40px}
+#home .scroll{flex:1;min-height:0;overflow-y:auto;padding:18px 16px 40px}
 .greet{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:2px 2px 16px}
 .greet .hdr{font-size:clamp(28px,8vw,40px);letter-spacing:-.02em;line-height:1.05}
 .greet .mono{margin-top:6px;color:var(--muted)}
 .journal-btn{width:48px;height:48px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--accent)}
 .navrow{display:flex;gap:8px;flex-wrap:wrap;padding:4px 0 8px}
 .homegrid{display:grid;grid-template-columns:1.55fr 1fr;gap:8px;align-items:stretch}
-.navbtn.settings-box{width:100%;height:100%;min-height:168px;flex-direction:column;align-items:flex-start;justify-content:center;font-size:18px;padding:18px 16px;gap:10px}
+.navbtn.settings-box{width:100%;height:100%;min-height:248px;flex-direction:column;align-items:stretch;justify-content:space-between;font-size:18px;padding:16px;gap:12px}
+.settings-main{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:10px;flex:1;text-align:left;font-size:22px;color:var(--ink)}
+.settings-out{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px 12px;border-radius:16px;background:color-mix(in srgb,var(--rose) 14%,var(--surface));color:var(--rose);border:1px solid color-mix(in srgb,var(--rose) 40%,var(--line));font-size:16px}
 .tools2{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start}
 .tools2 .navbtn{width:100%}
 .navbtn{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:16px;background:color-mix(in srgb,var(--surface) 86%,transparent);border:1px solid var(--line);white-space:nowrap;font-size:15px;color:var(--ink);flex:none;box-shadow:var(--shadow)}
 .navbtn.journal-tool{min-height:54px;font-family:var(--serif);font-size:18px;color:var(--accent);background:linear-gradient(165deg,color-mix(in srgb,var(--accent) 18%,var(--surface)),var(--surface));border-color:color-mix(in srgb,var(--accent) 42%,var(--line))}
 .navbtn.journal-tool .i{width:28px;height:28px}
+#play{margin-top:18px}
+.play-go{display:block;width:100%;padding:16px 18px;border-radius:999px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);font-family:var(--serif);font-size:18px;color:var(--accent)}
+.play-board{margin-top:12px;padding:14px;border-radius:24px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
+.play-who{display:flex;gap:8px;margin-bottom:10px}
+.play-who-one{flex:1;padding:8px 10px;border-radius:14px;border:1px solid var(--line);background:var(--bg)}
+.play-who-one.on{border-color:var(--accent);color:var(--accent)}
+.play-who-one b{display:block;font-weight:normal;font-family:var(--serif);font-size:15px}
+.play-who-one span{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.play-time{font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--muted);margin:0 0 8px}
+.play-time.hot{color:var(--rose)}
+.play-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.play-cell{aspect-ratio:1;border-radius:16px;border:1px solid var(--line);background:var(--bg);font-family:var(--serif);font-size:28px;color:var(--ink)}
+.play-cell:disabled{opacity:.85}
+.play-again{margin-top:10px}
 .navbtn.danger{color:var(--rose)}
 .person.hero{width:100%;padding:18px 16px;border-radius:28px;background:linear-gradient(165deg,color-mix(in srgb,var(--surface) 88%,var(--accent)),var(--surface));border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));box-shadow:var(--shadow);transform-style:preserve-3d}
 .person.hero .avatar{width:52px;height:52px;font-size:20px}
@@ -195,12 +215,14 @@ select.in{padding-right:12px}
 mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 2px}
 .hit{outline:2px solid var(--accent);outline-offset:4px;border-radius:20px}
 
-#list{flex:1;overflow-y:auto;overflow-anchor:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:14px 14px 10px;display:flex;flex-direction:column;gap:4px}
-#list .text,#list .photo{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#list{flex:1;min-height:0;overflow-y:auto;overflow-anchor:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:14px 14px 10px;display:flex;flex-direction:column;gap:4px}
+#list .text{user-select:text;-webkit-user-select:text}
+#list .photo{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .day{align-self:center;color:var(--muted);font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;margin:12px 0 8px;padding:4px 12px;background:var(--surface);border:1px solid var(--line);border-radius:999px;text-transform:uppercase}
 .newline{align-self:stretch;display:flex;align-items:center;gap:10px;color:var(--accent);margin:12px 0 8px}
 .newline::before,.newline::after{content:"";flex:1;height:1px;background:var(--accent);opacity:.35}
-.row{display:flex;flex-direction:column;max-width:80%;margin-bottom:4px}
+.row{display:flex;flex-direction:column;width:fit-content;max-width:80%;margin-bottom:4px;background:transparent;border:0;box-shadow:none}
+.msg .text{display:block;background:none;border:0;box-shadow:none;padding:0;margin:0;border-radius:0}
 .row.fresh{opacity:0}
 .row.arrive{opacity:0;transform:translateY(8px)}
 .row.arrive.in{opacity:1;transform:none;transition:opacity .35s var(--ease),transform .35s var(--ease)}
@@ -331,7 +353,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
 #toBottom:hover .latest-bob,#toBottom:active .latest-bob{animation:none;transform:none}
 
 /* Panels (full-screen) */
-.panel-body{flex:1;overflow-y:auto;padding:16px 16px 40px}
+.panel-body{flex:1;min-height:0;overflow-y:auto;padding:16px 16px 40px}
 .pgroup{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:4px 16px;margin-bottom:16px;box-shadow:var(--shadow)}
 .prow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);font-size:16px}
 .prow:last-child{border-bottom:0}
@@ -462,6 +484,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     <div class="tray hidden" id="tray"></div>
 
     <div id="people"></div>
+    <div id="play"></div>
 
     <div class="sec-label mono hidden" id="feedLabel"><span>Journal</span><span id="feedCount"></span></div>
     <div id="feed" class="hidden"></div>
@@ -1045,12 +1068,25 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   }
   function removeNote(id) { store.set(KEY.notes, notesAll().filter(n => n.id !== id)); }
 
+  const TTT = "\u0001ttt";
+  const PLAY_LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  const PLAY_MS = 20000;
+  const PHRASES = ["Play a game", "Release stress", "Win more", "Your move", "Take a turn", "Beat the clock", "A quiet game", "Try again", "One more round", "Clear your head", "Just us", "No score yet", "Tap to play", "A small contest", "Stay sharp", "Five quiet minutes", "Your board", "Make a mark", "Pass the time", "Play nicely"];
+  let playOpen = false, phraseI = 0, playRang = "";
+  function playPayload(text) {
+    const s = String(text || "");
+    if (s.indexOf(TTT) !== 0) return null;
+    try { return JSON.parse(s.slice(TTT.length)); } catch { return null; }
+  }
+  function isPlay(m) { return !!(m && m.kind === "text" && playPayload(m.text)); }
+
   /* ================= Archive and visibility ================= */
   function archiveCutoff() { const d = Number(SH().archiveDays) || 0; return d ? Date.now() - d * 86400000 : 0; }
   const isArchived = (m, cut) => cut && m.ts < cut && !m.noArchive && !m.deleted;
   function visibleList() {
     const cut = archiveCutoff();
     return thread().filter(m => {
+      if (isPlay(m)) return false;
       if ((m.deletedFor || []).includes(me)) return false;
       if (chatDay && m.ts >= chatDay.start && m.ts < chatDay.end) return true;
       return !isArchived(m, cut);
@@ -1376,7 +1412,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     });
     meta.append(hb, el("span", "heartcount", String(heartCount(m))));
     for (const [emo, n] of Object.entries(emojiCounts(m))) meta.appendChild(el("span", "emojicount", emo + " " + n));
-    row.appendChild(meta);
+    card.appendChild(meta);
 
     if (isLastMine) {
       const s = seen[other()] || 0;
@@ -1465,6 +1501,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       }, { root: $("list"), threshold: 0.2 });
     }
     arriveObs.observe(node);
+    setTimeout(() => { if (!node.classList.contains("in")) { node.classList.add("in"); arriveObs.unobserve(node); } }, 600);
   }
 
   function renderChat(opts) {
@@ -2026,22 +2063,57 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
 
   /* ================= Full-screen panels ================= */
   let panelBuild = null, panelBackTo = "home";
-  function showView(name) {
+  function showView(name, how) {
+    const prev = view;
     view = name;
-    ["lock", "home", "chat", "panel"].forEach(v => { const n = $(v); if (n) n.classList.toggle("hidden", v !== name); });
     closeActions(); closeThemeBar();
+    const all = ["lock", "home", "chat", "panel"];
+    const node = $(name);
+    const reduce = reduceMotion();
+    if ((how === "push" || how === "pop") && !reduce && node && prev && prev !== name && $(prev)) {
+      if (how === "push") {
+        all.forEach(v => { if (v !== name && v !== prev) { const n = $(v); if (n) n.classList.add("hidden"); } });
+        $(prev).classList.remove("hidden");
+        node.classList.remove("hidden", "ios-leave");
+        node.classList.add("ios-prep");
+        requestAnimationFrame(() => requestAnimationFrame(() => node.classList.remove("ios-prep")));
+      } else {
+        const top = $(prev);
+        all.forEach(v => { if (v !== name && v !== prev) { const n = $(v); if (n) n.classList.add("hidden"); } });
+        node.classList.remove("hidden");
+        top.classList.add("ios-leave");
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          top.classList.add("hidden");
+          top.classList.remove("ios-leave", "ios-prep");
+        };
+        top.addEventListener("transitionend", finish, { once: true });
+        setTimeout(finish, 520);
+      }
+    } else {
+      all.forEach(v => { const n = $(v); if (n) n.classList.toggle("hidden", v !== name); });
+    }
     if (name === "home" && unlocked) renderHome();
     if (name !== "lock") markRead();
   }
 
   function openPanel(title, sub, build, backTo) {
+    const nested = view === "panel";
     panelBuild = build;
-    panelBackTo = backTo || "home";
+    panelBackTo = backTo || (nested ? panelBackTo : "home");
     $("panelTitle").textContent = title;
     $("panelSub").textContent = sub || "";
     $("panelRight").textContent = "";
-    showView("panel");
+    if (!nested) showView("panel", "push");
     renderPanel();
+    if (nested && !reduceMotion()) {
+      const body = $("panelBody");
+      body.classList.remove("ios-body");
+      void body.offsetWidth;
+      body.classList.add("ios-body");
+    }
   }
   function renderPanel() {
     if (!panelBuild) return;
@@ -2052,8 +2124,8 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   $("panelBack").addEventListener("click", () => goBack());
 
   function goBack() {
-    if (view === "panel") { panelBuild = null; return showView(panelBackTo); }
-    if (view === "chat") { savePosition(); hideSearch(); return showView("home"); }
+    if (view === "panel") { panelBuild = null; return showView(panelBackTo, "pop"); }
+    if (view === "chat") { savePosition(); hideSearch(); return showView("home", "pop"); }
     if (view === "home") return;
   }
 
@@ -2463,9 +2535,10 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const rows = (res.data || []).filter(r => !(r.deleted_for || []).includes(me));
     if (!rows.length) box.appendChild(el("p", "fp-desc", "No messages this day."));
     for (const r of rows) {
+      const play = playPayload(r.text);
       const it = el("div", "item");
       const side = rowSide(r.sender_id) || "";
-      const preview = (r.kind === "text" ? (r.text || "") : r.kind === "image" ? "Photo" : "Voice note").slice(0, 80);
+      const preview = play ? (play.e === "win" ? "Won the game" : play.e === "draw" ? "Game drawn" : "Played a move") : (r.kind === "text" ? (r.text || "") : r.kind === "image" ? "Photo" : "Voice note").slice(0, 80);
       const t = el("div", "txt");
       t.append(el("span", "", preview), el("small", "", fmtTime(new Date(r.created_at).getTime()) + " · " + (NAME[side] || "")));
       it.appendChild(t);
@@ -2492,10 +2565,16 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const nav = $("navrow");
     nav.textContent = "";
     nav.className = "navrow homegrid";
-    const settings = el("button", "navbtn lift settings-box");
-    settings.type = "button";
-    settings.innerHTML = ic("gear", "sm") + "<span>Settings</span>";
-    settings.addEventListener("click", () => openSettings());
+    const bucket = el("div", "navbtn settings-box");
+    const main = el("button", "settings-main");
+    main.type = "button";
+    main.innerHTML = ic("gear") + "<span>Settings</span>";
+    main.addEventListener("click", () => openSettings());
+    const out = el("button", "settings-out");
+    out.type = "button";
+    out.innerHTML = ic("logout", "sm") + "<span>Sign out</span>";
+    out.addEventListener("click", () => confirmSignOut("this"));
+    bucket.append(main, out);
     const tools = el("div", "tools2");
     const items = [
       ["star", "Moments", () => openMoments(), false],
@@ -2503,8 +2582,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       ["archive", "Archive", () => openArchive(), false],
       ["shield", shield ? "Shield on" : "Shield", () => { shield = !shield; haptic("press"); render(); }, shield],
       ["search", "Search", () => openChat(true), false],
-      ["book", "Journal", () => openJournal(), false],
-      ["logout", "Sign out", () => confirmSignOut("this"), true]
+      ["book", "Journal", () => openJournal(), false]
     ];
     for (const [icon, label, fn, on] of items) {
       const b = el("button", "navbtn lift" + (icon === "book" ? " journal-tool" : "") + (on === true ? " on" : "") + (icon === "logout" ? " danger" : ""));
@@ -2513,7 +2591,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       b.addEventListener("click", fn);
       tools.appendChild(b);
     }
-    nav.append(settings, tools);
+    nav.append(bucket, tools);
 
     const people = $("people");
     people.textContent = "";
@@ -2528,6 +2606,127 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     });
     people.appendChild(otherBtn);
     fillAvatars();
+    renderPlay();
+  }
+
+  function playEvents() {
+    return thread().filter(isPlay).map(m => {
+      const data = playPayload(m.text) || {};
+      return { g: data.g, e: data.e, i: data.i, by: data.by || m.from, ts: m.ts };
+    }).filter(e => e.g);
+  }
+  function playGames() {
+    const map = new Map();
+    for (const e of playEvents()) {
+      if (!map.has(e.g)) map.set(e.g, { id: e.g, events: [] });
+      map.get(e.g).events.push(e);
+    }
+    return [...map.values()];
+  }
+  function activePlay() {
+    const all = playGames();
+    for (let i = all.length - 1; i >= 0; i--) {
+      if (!all[i].events.some(e => e.e === "win" || e.e === "draw")) return all[i];
+    }
+    return null;
+  }
+  function playCells(g) {
+    const cells = Array(9).fill("");
+    for (const e of g.events) {
+      if ((e.e === "move" || e.e === "win" || e.e === "draw") && e.i >= 0 && e.i < 9 && !cells[e.i]) cells[e.i] = e.by;
+    }
+    return cells;
+  }
+  function playWinner(cells) {
+    for (const line of PLAY_LINES) {
+      const a = cells[line[0]];
+      if (a && a === cells[line[1]] && a === cells[line[2]]) return a;
+    }
+    return "";
+  }
+  function playStarter(g) {
+    const start = g.events.find(e => e.e === "start");
+    return start ? start.by : (g.events[0] && g.events[0].by);
+  }
+  function playMark(side, g) { return side === playStarter(g) ? "X" : "O"; }
+  function playTurn(g) {
+    const starter = playStarter(g);
+    if (!starter) return null;
+    const moves = g.events.filter(e => e.i >= 0 && e.i < 9);
+    const last = moves.length ? moves[moves.length - 1] : g.events[0];
+    const due = last ? last.ts + PLAY_MS : 0;
+    let side = moves.length % 2 === 0 ? starter : (starter === "Lewis" ? "Agnes" : "Lewis");
+    if (last && Date.now() > due) side = side === "Lewis" ? "Agnes" : "Lewis";
+    return side;
+  }
+  function playLeft(g) {
+    const moves = g.events.filter(e => e.i >= 0 && e.i < 9);
+    const last = moves.length ? moves[moves.length - 1] : g.events[0];
+    return Math.max(0, Math.ceil(((last ? last.ts : Date.now()) + PLAY_MS - Date.now()) / 1000));
+  }
+  function playTally(side) {
+    let w = 0, l = 0, d = 0;
+    for (const g of playGames()) {
+      const win = g.events.find(e => e.e === "win");
+      if (win) { if (win.by === side) w++; else l++; }
+      else if (g.events.some(e => e.e === "draw")) d++;
+    }
+    return { w, l, d, rating: 1000 + w * 18 - l * 12 + d * 3 };
+  }
+  function renderPlay() {
+    const box = $("play");
+    if (!box || !me) return;
+    box.textContent = "";
+    const openBtn = el("button", "play-go", playOpen ? "Hide the game" : PHRASES[phraseI % PHRASES.length]);
+    openBtn.type = "button";
+    openBtn.addEventListener("click", () => {
+      playOpen = !playOpen;
+      if (playOpen && !activePlay()) sendPlay({ g: uid(), e: "start", by: me });
+      else renderPlay();
+    });
+    box.appendChild(openBtn);
+    if (!playOpen) return;
+    const g = activePlay() || playGames().slice(-1)[0];
+    const card = el("div", "play-board");
+    if (!g) { card.appendChild(el("p", "fp-desc", "Starting…")); box.appendChild(card); return; }
+    const over = g.events.some(e => e.e === "win" || e.e === "draw");
+    const turn = over ? null : playTurn(g);
+    const who = el("div", "play-who");
+    for (const side of ["Lewis", "Agnes"]) {
+      const t = playTally(side);
+      const one = el("div", "play-who-one" + (turn === side ? " on" : ""));
+      one.append(el("b", "", NAME[side] + " · " + playMark(side, g)), el("span", "", t.w + " won · " + t.l + " lost · rating " + t.rating));
+      who.appendChild(one);
+    }
+    card.appendChild(who);
+    const left = over ? 0 : playLeft(g);
+    const win = g.events.find(e => e.e === "win");
+    const drawn = g.events.some(e => e.e === "draw");
+    const clock = el("div", "play-time" + (!over && left <= 5 ? " hot" : ""), over ? (win ? NAME[win.by] + " won" : drawn ? "Drawn" : "") : ((turn === me ? "Your turn · " : NAME[turn] + " to play · ") + left + "s"));
+    clock.id = "playTime";
+    card.appendChild(clock);
+    const grid = el("div", "play-grid");
+    const cells = playCells(g);
+    cells.forEach((owner, i) => {
+      const c = el("button", "play-cell", owner ? playMark(owner, g) : "");
+      c.type = "button";
+      c.disabled = !!owner || over || turn !== me;
+      c.addEventListener("click", () => {
+        if (playTurn(g) !== me || playCells(g)[i]) return;
+        const next = playCells(g).slice();
+        next[i] = me;
+        const w = playWinner(next);
+        const full = next.every(Boolean);
+        sendPlay({ g: g.id, e: w ? "win" : full ? "draw" : "move", i, by: me });
+      });
+      grid.appendChild(c);
+    });
+    card.appendChild(grid);
+    const again = el("button", "btn sm ghost play-again", "New game");
+    again.type = "button";
+    again.addEventListener("click", () => sendPlay({ g: uid(), e: "start", by: me }));
+    card.appendChild(again);
+    box.appendChild(card);
   }
 
   function openChat(withSearch, opts) {
@@ -2539,7 +2738,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     $("chatAvatar").textContent = other() === "Lewis" ? "L" : "A";
     $("chatTitle").textContent = NAME[other()];
     $("shieldBtn").classList.toggle("shieldon", shield);
-    showView("chat");
+    showView("chat", "push");
     fillAvatars();
     const pos = store.get(KEY.pos, {})[me];
     if (fromDay) focusDay = opts.day;
@@ -4041,6 +4240,21 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     if (view === "chat") render();
     notice("Sent", "That message is in the conversation now.");
   }
+  async function sendPlay(obj) {
+    const client = cloudClient();
+    if (!client || !pairId) return;
+    const ins = await client.from("messages").insert({
+      pair_id: pairId, sender_id: myUserId, kind: "text", text: TTT + JSON.stringify(obj), effect: "none", client_id: uid()
+    });
+    if (ins.error) { notice("Couldn't play that", ins.error.message, { error: true }); return; }
+    await reloadAll();
+    render();
+    if (obj.e === "win") {
+      burst("✦", 16);
+      popSound();
+      notice(NAME[obj.by] + " wins", "Rating " + playTally(obj.by).rating + ".");
+    } else if (obj.e === "draw") notice("Drawn", "The board is full.");
+  }
   async function toggleHeart(id) {
     const m = thread().find(x => x.id === id);
     const on = !(m && likedByMe(m));
@@ -4160,6 +4374,23 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       try { await typeChannel.send({ type: "broadcast", event: "typing", payload: { side: me } }); } catch {}
     }
   }
+  setInterval(() => {
+    phraseI = (phraseI + 1) % PHRASES.length;
+    if (!playOpen) {
+      const b = document.querySelector(".play-go");
+      if (b) b.textContent = PHRASES[phraseI];
+    }
+    const clock = $("playTime");
+    const g = activePlay();
+    if (clock && g && playOpen) {
+      const left = playLeft(g);
+      const turn = playTurn(g);
+      clock.textContent = (turn === me ? "Your turn · " : NAME[turn] + " to play · ") + left + "s";
+      clock.classList.toggle("hot", left <= 5);
+      if (left === 0 && playRang !== g.id) { playRang = g.id; renderPlay(); }
+      if (left > 0) playRang = "";
+    }
+  }, 1000);
   async function unlock(side) {
     me = side;
     store.set(KEY.last, side);
