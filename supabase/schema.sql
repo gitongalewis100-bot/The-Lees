@@ -506,23 +506,44 @@ create policy note_reads_write on public.note_reads
   for insert to authenticated
   with check (user_id = auth.uid());
 
+create policy note_reads_update on public.note_reads
+  for update to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
 -- ---------- privileges ----------
 
 revoke all on public.recovery_answers from public, anon, authenticated;
 revoke all on public.recovery_questions from public, anon, authenticated;
 revoke all on public.recovery_attempts from public, anon, authenticated;
 
+-- anon has no privilege on the app tables
+revoke all on public.messages from anon;
+revoke all on public.pair_members from anon;
+revoke all on public.read_markers from anon;
+revoke all on public.notes from anon;
+revoke all on public.note_reads from anon;
+revoke all on public.scheduled_messages from anon;
+revoke all on public.pair_settings from anon;
+
 grant usage on schema public to authenticated;
 
 grant select on public.pairs to authenticated;
-grant select, update on public.pair_settings to authenticated;
-grant select, update (status, tz, haptics, sound, auto_blur, shake, blur_words) on public.pair_members to authenticated;
+revoke update on public.pair_settings from authenticated;
+grant update (theme, archive_days) on public.pair_settings to authenticated;
+grant select on public.pair_members to authenticated;
+revoke update on public.pair_members from authenticated;
+grant update (status, tz, haptics, sound, auto_blur, shake, blur_words) on public.pair_members to authenticated;
+revoke all on public.messages from authenticated;
 grant select, insert on public.messages to authenticated;
 grant update (text, edited, edited_at, history) on public.messages to authenticated;
 grant select, insert, update, delete on public.notes to authenticated;
 grant select, insert on public.scheduled_messages to authenticated;
-grant select, insert, update on public.read_markers to authenticated;
-grant select, insert on public.note_reads to authenticated;
+revoke insert, update on public.read_markers from authenticated;
+grant select on public.read_markers to authenticated;
+grant insert (pair_id, user_id, side, read_at) on public.read_markers to authenticated;
+grant update (read_at, side) on public.read_markers to authenticated;
+grant select, insert, update on public.note_reads to authenticated;
 
 grant execute on function public.my_pair_ids() to authenticated;
 grant execute on function public.my_side() to authenticated;
