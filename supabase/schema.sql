@@ -617,6 +617,35 @@ grant execute on function public.delete_for_me(uuid) to authenticated;
 grant execute on function public.delete_for_both(uuid) to authenticated;
 grant execute on function public.cancel_scheduled(uuid) to authenticated;
 
+create or replace function public.send_scheduled_now(p_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  row public.scheduled_messages;
+begin
+  if public.my_side() is null then raise exception 'not a member'; end if;
+  update public.scheduled_messages
+    set delivered_at = now(), send_at = now()
+    where id = p_id
+      and sender_id = auth.uid()
+      and cancelled = false
+      and delivered_at is null
+      and pair_id in (select public.my_pair_ids())
+    returning * into row;
+  if not found then raise exception 'not found'; end if;
+  insert into public.messages (
+    pair_id, sender_id, kind, text, effect, created_at, send_at, delivered_at, late
+  ) values (
+    row.pair_id, row.sender_id, 'text', row.text, row.effect, now(), now(), now(), false
+  );
+end;
+$$;
+
+grant execute on function public.send_scheduled_now(uuid) to authenticated;
+
 revoke all on function public.deliver_due_messages() from public, anon, authenticated;
 
 -- ---------- storage ----------

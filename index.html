@@ -124,7 +124,8 @@ select.in{padding-right:12px}
 .tools2{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start}
 .tools2 .navbtn{width:100%}
 .navbtn{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:16px;background:color-mix(in srgb,var(--surface) 86%,transparent);border:1px solid var(--line);white-space:nowrap;font-size:15px;color:var(--ink);flex:none;box-shadow:var(--shadow)}
-.navbtn.on{border-color:var(--accent);color:var(--accent)}
+.navbtn.journal-tool{min-height:54px;font-family:var(--serif);font-size:18px;color:var(--accent);background:linear-gradient(165deg,color-mix(in srgb,var(--accent) 18%,var(--surface)),var(--surface));border-color:color-mix(in srgb,var(--accent) 42%,var(--line))}
+.navbtn.journal-tool .i{width:28px;height:28px}
 .navbtn.danger{color:var(--rose)}
 .person.hero{width:100%;padding:18px 16px;border-radius:28px;background:linear-gradient(165deg,color-mix(in srgb,var(--surface) 88%,var(--accent)),var(--surface));border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));box-shadow:var(--shadow);transform-style:preserve-3d}
 .person.hero .avatar{width:52px;height:52px;font-size:20px}
@@ -232,8 +233,8 @@ mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 
 .heartbtn.shrink svg{animation:heartshrink .28s var(--ease)}
 .heartcount{font-size:12px;color:var(--muted);min-width:1ch}
 .emojicount{font-size:13px}
-.miniheart{position:fixed;z-index:50;width:16px;height:16px;color:#e0245e;pointer-events:none}
-.miniheart svg{width:16px;height:16px;fill:#e0245e;stroke:#e0245e}
+.miniheart{position:fixed;z-index:50;width:22px;height:22px;color:#e0245e;pointer-events:none}
+.miniheart svg{width:22px;height:22px;fill:#e0245e;stroke:#e0245e}
 .bits{position:absolute;width:6px;height:6px;border-radius:50%;background:#e0245e;pointer-events:none;animation:bit .55s ease-out forwards}
 @keyframes heartpop{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}
 @keyframes heartshrink{0%{transform:scale(1)}100%{transform:scale(.75)}}
@@ -251,7 +252,7 @@ mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 
 .calday.on{border-color:var(--accent);color:var(--accent)}
 .calnav{display:flex;align-items:center;gap:8px;margin-bottom:10px}
 @media (prefers-reduced-motion: reduce){
-  .row.fresh,.row.fresh.in,.row.arrive,.row.arrive.in,.heartbtn.pop svg,.heartbtn.shrink svg,.igheart,.bits,.msg.shimmer::after,.latest-bob,.vmenu .mini{animation:none!important;transition:none!important;opacity:1;transform:none}
+  .row.fresh,.row.fresh.in,.row.arrive,.row.arrive.in,.heartbtn.pop svg,.heartbtn.shrink svg,.igheart,.bits,.msg.shimmer::after,.latest-bob,.vmenu .mini,.tdots i{animation:none!important;transition:none!important;opacity:1;transform:none}
 }
 .edlabel{color:var(--muted);text-decoration:underline;text-underline-offset:2px}
 .receipt{margin-top:3px;color:var(--muted);padding-right:4px;font-family:var(--mono);font-size:10px;letter-spacing:.06em}
@@ -265,13 +266,13 @@ mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 
 .bars i.on{background:var(--accent);opacity:1}
 .vt{min-width:34px;text-align:right;color:var(--muted)}
 .vspeed{padding:3px 6px;border-radius:7px;border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:10px}
-#typing{height:auto;padding:0 14px 6px;opacity:0;pointer-events:none}
-#typing.show{opacity:1}
-.tdots{display:inline-flex;gap:5px;align-items:center;padding:12px 14px;border-radius:18px;border-bottom-left-radius:6px;background:var(--theirs);border:1px solid var(--line)}
-.tdots i{width:6px;height:6px;border-radius:50%;background:var(--muted);opacity:.3;animation:tdot 1.2s infinite}
-.tdots i:nth-child(2){animation-delay:.2s}
-.tdots i:nth-child(3){animation-delay:.4s}
-@keyframes tdot{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-2px)}}
+#typing{display:none;padding:0 14px 8px}
+#typing.show{display:block}
+.tdots{display:inline-flex;gap:5px;align-items:center;padding:10px 14px;border-radius:18px;border-bottom-left-radius:6px;background:var(--theirs);border:1px solid var(--line);box-shadow:var(--shadow)}
+.tdots i{width:7px;height:7px;border-radius:50%;background:var(--muted);opacity:.35;animation:tdot 1.2s ease-in-out infinite}
+.tdots i:nth-child(2){animation-delay:.15s}
+.tdots i:nth-child(3){animation-delay:.3s}
+@keyframes tdot{0%,60%,100%{opacity:.35;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
 
 /* Thin banners */
 .bar{position:fixed;left:10px;right:10px;z-index:45;background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,.18);animation:up .3s var(--ease) both;padding:6px}
@@ -358,6 +359,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
 .item .txt{flex:1;min-width:0}
 .item .txt span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14.5px}
 .item .txt small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.row-acts{display:flex;flex-direction:column;gap:6px;flex:none}
 .item img{width:52px;height:52px;border-radius:10px;object-fit:cover}
 .reading{font-family:var(--serif);font-size:18px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
 .reading-card{padding:20px 4px 22px;border-bottom:1px solid var(--line)}
@@ -612,7 +614,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   };
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36));
   const sessionId = uid();
-  let me = null, chosen = store.get(KEY.last, null), unlocked = false, lastActivity = Date.now(), lastTypingSent = 0;
+  let me = null, chosen = store.get(KEY.last, null), unlocked = false, lastActivity = Date.now(), lastTypingSent = 0, typingTail = 0;
   let view = "lock", replyTo = null, editingId = null, query = "", filter = "all", dateFilter = "", matches = [], matchIdx = -1, shield = false;
   let audioCtx = null, rec = null, recStream = null, recChunks = [], recStart = 0, recRAF = 0, recTimer = 0, recAnalyser = null, recHistory = [], recWantStop = false;
   let knownIds = new Set(), prevUnread = 0, shakeTimes = [], sensCache = { key: "", re: null };
@@ -1174,14 +1176,14 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       h.style.left = ox + "px";
       h.style.top = oy + "px";
       document.body.appendChild(h);
-      const dx = (Math.random() - 0.5) * 42;
-      const dy = -24 - Math.random() * 42;
+      const dx = (Math.random() - 0.5) * 54;
+      const dy = -36 - Math.random() * 48;
       const done = () => h.remove();
-      if (!h.animate) { setTimeout(done, 700); continue; }
+      if (!h.animate) { setTimeout(done, 1300); continue; }
       h.animate([
-        { transform: "translate(-50%,-50%) scale(.85)", opacity: 1 },
-        { transform: "translate(calc(-50% + " + dx + "px), calc(-50% + " + dy + "px)) scale(.35)", opacity: 0 }
-      ], { duration: 700, easing: "cubic-bezier(.2,.8,.2,1)", fill: "forwards" }).onfinish = done;
+        { transform: "translate(-50%,-50%) scale(1)", opacity: 1 },
+        { transform: "translate(calc(-50% + " + dx + "px), calc(-50% + " + dy + "px)) scale(.45)", opacity: 0 }
+      ], { duration: 1300, easing: "cubic-bezier(.2,.7,.2,1)", fill: "forwards" }).onfinish = done;
     }
   }
   function burstHeart(btn) {
@@ -1629,7 +1631,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   function renderPresence() {
     if (!me) return;
     const remote = (typeof presenceState !== "undefined" && presenceState[other()]) || null;
-    const remoteTyping = !dropPresenceTyping && !!(remote && remote.typing && Date.now() - (remote.ts || 0) < 3000);
+    const remoteTyping = !dropPresenceTyping && !!(remote && remote.typing && Date.now() - (remote.ts || 0) < 8000);
     const typing = Date.now() > (typingMuteUntil || 0) && (Date.now() < (partnerTypingUntil || 0) || remoteTyping);
     const p = $("presence");
     p.classList.remove("live");
@@ -2176,9 +2178,6 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   function openSettings() {
     openPanel("Settings", NAME[me], (body) => {
       const sh = SH(), s = S(me);
-      body.appendChild(group("Our space", [
-        btnRow("Journal", "book", () => openJournal())
-      ]));
       body.appendChild(group("Shared · both of you", [
         btnRow("Theme · " + (THEMES.find(t => t.id === sh.theme) || THEMES[0]).name, "palette", () => openThemeBar("app")),
         prow("Archive old messages", "Moved to Archive, never deleted", selectCtl(ARCHIVE, sh.archiveDays, (v) => { setSH({ archiveDays: Number(v) }); render(); notice("Archive updated"); })),
@@ -2340,7 +2339,11 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
           if (ok !== "yes") return;
           cancelScheduled(s.id).then(() => openScheduled());
         });
-        it.append(t, c);
+        const nowBtn = el("button", "btn sm", "Send now");
+        nowBtn.addEventListener("click", () => { sendScheduledNow(s.id).then(() => openScheduled()); });
+        const acts = el("div", "row-acts");
+        acts.append(nowBtn, c);
+        it.append(t, acts);
         rows.push(it);
       }
       if (rows.length) body.appendChild(group(null, rows));
@@ -2498,12 +2501,13 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       ["star", "Moments", () => openMoments(), false],
       ["calendar", "Calendar", () => openCalendar(), false],
       ["archive", "Archive", () => openArchive(), false],
-      ["search", "Search", () => openChat(true), false],
       ["shield", shield ? "Shield on" : "Shield", () => { shield = !shield; haptic("press"); render(); }, shield],
+      ["search", "Search", () => openChat(true), false],
+      ["book", "Journal", () => openJournal(), false],
       ["logout", "Sign out", () => confirmSignOut("this"), true]
     ];
     for (const [icon, label, fn, on] of items) {
-      const b = el("button", "navbtn lift" + (on === true ? " on" : "") + (icon === "logout" ? " danger" : ""));
+      const b = el("button", "navbtn lift" + (icon === "book" ? " journal-tool" : "") + (on === true ? " on" : "") + (icon === "logout" ? " danger" : ""));
       b.type = "button";
       b.innerHTML = ic(icon, "sm") + `<span>${label}</span>`;
       b.addEventListener("click", fn);
@@ -3143,10 +3147,18 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     autosize();
     saveDraft();
     const now = Date.now();
-    if (now - lastTypingSent > 1500) {
-      lastTypingSent = now;
-      trackTyping(!!$("input").value.trim());
-    }
+    if ($("input").value.trim()) {
+      if (now - lastTypingSent > 1500) {
+        lastTypingSent = now;
+        trackTyping(true);
+      }
+      clearTimeout(typingTail);
+      typingTail = setTimeout(() => {
+        if (!$("input").value.trim()) return;
+        lastTypingSent = Date.now();
+        trackTyping(true);
+      }, 400);
+    } else trackTyping(false);
   });
   $("input").addEventListener("keydown", (e) => {
     if (e.isComposing || e.keyCode === 229) return;
@@ -3662,10 +3674,10 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       const payload = (msg && msg.payload) || {};
       if (!payload.side || payload.side === me) return;
       dropPresenceTyping = false;
-      partnerTypingUntil = Date.now() + 3000;
+      partnerTypingUntil = Date.now() + 8000;
       if (unlocked) renderPresence();
       clearTimeout(typeChannel._hide);
-      typeChannel._hide = setTimeout(() => { if (unlocked) renderPresence(); }, 3100);
+      typeChannel._hide = setTimeout(() => { if (unlocked) renderPresence(); }, 8100);
     });
     typeChannel.subscribe();
   }
@@ -4019,6 +4031,16 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     renderChips();
     if (view === "panel") renderPanel();
   }
+  async function sendScheduledNow(id) {
+    const client = cloudClient();
+    if (!client) return;
+    const sent = await client.rpc("send_scheduled_now", { p_id: id });
+    if (sent.error) { notice("Couldn't send that now", sent.error.message, { error: true }); return; }
+    await reloadAll();
+    renderChips();
+    if (view === "chat") render();
+    notice("Sent", "That message is in the conversation now.");
+  }
   async function toggleHeart(id) {
     const m = thread().find(x => x.id === id);
     const on = !(m && likedByMe(m));
@@ -4133,6 +4155,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     await reloadAll();
   }
   async function trackTyping(on) {
+    if (!on) { clearTimeout(typingTail); typingTail = 0; }
     if (on && typeChannel) {
       try { await typeChannel.send({ type: "broadcast", event: "typing", payload: { side: me } }); } catch {}
     }
