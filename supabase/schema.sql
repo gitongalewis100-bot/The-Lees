@@ -656,3 +656,44 @@ alter publication supabase_realtime add table public.read_markers;
 alter publication supabase_realtime add table public.pair_settings;
 alter publication supabase_realtime add table public.journal_entries;
 alter publication supabase_realtime add table public.pair_members;
+
+-- Names shown on the lock screen and while signed in.
+alter table public.pair_settings add column if not exists label_lewis text not null default 'Mr Lees'
+  check (char_length(label_lewis) between 1 and 30);
+alter table public.pair_settings add column if not exists label_agnes text not null default 'Mrs Lees'
+  check (char_length(label_agnes) between 1 and 30);
+grant update (label_lewis, label_agnes) on public.pair_settings to authenticated;
+
+create or replace function public.public_labels()
+returns table (side text, label text)
+language sql stable security definer set search_path = public as $$
+  select 'Lewis'::text, s.label_lewis from public.pair_settings s
+  union all
+  select 'Agnes'::text, s.label_agnes from public.pair_settings s;
+$$;
+revoke all on function public.public_labels() from public;
+grant execute on function public.public_labels() to anon, authenticated;
+
+create or replace function public.mark_read() returns void
+language sql security definer set search_path = public as $$
+  insert into public.read_markers (pair_id, user_id, side, read_at)
+  select pm.pair_id, pm.user_id, pm.side, now()
+  from public.pair_members pm where pm.user_id = auth.uid()
+  on conflict (pair_id, user_id) do update set read_at = excluded.read_at;
+$$;
+revoke all on function public.mark_read() from public;
+grant execute on function public.mark_read() to authenticated;
+
+create or replace function public.unread_count() returns integer
+language sql stable security definer set search_path = public as $$
+  select count(*)::integer from public.messages m
+  join public.pair_members me on me.user_id = auth.uid() and me.pair_id = m.pair_id
+  left join public.read_markers r on r.user_id = auth.uid() and r.pair_id = m.pair_id
+  where m.sender_id <> auth.uid()
+    and m.deleted = false
+    and not (me.side = any (m.deleted_for))
+    and m.created_at > coalesce(r.read_at, 'epoch'::timestamptz);
+$$;
+revoke all on function public.unread_count() from public;
+grant execute on function public.unread_count() to authenticated;
+

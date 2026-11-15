@@ -195,6 +195,34 @@ mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 
 .photo{display:block;width:min(250px,68vw);max-height:330px;object-fit:cover;border-radius:12px;cursor:zoom-in;background:var(--line);transition:filter .3s}
 .stack{display:flex;align-items:center;gap:8px;margin-top:3px;color:var(--muted);padding:0 4px;flex-wrap:wrap;font-family:var(--mono);font-size:10.5px}
 .heart{color:var(--accent);display:inline-flex;align-items:center;gap:3px}
+.heartbtn{position:relative;width:28px;height:28px;display:inline-grid;place-items:center;color:var(--muted)}
+.heartbtn svg{fill:none;stroke:currentColor}
+.heartbtn.on{color:#e0245e}
+.heartbtn.on svg{fill:#e0245e;stroke:#e0245e}
+.heartbtn.pop svg{animation:heartpop .42s var(--ease)}
+.heartbtn.shrink svg{animation:heartshrink .28s var(--ease)}
+.heartcount{font-size:12px;color:var(--muted);min-width:1ch}
+.emojicount{font-size:13px}
+.igheart{position:absolute;left:50%;top:42%;z-index:3;font-size:64px;color:#e0245e;pointer-events:none;animation:igheart .7s var(--ease) forwards}
+.bits{position:absolute;width:6px;height:6px;border-radius:50%;background:#e0245e;pointer-events:none;animation:bit .55s ease-out forwards}
+@keyframes heartpop{0%{transform:scale(.55)}45%{transform:scale(1.35)}100%{transform:scale(1)}}
+@keyframes heartshrink{0%{transform:scale(1)}100%{transform:scale(.75)}}
+@keyframes igheart{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}35%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.4)}}
+@keyframes bit{to{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.4)}}
+.row.rise{opacity:0;transform:translateY(14px);animation:none}
+.row.rise.in{opacity:1;transform:none;transition:opacity .45s var(--ease),transform .45s var(--ease)}
+.scratch{position:absolute;inset:0;z-index:2;width:100%;height:100%;border-radius:inherit;touch-action:none;cursor:crosshair}
+.msg.reblur .text,.msg.reblur .photo,.msg.reblur .voice{filter:blur(9px);transition:filter .45s ease}
+.msg.shimmer::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);animation:shim .6s ease;pointer-events:none}
+@keyframes shim{from{transform:translateX(-120%)}to{transform:translateX(120%)}}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.caldow{text-align:center;font-size:11px;color:var(--muted)}
+.calday{aspect-ratio:1;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:13px}
+.calday.on{border-color:var(--accent);color:var(--accent)}
+.calnav{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+@media (prefers-reduced-motion: reduce){
+  .row.rise,.row.rise.in,.heartbtn.pop svg,.heartbtn.shrink svg,.igheart,.bits,.msg.shimmer::after{animation:none!important;transition:none!important;opacity:1;transform:none}
+}
 .edlabel{color:var(--muted);text-decoration:underline;text-underline-offset:2px}
 .receipt{margin-top:3px;color:var(--muted);padding-right:4px;font-family:var(--mono);font-size:10px;letter-spacing:.06em}
 .empty{margin:auto;text-align:center;color:var(--muted);font-size:14px;line-height:1.7;padding:24px}
@@ -329,8 +357,8 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   <button id="notYou" type="button">Not you? Switch side</button>
   <p class="sub">Who are you signing in as?</p>
   <div class="sides" role="group" aria-label="Sign in as">
-    <button class="side" data-side="Lewis" aria-pressed="false"><span class="av avatar lewis">L</span><b>Mr. Lees</b><small>Lewis</small></button>
-    <button class="side" data-side="Agnes" aria-pressed="false"><span class="av avatar agnes">A</span><b>Mrs. Lees</b><small>Agnes</small></button>
+    <button class="side" data-side="Lewis" aria-pressed="false"><span class="av avatar lewis">L</span><b>Mr Lees</b></button>
+    <button class="side" data-side="Agnes" aria-pressed="false"><span class="av avatar agnes">A</span><b>Mrs Lees</b></button>
   </div>
 
   <form id="lockForm" class="form" autocomplete="off">
@@ -498,7 +526,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   const ic = (n, cls) => `<svg class="i ${cls || ""}" viewBox="0 0 24 24" aria-hidden="true">${ICON[n] || ""}</svg>`;
 
   /* ================= Constants ================= */
-  const NAME = { Lewis: "Mr. Lees", Agnes: "Mrs. Lees" };
+  const NAME = { Lewis: "Mr Lees", Agnes: "Mrs Lees" };
   const KEY = { thread: "pp-thread", notes: "pp-notes", sched: "pp-scheduled", shared: "pp-shared", settings: "pp-settings", auth: "pp-auth", sessions: "pp-sessions", typing: "pp-typing", seen: "pp-seen", drafts: "pp-drafts", pos: "pp-pos", fail: "pp-fail", last: "pp-last-side", nread: "pp-notes-read", known: "pp-known-sides", outbox: "pp-outbox" };
   const QUESTIONS = ["The name of the first place we went together?", "Your childhood nickname?", "The name of your first school?", "A word only the two of us would know?", "Your favourite dish from home?", "The name of your first pet?", "The street you grew up on?", "The name of a teacher you still remember?"];
   const THEMES = [
@@ -665,6 +693,11 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     if ((m.hiddenBy || []).includes(me)) return true;
     if (m.kind === "text" && !m.deleted && S(me).autoBlur && sensitiveRE().test(m.text || "")) return true;
     return false;
+  }
+  function privatelyHidden(m) {
+    if (m.deleted) return false;
+    if ((m.hiddenBy || []).includes(me)) return true;
+    return m.kind === "text" && S(me).autoBlur && sensitiveRE().test(m.text || "");
   }
 
   /* ================= Media (IndexedDB) ================= */
@@ -882,7 +915,11 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   const isArchived = (m, cut) => cut && m.ts < cut && !m.noArchive && !m.deleted;
   function visibleList() {
     const cut = archiveCutoff();
-    return thread().filter(m => !((m.deletedFor || []).includes(me)) && !isArchived(m, cut));
+    return thread().filter(m => {
+      if ((m.deletedFor || []).includes(me)) return false;
+      if (chatDay && m.ts >= chatDay.start && m.ts < chatDay.end) return true;
+      return !isArchived(m, cut);
+    });
   }
   function archivedList() { const cut = archiveCutoff(); return cut ? thread().filter(m => isArchived(m, cut) && !(m.deletedFor || []).includes(me)) : []; }
 
@@ -965,10 +1002,103 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     return img;
   }
 
+  let unreadN = 0, focusDay = null, chatDay = null, justHeart = null, calCursor = new Date();
+  const reduceMotion = () => !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+  function likedByMe(m) { return (m.hearts || []).includes(me); }
+  function heartCount(m) { return (m.hearts || []).filter(h => String(h).indexOf(":") < 0).length; }
+  function emojiCounts(m) {
+    const map = {};
+    for (const h of m.hearts || []) {
+      const s = String(h), i = s.indexOf(":");
+      if (i > 0) { const e = s.slice(i + 1); map[e] = (map[e] || 0) + 1; }
+    }
+    return map;
+  }
+  function revealMs(text) {
+    const words = String(text || "").trim().split(/\s+/).filter(Boolean).length;
+    return Math.min(60000, Math.max(4000, words * 400));
+  }
+  function popHeart(card) {
+    if (reduceMotion()) return;
+    const h = el("div", "igheart", "❤");
+    card.appendChild(h);
+    setTimeout(() => h.remove(), 750);
+  }
+  function burstHeart(btn) {
+    if (reduceMotion()) return;
+    for (let i = 0; i < 6; i++) {
+      const b = el("span", "bits");
+      const a = (Math.PI * 2 * i) / 6;
+      b.style.setProperty("--dx", Math.cos(a) * 16 + "px");
+      b.style.setProperty("--dy", Math.sin(a) * 16 + "px");
+      btn.appendChild(b);
+      setTimeout(() => b.remove(), 560);
+    }
+  }
+  function attachScratch(card, text) {
+    const canvas = el("canvas", "scratch");
+    card.appendChild(canvas);
+    const cover = () => {
+      const r = card.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.round(r.width * dpr));
+      canvas.height = Math.max(1, Math.round(r.height * dpr));
+      const g = canvas.getContext("2d");
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.globalCompositeOperation = "source-over";
+      g.fillStyle = "#c4b6aa";
+      g.fillRect(0, 0, r.width || 1, r.height || 1);
+    };
+    requestAnimationFrame(cover);
+    let started = false, drawing = false;
+    const at = (e) => {
+      const r = canvas.getBoundingClientRect();
+      return [e.clientX - r.left, e.clientY - r.top];
+    };
+    const scratch = (x, y) => {
+      const g = canvas.getContext("2d");
+      g.globalCompositeOperation = "destination-out";
+      g.beginPath();
+      g.arc(x, y, 18, 0, Math.PI * 2);
+      g.fill();
+      if (!started) {
+        started = true;
+        setTimeout(() => {
+          card.classList.add("reblur");
+          if (!reduceMotion()) card.classList.add("shimmer");
+          canvas.style.transition = reduceMotion() ? "none" : "opacity .45s ease";
+          canvas.style.opacity = "0";
+          setTimeout(() => {
+            cover();
+            requestAnimationFrame(() => { canvas.style.opacity = "1"; });
+            setTimeout(() => card.classList.remove("shimmer"), 700);
+          }, reduceMotion() ? 0 : 460);
+        }, revealMs(text));
+      }
+    };
+    canvas.addEventListener("pointerdown", (e) => {
+      drawing = true;
+      e.stopPropagation();
+      try { canvas.setPointerCapture(e.pointerId); } catch {}
+      const [x, y] = at(e);
+      scratch(x, y);
+    });
+    canvas.addEventListener("pointermove", (e) => {
+      if (!drawing) return;
+      e.stopPropagation();
+      const [x, y] = at(e);
+      scratch(x, y);
+    });
+    const up = (e) => { drawing = false; if (e) e.stopPropagation(); };
+    canvas.addEventListener("pointerup", up);
+    canvas.addEventListener("pointercancel", up);
+  }
+
   function buildRow(m, seen, isLastMine) {
     const mine = m.from === me;
-    const row = el("div", "row " + (mine ? "mine" : "theirs"));
+    const row = el("div", "row rise " + (mine ? "mine" : "theirs"));
     row.dataset.row = m.id;
+    row.dataset.ts = String(m.ts);
     const card = el("div", "msg");
     card.dataset.id = m.id;
     if (m.deleted) { card.classList.add("gone"); card.textContent = "This message was deleted"; row.appendChild(card); return row; }
@@ -977,14 +1107,32 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       q.append(el("b", "", NAME[m.replyTo.from]), el("span", "", m.replyTo.preview));
       card.appendChild(q);
     }
-    const blurred = isBlurred(m);
-    if (blurred) card.classList.add("blurred");
+    const scratchIt = privatelyHidden(m);
     if (m.kind === "text") {
       const t = el("div", "text");
-      if (blurred) t.textContent = "Hidden message"; else hiText(t, m.text);
+      if (scratchIt) t.textContent = m.text || "";
+      else if (shield) { card.classList.add("blurred"); t.textContent = "Hidden message"; }
+      else hiText(t, m.text);
       card.appendChild(t);
-    } else if (m.kind === "image") card.appendChild(imageNode(m));
-    else if (m.kind === "audio") card.appendChild(voiceNode(m));
+      if (scratchIt) attachScratch(card, m.text || "");
+    } else if (m.kind === "image") {
+      card.appendChild(imageNode(m));
+      if (scratchIt) attachScratch(card, "");
+      else if (shield) card.classList.add("blurred");
+    } else if (m.kind === "audio") {
+      card.appendChild(voiceNode(m));
+      if (scratchIt) attachScratch(card, "");
+      else if (shield) card.classList.add("blurred");
+    }
+    card.addEventListener("pointerup", (e) => {
+      if (e.target.closest(".scratch")) return;
+      const now = Date.now();
+      if (card._tap && now - card._tap < 320) {
+        card._tap = 0;
+        popHeart(card);
+        if (!likedByMe(m)) toggleHeart(m.id);
+      } else card._tap = now;
+    });
     row.appendChild(card);
 
     const meta = el("div", "stack");
@@ -993,12 +1141,18 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     if (m.moment) meta.appendChild(el("span", "", "· moment"));
     if (m.late) meta.appendChild(el("span", "", "· delivered late"));
     if (m.pending) meta.appendChild(el("span", "", "· waiting to send"));
-    if (m.hearts && m.hearts.length) {
-      const names = m.hearts.filter(h => String(h).indexOf(":") < 0);
-      const emojis = m.hearts.filter(h => String(h).indexOf(":") > 0).map(h => String(h).split(":").pop());
-      if (names.length) { const h = el("span", "heart"); h.innerHTML = ic("heart", "sm") + names.length; meta.appendChild(h); }
-      if (emojis.length) meta.appendChild(el("span", "", emojis.join("")));
+    const hb = el("button", "heartbtn" + (likedByMe(m) ? " on" : ""));
+    hb.type = "button";
+    hb.setAttribute("aria-label", likedByMe(m) ? "Unlike" : "Like");
+    hb.innerHTML = ic("heart", "sm");
+    if (justHeart && justHeart.id === m.id) {
+      if (!reduceMotion()) hb.classList.add(justHeart.on ? "pop" : "shrink");
+      if (justHeart.on) burstHeart(hb);
+      justHeart = null;
     }
+    hb.addEventListener("click", (e) => { e.stopPropagation(); toggleHeart(m.id); });
+    meta.append(hb, el("span", "heartcount", String(heartCount(m))));
+    for (const [emo, n] of Object.entries(emojiCounts(m))) meta.appendChild(el("span", "emojicount", emo + " " + n));
     row.appendChild(meta);
 
     if (isLastMine) {
@@ -1008,10 +1162,9 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     return row;
   }
 
-  function unreadList() {
-    const seen = cacheSeen;
-    const cut = seen[me] || 0;
-    return visibleList().filter(m => m.from !== me && m.ts > cut);
+  function firstUnread() {
+    const cut = cacheSeen[me] || 0;
+    return visibleList().find(m => m.from !== me && !m.deleted && m.ts > cut) || null;
   }
 
   function matchesFilter(m) {
@@ -1039,8 +1192,8 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const searching = !!query || filter !== "all" || !!dateFilter;
     const seen = cacheSeen;
     const lastMine = [...list].reverse().find(m => m.from === me);
-    const unread = unreadList();
-    const firstUnreadId = unread.length ? unread[0].id : null;
+    const unread = firstUnread();
+    const firstUnreadId = unread ? unread.id : null;
     const shown = list.filter(m => matchesFilter(m) && (!query || (m.kind === "text" && m.text.toLowerCase().includes(query))));
     matches = query ? shown.filter(m => m.kind === "text").map(m => m.id) : [];
     if (!query) matchIdx = -1;
@@ -1075,8 +1228,39 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     knownIds = new Set(thread().map(m => m.id));
     if (near) box.scrollTop = box.scrollHeight;
     if (query && matches.length) highlightMatch();
+    armRise();
+    if (focusDay) {
+      const hit = [...box.querySelectorAll(".row")].find(r => {
+        const ts = Number(r.dataset.ts);
+        return ts >= focusDay.start && ts < focusDay.end;
+      });
+      if (hit) hit.scrollIntoView({ block: "center" });
+      focusDay = null;
+    }
     renderChips();
     renderPresence();
+  }
+
+  const roseIds = new Set();
+  function armRise() {
+    if (reduceMotion()) {
+      document.querySelectorAll(".row.rise").forEach(n => n.classList.add("in"));
+      return;
+    }
+    if (!armRise.io) {
+      armRise.io = new IntersectionObserver((ents) => {
+        for (const e of ents) {
+          if (!e.isIntersecting) continue;
+          e.target.classList.add("in");
+          roseIds.add(e.target.dataset.row);
+          armRise.io.unobserve(e.target);
+        }
+      }, { root: $("list"), threshold: 0.2 });
+    }
+    $("list").querySelectorAll(".row.rise").forEach(row => {
+      if (roseIds.has(row.dataset.row)) { row.classList.add("in"); return; }
+      armRise.io.observe(row);
+    });
   }
 
   function highlightMatch() {
@@ -1132,7 +1316,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   let bannerHide = 0;
   function renderBanner() {
     if (!unlocked || view !== "chat") return;
-    const n = unreadList().length;
+    const n = unreadN;
     if (n > 0 && !nearBottom()) {
       notice(n + (n === 1 ? " unread message" : " unread messages"), "From " + NAME[other()] + ". Jump to the first one?", { action: { label: "Jump", run: jumpToUnread } });
     } else if (prevUnread > 0 && n === 0) {
@@ -1144,16 +1328,21 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   function nearBottom() { const b = $("list"); return b.scrollHeight - b.scrollTop - b.clientHeight < 160; }
   function scrollBottom() { const b = $("list"); b.scrollTo({ top: b.scrollHeight, behavior: "smooth" }); }
 
-  function markRead() {
+  async function markRead() {
     if (!unlocked || document.hidden || view !== "chat") return;
     cacheSeen[me] = Date.now();
-    void pushRead();
+    unreadN = 0;
     document.title = baseTitle;
     $("toBottom").classList.add("hidden");
+    const client = cloudClient();
+    if (!client) return;
+    const res = await client.rpc("mark_read");
+    if (!res.error) unreadN = 0;
+    await refreshUnread();
   }
 
   function jumpToUnread() {
-    const first = unreadList()[0];
+    const first = firstUnread();
     if (!first) return;
     const row = $("list").querySelector(`[data-row="${first.id}"]`);
     if (row) {
@@ -1397,6 +1586,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     view = name;
     ["lock", "home", "chat", "panel"].forEach(v => { const n = $(v); if (n) n.classList.toggle("hidden", v !== name); });
     closeActions(); closeThemeBar();
+    if (name === "home" && unlocked) renderHome();
     if (name !== "lock") markRead();
   }
 
@@ -1550,6 +1740,21 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
         btnRow("Open archive", "archive", () => openArchive())
       ]));
 
+      const nameBox = el("div", "pgroup");
+      nameBox.appendChild(el("div", "gh", "Names shown to us"));
+      const lewisIn = el("input", "in plain");
+      lewisIn.maxLength = 30;
+      lewisIn.value = NAME.Lewis;
+      lewisIn.setAttribute("aria-label", "Name for the first side");
+      const agnesIn = el("input", "in plain");
+      agnesIn.maxLength = 30;
+      agnesIn.value = NAME.Agnes;
+      agnesIn.setAttribute("aria-label", "Name for the second side");
+      const saveNames = el("button", "btn sm", "Save");
+      saveNames.addEventListener("click", () => saveSideLabels(lewisIn.value, agnesIn.value));
+      nameBox.append(lewisIn, agnesIn, saveNames);
+      body.appendChild(nameBox);
+
       const status = el("input", "in"); status.value = s.status || ""; status.maxLength = 60; status.placeholder = "A line for her";
       status.style.maxWidth = "55%";
       status.addEventListener("change", () => setS(me, { status: status.value.trim() }));
@@ -1687,8 +1892,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
         c.addEventListener("click", async () => {
           const ok = await choicePanel({ title: "Cancel this message?", desc: "It will not be sent.", options: [{ label: "Cancel scheduled message", sub: s.text.slice(0, 80), value: "yes", danger: true }] });
           if (ok !== "yes") return;
-          cancelScheduled(s.id);
-          openScheduled();
+          cancelScheduled(s.id).then(() => openScheduled());
         });
         it.append(t, c);
         rows.push(it);
@@ -1747,10 +1951,87 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   }
 
   /* ================= Home (journal) ================= */
+  function openCalendar() {
+    if (!calCursor || Number.isNaN(calCursor.getTime())) calCursor = new Date();
+    openPanel("Calendar", "Messages by day", (body) => {
+      const nav = el("div", "calnav");
+      const prev = el("button", "btn sm ghost", "Prev");
+      const next = el("button", "btn sm ghost", "Next");
+      const label = el("span", "");
+      label.style.flex = "1";
+      const year = el("select", "in");
+      year.setAttribute("aria-label", "Year");
+      const yNow = new Date().getFullYear();
+      for (let y = yNow - 5; y <= yNow + 1; y++) {
+        const o = el("option", "", String(y));
+        o.value = String(y);
+        year.appendChild(o);
+      }
+      const grid = el("div", "calgrid");
+      const listBox = el("div", "");
+      const draw = () => {
+        const y = calCursor.getFullYear();
+        const m = calCursor.getMonth();
+        year.value = String(Math.min(yNow + 1, Math.max(yNow - 5, y)));
+        label.textContent = calCursor.toLocaleString([], { month: "long", year: "numeric" });
+        grid.textContent = "";
+        ["S", "M", "T", "W", "T", "F", "S"].forEach(d => grid.appendChild(el("div", "caldow", d)));
+        const pad = new Date(y, m, 1).getDay();
+        const days = new Date(y, m + 1, 0).getDate();
+        for (let i = 0; i < pad; i++) grid.appendChild(el("div", ""));
+        const today = new Date();
+        for (let d = 1; d <= days; d++) {
+          const b = el("button", "calday", String(d));
+          b.type = "button";
+          if (d === today.getDate() && m === today.getMonth() && y === today.getFullYear()) b.classList.add("on");
+          b.addEventListener("click", () => loadCalendarDay(y, m, d, listBox));
+          grid.appendChild(b);
+        }
+      };
+      prev.addEventListener("click", () => { calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() - 1, 1); draw(); });
+      next.addEventListener("click", () => { calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + 1, 1); draw(); });
+      year.addEventListener("change", () => { calCursor = new Date(Number(year.value), calCursor.getMonth(), 1); draw(); });
+      nav.append(prev, label, year, next);
+      body.append(nav, grid, listBox);
+      draw();
+    }, "home");
+  }
+  async function loadCalendarDay(y, m, d, box) {
+    const start = new Date(y, m, d, 0, 0, 0, 0);
+    const end = new Date(y, m, d + 1, 0, 0, 0, 0);
+    box.textContent = "";
+    box.appendChild(el("p", "fp-desc", "Loading…"));
+    const client = cloudClient();
+    if (!client || !pairId) { box.textContent = ""; box.appendChild(el("p", "fp-desc", "Sign in to see this day.")); return; }
+    const res = await client.from("messages").select("id,sender_id,kind,text,created_at,deleted,deleted_for")
+      .eq("pair_id", pairId)
+      .gte("created_at", start.toISOString())
+      .lt("created_at", end.toISOString())
+      .eq("deleted", false)
+      .order("created_at");
+    box.textContent = "";
+    if (res.error) { box.appendChild(el("p", "fp-desc", res.error.message)); return; }
+    const rows = (res.data || []).filter(r => !(r.deleted_for || []).includes(me));
+    if (!rows.length) box.appendChild(el("p", "fp-desc", "No messages this day."));
+    for (const r of rows) {
+      const it = el("div", "item");
+      const side = rowSide(r.sender_id) || "";
+      const preview = (r.kind === "text" ? (r.text || "") : r.kind === "image" ? "Photo" : "Voice note").slice(0, 80);
+      const t = el("div", "txt");
+      t.append(el("span", "", preview), el("small", "", fmtTime(new Date(r.created_at).getTime()) + " · " + (NAME[side] || "")));
+      it.appendChild(t);
+      box.appendChild(it);
+    }
+    const open = el("button", "btn wide", "Open conversation");
+    open.style.marginTop = "12px";
+    open.addEventListener("click", () => openChat(false, { day: { start: start.getTime(), end: end.getTime() } }));
+    box.appendChild(open);
+  }
+
   function renderHome() {
     if (!unlocked) return;
     const h = new Date().getHours();
-    $("greet").textContent = (h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening") + ", " + (me === "Lewis" ? "Lewis" : "Agnes");
+    $("greet").textContent = (h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening") + ", " + NAME[me];
     $("dateLine").textContent = new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" });
     $("homeTitle").textContent = "The Lees";
     $("homeSub").textContent = "";
@@ -1764,6 +2045,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     nav.textContent = "";
     const items = [
       ["star", "Moments", () => openMoments(), false],
+      ["calendar", "Calendar", () => openCalendar(), false],
       ["archive", "Archive", () => openArchive(), false],
       ["search", "Search", () => openChat(true), false],
       ["shield", shield ? "Shield on" : "Shield", () => { shield = !shield; haptic("press"); render(); }, shield],
@@ -1781,24 +2063,30 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     people.textContent = "";
     const other2 = other();
     const otherBtn = el("button", "person hero lift");
-    const unreadChat = unreadList().length;
+    const unreadChat = unreadN;
     otherBtn.innerHTML = `<div class="avatar ${other2.toLowerCase()}">${other2 === "Lewis" ? "L" : "A"}</div><div class="grow"><div class="n">${NAME[other2]}</div><div class="s">${htmlEsc(S(other2).status || "Open the conversation")}</div></div>${unreadChat ? `<span class="badge">${unreadChat}</span>` : ic("chat", "sm")}`;
     otherBtn.addEventListener("click", () => openChat());
     people.appendChild(otherBtn);
     fillAvatars();
   }
 
-  function openChat(withSearch) {
+  function openChat(withSearch, opts) {
+    const fromDay = !!(opts && opts.day);
+    if (!fromDay) chatDay = null;
+    else chatDay = opts.day;
+    const jump = fromDay ? null : firstUnread();
     $("chatAvatar").className = "avatar " + other().toLowerCase();
     $("chatAvatar").textContent = other() === "Lewis" ? "L" : "A";
     $("chatTitle").textContent = NAME[other()];
     $("shieldBtn").classList.toggle("shieldon", shield);
     showView("chat");
     const pos = store.get(KEY.pos, {})[me];
+    if (fromDay) focusDay = opts.day;
     render();
-    const unread = unreadList();
-    if (unread.length) jumpToUnread();
-    else {
+    if (jump) {
+      const row = $("list").querySelector(`[data-row="${jump.id}"]`);
+      if (row) row.scrollIntoView({ block: "center" });
+    } else if (!fromDay) {
       const row = pos && $("list").querySelector(`[data-row="${pos}"]`);
       if (row) row.scrollIntoView({ block: "start" }); else scrollBottomInstant();
     }
@@ -1870,7 +2158,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     $("lock").classList.add("hidden");
     $("input").value = (store.get(KEY.drafts, {})[me]) || "";
     autosize();
-    prevUnread = unreadList().length;
+    prevUnread = unreadN;
     applyTheme();
     showView("home");
     renderHome();
@@ -2609,7 +2897,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
         haptic("recv");
         for (const m of fresh) playEffect(m);
         if (document.hidden) {
-          document.title = "(" + unreadList().length + ") " + baseTitle;
+          document.title = "(" + unreadN + ") " + baseTitle;
           if ("Notification" in window && Notification.permission === "granted") new Notification(NAME[fresh[fresh.length - 1].from], { body: fresh.length > 1 ? fresh.length + " new messages" : "New message", tag: "notes" });
         } else if (view === "chat" && !wasNear) $("toBottom").classList.remove("hidden");
         else if (view === "chat") markRead();
@@ -2650,7 +2938,13 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   let cacheThread = [], cacheNotes = [], cacheSched = [], cacheJournal = [], cacheShared = { theme: "warm", archiveDays: 0, appIcon: null, pinnedId: null };
   let cacheMembers = {}, cacheSeen = {}, cacheNread = {}, presenceState = {};
   let cloudChannel = null, presenceChannel = null, typeChannel = null, lastPull = 0;
-  let partnerTypingUntil = 0;
+  let partnerTypingUntil = 0, suppressSchedNotice = null;
+  const announcedSched = new Set();
+  function noteDelivered(prevSched) {
+    const gone = prevSched.filter(id => !cacheSched.some(s => s.id === id) && id !== suppressSchedNotice && !announcedSched.has(id));
+    for (const id of gone) announcedSched.add(id);
+    if (gone.length) notice("Scheduled message sent", gone.length > 1 ? gone.length + " messages arrived." : "It is in the conversation now.");
+  }
 
   function needSecure() {
     if (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1") return true;
@@ -2707,7 +3001,11 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       userOfSide[row.side] = row.user_id;
       cacheMembers[row.side] = memberView(row);
     }
-    if (settings.data) { cacheShared = { theme: settings.data.theme || "warm", archiveDays: settings.data.archive_days || 0, appIcon: settings.data.app_icon || null, pinnedId: settings.data.pinned_message_id || null }; if (cacheShared.appIcon) applyAppIcon(cacheShared.appIcon); }
+    if (settings.data) {
+      cacheShared = { theme: settings.data.theme || "warm", archiveDays: settings.data.archive_days || 0, appIcon: settings.data.app_icon || null, pinnedId: settings.data.pinned_message_id || null };
+      applySideLabels(settings.data.label_lewis, settings.data.label_agnes);
+      if (cacheShared.appIcon) applyAppIcon(cacheShared.appIcon);
+    }
     const pending = cacheThread.filter(m => m.pending);
     cacheThread = (messages.data || []).map(msgFromRow).concat(pending);
     cacheNotes = (notes.data || []).map(noteFromRow);
@@ -2718,15 +3016,76 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     cacheNread = {};
     for (const r of nreads.data || []) cacheNread[r.note_id] = true;
     applyTheme();
+    await refreshUnread();
+  }
+  function applySideLabels(lewis, agnes) {
+    if (lewis) NAME.Lewis = String(lewis).slice(0, 30);
+    if (agnes) NAME.Agnes = String(agnes).slice(0, 30);
+    document.querySelectorAll(".side").forEach(b => {
+      const name = b.querySelector("b");
+      if (name && NAME[b.dataset.side]) name.textContent = NAME[b.dataset.side];
+    });
+    if (!unlocked && chosen) $("whoLine").textContent = "Welcome back, " + NAME[chosen];
+  }
+  async function loadPublicLabels() {
+    const client = cloudClient();
+    if (!client) return;
+    const res = await client.rpc("public_labels");
+    if (res.error || !res.data) return;
+    let lewis = "", agnes = "";
+    for (const row of res.data) {
+      if (row.side === "Lewis") lewis = row.label;
+      if (row.side === "Agnes") agnes = row.label;
+    }
+    applySideLabels(lewis, agnes);
+  }
+  async function saveSideLabels(lewis, agnes) {
+    const a = String(lewis || "").trim();
+    const b = String(agnes || "").trim();
+    if (!a || !b || a.length > 30 || b.length > 30) {
+      notice("Names need 1 to 30 characters", "Neither name can be empty.", { error: true });
+      return;
+    }
+    const client = cloudClient();
+    if (!client || !pairId) return;
+    const upd = await client.from("pair_settings").update({ label_lewis: a, label_agnes: b }).eq("pair_id", pairId);
+    if (upd.error) { notice("Couldn't save names", upd.error.message, { error: true }); return; }
+    applySideLabels(a, b);
+    notice("Names saved");
+    render();
+  }
+  async function refreshUnread() {
+    const client = cloudClient();
+    if (!client) return;
+    const res = await client.rpc("unread_count");
+    if (!res.error && res.data != null) unreadN = Number(res.data) || 0;
+  }
+  function cameIn(prevIds) {
+    return cacheThread.filter(m => m.from && m.from !== me && !m.deleted && !(m.deletedFor || []).includes(me) && !prevIds.has(m.id));
   }
   function subscribePair() {
     const client = cloudClient();
     if (!client || !pairId) return;
     if (cloudChannel) client.removeChannel(cloudChannel);
     cloudChannel = client.channel("pair-" + pairId)
-      .on("postgres_changes", { event: "*", schema: "public", table: "messages", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages", filter: "pair_id=eq." + pairId }, () => {
+        const prev = new Set(cacheThread.map(m => m.id));
+        const prevSched = cacheSched.map(s => s.id);
+        reloadAll().then(() => {
+          if (!unlocked) return;
+          const fresh = cameIn(prev);
+          render();
+          noteDelivered(prevSched);
+          if (fresh.length && view === "chat" && !document.hidden) markRead();
+          else if (fresh.length && document.hidden) document.title = "(" + unreadN + ") " + baseTitle;
+          else if (fresh.length && view === "home") notice("New message", "From " + NAME[other()] + ".", { action: { label: "Open chat", run: () => openChat() } });
+        });
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "notes", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
-      .on("postgres_changes", { event: "*", schema: "public", table: "scheduled_messages", filter: "sender_id=eq." + myUserId }, () => reloadAll().then(() => { if (unlocked) render(); }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "scheduled_messages", filter: "sender_id=eq." + myUserId }, () => {
+        const prevSched = cacheSched.map(s => s.id);
+        reloadAll().then(() => { if (!unlocked) return; render(); noteDelivered(prevSched); });
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "read_markers", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
       .on("postgres_changes", { event: "*", schema: "public", table: "pair_settings", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) { applyTheme(); render(); } }))
       .on("postgres_changes", { event: "*", schema: "public", table: "pair_members", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
@@ -3048,23 +3407,33 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     if (!unlocked) return;
     if (Date.now() - lastPull < 15000) return;
     lastPull = Date.now();
+    const prev = new Set(cacheThread.map(m => m.id));
+    const prevSched = cacheSched.map(s => s.id);
     await reloadAll();
-    if (view === "chat" || view === "home") render();
+    if (view === "chat" || view === "home" || view === "panel") render();
+    if (cameIn(prev).length && view === "chat" && !document.hidden) markRead();
+    noteDelivered(prevSched);
   }
   async function cancelScheduled(id) {
     const client = cloudClient();
     if (!client) return;
+    suppressSchedNotice = id;
     const gone = await client.rpc("cancel_scheduled", { p_id: id });
-    if (gone.error) { notice("Couldn't cancel that", gone.error.message, { error: true }); return; }
+    if (gone.error) { suppressSchedNotice = null; notice("Couldn't cancel that", gone.error.message, { error: true }); return; }
     await reloadAll();
+    suppressSchedNotice = null;
     renderChips();
+    if (view === "panel") renderPanel();
   }
   async function toggleHeart(id) {
+    const m = thread().find(x => x.id === id);
+    const on = !(m && likedByMe(m));
     const client = cloudClient();
     if (!client) return;
     const res = await client.rpc("set_reaction", { p_id: id });
     if (res.error) { notice("Couldn't update that", res.error.message, { error: true }); return; }
-    haptic("heart");
+    if (on) haptic("heart");
+    justHeart = { id, on };
     await reloadAll();
     render();
   }
@@ -3185,7 +3554,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const opened = await openCloud(side);
     if (!opened) { unlocked = false; me = null; showView("lock"); return; }
     rememberSide(side);
-    prevUnread = unreadList().length;
+    prevUnread = unreadN;
     applyTheme();
     showView("home");
     renderHome();
@@ -3383,6 +3752,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   (async () => {
     rebindAuthForms();
     const client = cloudClient();
+    if (client) await loadPublicLabels();
     if (client) {
       const { data } = await client.auth.getSession();
       if (data.session) {
