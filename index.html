@@ -103,14 +103,29 @@ select.in{padding-right:12px}
 
 /* Home (journal) */
 #home .scroll{flex:1;overflow-y:auto;padding:18px 16px 40px}
-.greet{padding:4px 2px 14px}
-.greet .hdr{font-size:26px}
-.greet .mono{margin-top:4px;color:var(--muted)}
-.navrow{display:flex;gap:8px;overflow-x:auto;padding:2px 0 14px;scrollbar-width:none;margin:0 -16px;padding-left:16px;padding-right:16px}
-.navrow::-webkit-scrollbar{display:none}
-.navbtn{display:flex;align-items:center;gap:8px;padding:9px 13px;border-radius:999px;background:var(--surface);border:1px solid var(--line);white-space:nowrap;font-size:13.5px;color:var(--ink);flex:none;transition:border-color .2s,color .2s}
+.greet{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:2px 2px 16px}
+.greet .hdr{font-size:clamp(28px,8vw,40px);letter-spacing:-.02em;line-height:1.05}
+.greet .mono{margin-top:6px;color:var(--muted)}
+.journal-btn{width:48px;height:48px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--accent)}
+.navrow{display:flex;gap:8px;flex-wrap:wrap;padding:4px 0 8px}
+.navbtn{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:16px;background:color-mix(in srgb,var(--surface) 86%,transparent);border:1px solid var(--line);white-space:nowrap;font-size:13px;color:var(--ink);flex:none;box-shadow:var(--shadow)}
 .navbtn.on{border-color:var(--accent);color:var(--accent)}
 .navbtn.danger{color:var(--rose)}
+.person.hero{width:100%;padding:18px 16px;border-radius:28px;background:linear-gradient(165deg,color-mix(in srgb,var(--surface) 88%,var(--accent)),var(--surface));border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));box-shadow:var(--shadow);transform-style:preserve-3d}
+.person.hero .avatar{width:52px;height:52px;font-size:20px}
+.person.hero .n{font-size:22px}
+.person.hero .s{font-size:13px;margin-top:2px}
+.lift{transition:transform .35s var(--ease),box-shadow .35s var(--ease)}
+.lift:active{transform:scale(.975)}
+@media (hover:hover) and (pointer:fine){
+  .lift:hover{transform:translateY(-8px) rotate3d(1,-1,0,5deg);box-shadow:0 16px 36px rgba(154,90,72,.18),0 0 0 1px rgba(214,154,132,.4),0 0 28px rgba(154,90,72,.16)}
+}
+@media (prefers-reduced-motion: reduce){
+  .lift,.lift:hover,.lift:active{transform:none!important;box-shadow:var(--shadow)!important}
+}
+.pinbar{align-self:stretch;text-align:left;margin:0 0 8px;padding:8px 12px;border-radius:14px;background:color-mix(in srgb,var(--accent) 12%,var(--surface));border:1px solid var(--line);color:var(--ink);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reacts{display:flex;gap:6px;padding:2px 4px 8px}
+.reacts .act{min-width:44px;font-size:20px;padding:6px 8px}
 .sec-label{display:flex;justify-content:space-between;align-items:baseline;margin:20px 2px 10px;color:var(--muted)}
 .tray{display:flex;gap:14px;overflow-x:auto;padding:4px 2px 6px;scrollbar-width:none}
 .tray::-webkit-scrollbar{display:none}
@@ -324,7 +339,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       <button id="peek" type="button" aria-label="Show passphrase"><svg class="i sm" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
     </div>
     <button class="btn" type="submit">Open</button>
-    <button id="forgot" class="link" type="button" style="align-self:center">Forgot passphrase?</button>
+    <button id="forgot" class="link hidden" type="button" style="align-self:center">Forgot passphrase?</button>
   </form>
 
   <form id="setupForm" class="form" autocomplete="off">
@@ -358,17 +373,19 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     <div class="grow"><div class="title" id="homeTitle">Journal</div><div class="sub" id="homeSub"></div></div>
   </div>
   <div class="scroll">
-    <div class="greet"><div class="hdr" id="greet"></div><div class="mono" id="dateLine"></div></div>
+    <div class="greet">
+      <div><div class="hdr" id="greet"></div><div class="mono" id="dateLine"></div></div>
+      <button id="journalBtn" class="journal-btn lift" type="button" aria-label="Open journal"><svg class="i" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg></button>
+    </div>
     <nav class="navrow" id="navrow" aria-label="Sections"></nav>
 
-    <div class="sec-label mono"><span>Notes</span><span id="trayHint"></span></div>
-    <div class="tray" id="tray"></div>
+    <div class="sec-label mono hidden" id="trayLabel"><span>Notes</span><span id="trayHint"></span></div>
+    <div class="tray hidden" id="tray"></div>
 
-    <div class="sec-label mono"><span>People</span></div>
-    <div class="people" id="people"></div>
+    <div id="people"></div>
 
-    <div class="sec-label mono"><span>Journal</span><span id="feedCount"></span></div>
-    <div id="feed"></div>
+    <div class="sec-label mono hidden" id="feedLabel"><span>Journal</span><span id="feedCount"></span></div>
+    <div id="feed" class="hidden"></div>
   </div>
 </section>
 
@@ -976,7 +993,12 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     if (m.moment) meta.appendChild(el("span", "", "· moment"));
     if (m.late) meta.appendChild(el("span", "", "· delivered late"));
     if (m.pending) meta.appendChild(el("span", "", "· waiting to send"));
-    if (m.hearts && m.hearts.length) { const h = el("span", "heart"); h.innerHTML = ic("heart", "sm") + m.hearts.length; meta.appendChild(h); }
+    if (m.hearts && m.hearts.length) {
+      const names = m.hearts.filter(h => String(h).indexOf(":") < 0);
+      const emojis = m.hearts.filter(h => String(h).indexOf(":") > 0).map(h => String(h).split(":").pop());
+      if (names.length) { const h = el("span", "heart"); h.innerHTML = ic("heart", "sm") + names.length; meta.appendChild(h); }
+      if (emojis.length) meta.appendChild(el("span", "", emojis.join("")));
+    }
     row.appendChild(meta);
 
     if (isLastMine) {
@@ -1025,6 +1047,17 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     else if (matchIdx < 0 || matchIdx >= matches.length) matchIdx = matches.length - 1;
 
     box.textContent = "";
+    const pinned = (typeof cacheShared !== "undefined" && cacheShared.pinnedId && thread().find(x => x.id === cacheShared.pinnedId && !x.deleted)) || null;
+    if (pinned) {
+      const bar = el("button", "pinbar");
+      bar.type = "button";
+      bar.textContent = "Pinned · " + (pinned.kind === "text" ? (pinned.text || "") : pinned.kind).slice(0, 90);
+      bar.addEventListener("click", () => {
+        const row = box.querySelector('[data-row="' + pinned.id + '"]');
+        if (row) row.scrollIntoView({ block: "center" });
+      });
+      box.appendChild(bar);
+    }
     if (!list.length) {
       const e = el("div", "empty");
       e.append(el("b", "", "Nothing written yet."), document.createTextNode("Start with a line, a photo, or your voice."));
@@ -1085,14 +1118,14 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   function renderPresence() {
     if (!me) return;
     const remote = (typeof presenceState !== "undefined" && presenceState[other()]) || null;
-    const typing = !!(remote && remote.typing && Date.now() - (remote.ts || 0) < 4000);
+    const typing = Date.now() < (partnerTypingUntil || 0) || !!(remote && remote.typing && Date.now() - (remote.ts || 0) < 3000);
     const p = $("presence");
     p.classList.toggle("live", !!typing);
     let zoneTime = "";
     try { zoneTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZone: S(other()).tz }); } catch {}
     const status = S(other()).status;
-    p.textContent = typing ? NAME[other()] + " is writing…" : (zoneTime ? NAME[other()] + " · " + zoneTime + (status ? " · " + status : "") : "private");
-    $("typing").textContent = typing ? NAME[other()] + " is writing…" : "";
+    p.textContent = typing ? "typing..." : (zoneTime ? NAME[other()] + " · " + zoneTime + (status ? " · " + status : "") : "private");
+    $("typing").textContent = typing ? "typing..." : "";
     $("typing").classList.toggle("show", !!typing);
   }
 
@@ -1173,6 +1206,17 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const mine = m.from === me;
     const age = Date.now() - m.ts;
     const list = [];
+    const reacts = el("div", "reacts");
+    for (const em of ["❤", "😂", "😢", "👍"]) {
+      const rb = el("button", "act", em);
+      rb.type = "button";
+      rb.addEventListener("click", (e) => { e.stopPropagation(); closeActions(); setEmoji(m.id, em); });
+      reacts.appendChild(rb);
+    }
+    acts.appendChild(reacts);
+    if (!m.deleted) list.push(["reply", "Reply", () => setReply(m)]);
+    if (m.kind === "text" && m.text && !m.deleted) list.push(["copy", "Copy text", () => copyMessage(m)]);
+    list.push(["pin", cacheShared.pinnedId === m.id ? "Unpin" : "Pin", () => setPinned(m.id)]);
     if (mine && m.kind === "text" && !m.deleted) list.push(["edit", "Edit", () => startEdit(m)]);
     list.push(["heart", (m.hearts || []).includes(me) ? "Unheart" : "Heart", () => toggleHeart(m.id)]);
     list.push([(m.hiddenBy || []).includes(me) ? "eye" : "eyeoff", (m.hiddenBy || []).includes(me) ? "Reveal" : "Hide", () => setHidden(m.id, !(m.hiddenBy || []).includes(me))]);
@@ -1250,7 +1294,24 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
             i.spellcheck = false;
           }
           inputs[f.key] = i;
-          wrap.appendChild(i);
+          if (f.type === "password") {
+            const slot = el("div", "");
+            slot.style.position = "relative";
+            i.style.paddingRight = "40px";
+            const peek = el("button", "");
+            peek.type = "button";
+            peek.setAttribute("aria-label", "Show passphrase");
+            peek.innerHTML = ic("eye", "sm");
+            peek.style.cssText = "position:absolute;right:8px;top:50%;transform:translateY(-50%)";
+            peek.addEventListener("click", (ev) => {
+              ev.preventDefault();
+              const show = i.type === "password";
+              i.type = show ? "text" : "password";
+              peek.setAttribute("aria-label", show ? "Hide passphrase" : "Show passphrase");
+            });
+            slot.append(i, peek);
+            wrap.appendChild(slot);
+          } else wrap.appendChild(i);
           body.appendChild(wrap);
         }
         const err = el("div", "fp-err");
@@ -1405,7 +1466,8 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
 
 
   function openJournal() {
-    openPanel("Journal", "Yours and hers", (body) => {
+    openPanel("Journal", "Kept", async (body) => {
+      await reloadJournal();
       const add = el("button", "btn", "New entry");
       add.addEventListener("click", () => openJournalComposer());
       body.appendChild(add);
@@ -1416,13 +1478,38 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       for (const e of entries) {
         const card = el("div", "note-card");
         const top = el("div", "top");
-        top.append(el("span", "kind", e.kind === "diary" ? "Diary" : "Note"), el("span", "", NAME[e.from] || e.from));
+        top.append(el("span", "kind", e.kind === "diary" ? "Diary" : "Note only"), el("span", "", NAME[e.from] || e.from));
         card.appendChild(top);
         card.appendChild(el("div", "txt", e.text));
         card.appendChild(el("div", "mono muted", fmtDateTime(e.ts)));
         list.appendChild(card);
       }
       body.appendChild(list);
+      body.appendChild(el("div", "sec-label mono", "Notes"));
+      const notes = notesAll().slice().sort((a, b) => b.ts - a.ts);
+      if (!notes.length) body.appendChild(el("p", "fp-desc", "No notes yet."));
+      for (const n of notes) {
+        const card = el("div", "note-card");
+        const top = el("div", "top");
+        top.append(el("span", "kind", n.kind === "gratitude" ? "Grateful for" : n.kind === "wish" ? "A wish" : "A note"), el("span", "", NAME[n.from]));
+        card.appendChild(top);
+        card.appendChild(el("div", "txt", n.text));
+        card.appendChild(el("div", "mono muted", fmtDateTime(n.ts) + (n.edited ? " · edited" : "")));
+        if (n.from === me) {
+          const row = el("div", "");
+          row.style.cssText = "display:flex;gap:8px;margin-top:10px";
+          const ed = el("button", "btn sm ghost", "Edit");
+          ed.addEventListener("click", () => openNoteComposer(n));
+          const dl = el("button", "btn sm danger", "Delete");
+          dl.addEventListener("click", async () => {
+            const ok = await choicePanel({ title: "Delete this note?", desc: "It will disappear from the journal on both sides.", options: [{ label: "Delete note", sub: n.text.slice(0, 80), value: "yes", danger: true }] });
+            if (ok === "yes") { await removeNote(n.id); openJournal(); }
+          });
+          row.append(ed, dl);
+          card.appendChild(row);
+        }
+        body.appendChild(card);
+      }
     });
   }
   function openJournalComposer() {
@@ -1665,99 +1752,40 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     const h = new Date().getHours();
     $("greet").textContent = (h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening") + ", " + (me === "Lewis" ? "Lewis" : "Agnes");
     $("dateLine").textContent = new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" });
-    $("homeTitle").textContent = "Journal";
-    $("homeSub").textContent = "Shared with " + NAME[other()];
+    $("homeTitle").textContent = "The Lees";
+    $("homeSub").textContent = "";
     const av = $("homeAvatar");
     av.className = "avatar " + me.toLowerCase();
     av.textContent = me === "Lewis" ? "L" : "A";
+    const jb = $("journalBtn");
+    if (jb) jb.classList.toggle("on", unreadNotesCount() > 0);
 
-    // Navigation row
     const nav = $("navrow");
     nav.textContent = "";
-    const unsentCount = sched().filter(s => s.from === me).length;
-    const chatBadge = unreadList().length || unsentCount || 0;
     const items = [
-      ["chat", "Chat", () => openChat(), false, chatBadge],
       ["star", "Moments", () => openMoments(), false],
       ["archive", "Archive", () => openArchive(), false],
       ["search", "Search", () => openChat(true), false],
       ["shield", shield ? "Shield on" : "Shield", () => { shield = !shield; haptic("press"); render(); }, shield],
       ["gear", "Settings", () => openSettings(), false],
-      ["edit", "Journal", () => openJournal(), false],
       ["logout", "Sign out", () => confirmSignOut("this"), true]
     ];
-    for (const [icon, label, fn, on, badge] of items) {
-      const b = el("button", "navbtn" + (on === true ? " on" : "") + (icon === "logout" ? " danger" : ""));
-      b.innerHTML = ic(icon, "sm") + `<span>${label}</span>` + (badge ? `<span class="badge" style="min-width:18px;height:18px;font-size:11px">${badge}</span>` : "");
+    for (const [icon, label, fn, on] of items) {
+      const b = el("button", "navbtn lift" + (on === true ? " on" : "") + (icon === "logout" ? " danger" : ""));
+      b.innerHTML = ic(icon, "sm") + `<span>${label}</span>`;
       b.addEventListener("click", fn);
       nav.appendChild(b);
     }
 
-    // Notes tray: each side with their latest note as a bubble
-    const tray = $("tray");
-    tray.textContent = "";
-    const unread = unreadNotesCount();
-    $("trayHint").textContent = unread ? unread + " new" : "";
-    for (const side of ["Lewis", "Agnes"]) {
-      const n = latestNote(side);
-      const seenAll = !n || (store.get(KEY.nread, {})[me] || {})[n.id];
-      const card = el("button", "tcard");
-      const b = el("div", "bubble" + (n ? "" : " empty"), n ? n.text : (side === me ? "Write a note" : "No note yet"));
-      const ring = el("div", "ring" + (seenAll ? " seen" : ""));
-      const avatar = el("div", "avatar " + side.toLowerCase(), side === "Lewis" ? "L" : "A");
-      ring.appendChild(avatar);
-      card.append(b, ring, el("span", "nm", side === me ? "You" : NAME[side]));
-      card.addEventListener("click", () => {
-        if (side === me) openNoteComposer(null);
-        else if (n) openNoteReading(side);
-        else notice(NAME[side] + " hasn't written yet");
-      });
-      tray.appendChild(card);
-    }
-
-    // People
     const people = $("people");
     people.textContent = "";
     const other2 = other();
-    const otherBtn = el("button", "person");
-    otherBtn.innerHTML = `<div class="avatar ${other2.toLowerCase()}">${other2 === "Lewis" ? "L" : "A"}</div><div class="grow"><div class="n">${NAME[other2]}</div><div class="s">${htmlEsc(S(other2).status || "Open the conversation")}</div></div>${unreadList().length ? `<span class="badge">${unreadList().length}</span>` : ic("chat", "sm")}`;
+    const otherBtn = el("button", "person hero lift");
+    const unreadChat = unreadList().length;
+    otherBtn.innerHTML = `<div class="avatar ${other2.toLowerCase()}">${other2 === "Lewis" ? "L" : "A"}</div><div class="grow"><div class="n">${NAME[other2]}</div><div class="s">${htmlEsc(S(other2).status || "Open the conversation")}</div></div>${unreadChat ? `<span class="badge">${unreadChat}</span>` : ic("chat", "sm")}`;
     otherBtn.addEventListener("click", () => openChat());
     people.appendChild(otherBtn);
     fillAvatars();
-
-    // Journal feed
-    const feed = $("feed");
-    feed.textContent = "";
-    const all = notesAll().slice().sort((a, b) => b.ts - a.ts);
-    $("feedCount").textContent = all.length ? all.length + (all.length === 1 ? " note" : " notes") : "";
-    if (!all.length) feed.appendChild(el("p", "fp-desc", "The journal is empty. Write the first note, something you are grateful for, or a line you want the other side to read."));
-    const readMap = (store.get(KEY.nread, {})[other()]) || {};
-    for (const n of all) {
-      const card = el("div", "note-card");
-      const top = el("div", "top");
-      top.append(el("span", "kind", n.kind === "gratitude" ? "Grateful for" : n.kind === "wish" ? "A wish" : "A note"), el("span", "", NAME[n.from]));
-      if (n.from === me) top.appendChild(el("span", "seen", readMap[n.id] ? "Seen" : "Sent"));
-      else top.appendChild(el("span", "seen", ""));
-      card.appendChild(top);
-      card.appendChild(el("div", "txt", n.text));
-      const foot = el("div", "mono muted", fmtDateTime(n.ts) + (n.edited ? " · edited" : ""));
-      foot.style.marginTop = "8px";
-      card.appendChild(foot);
-      if (n.from === me) {
-        const row = el("div", "");
-        row.style.display = "flex"; row.style.gap = "8px"; row.style.marginTop = "10px";
-        const ed = el("button", "btn sm ghost"); ed.innerHTML = ic("edit", "sm") + "Edit";
-        ed.addEventListener("click", () => openNoteComposer(n));
-        const dl = el("button", "btn sm danger"); dl.innerHTML = ic("trash", "sm") + "Delete";
-        dl.addEventListener("click", async () => {
-          const ok = await choicePanel({ title: "Delete this note?", desc: "It will disappear from the journal on both sides.", options: [{ label: "Delete note", sub: n.text.slice(0, 80), value: "yes", danger: true }] });
-          if (ok === "yes") { removeNote(n.id); renderHome(); notice("Note deleted"); }
-        });
-        row.append(ed, dl);
-        card.appendChild(row);
-      }
-      feed.appendChild(card);
-    }
   }
 
   function openChat(withSearch) {
@@ -1787,7 +1815,7 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     $("lockForm").classList.toggle("on", mode === "signin");
     $("setupForm").classList.toggle("on", mode === "setup");
     $("recoverForm").classList.toggle("on", mode === "recover");
-    $("forgot").classList.toggle("hidden", mode !== "signin");
+    $("forgot").classList.toggle("hidden", mode !== "signin" || !(chosen && Number(store.get(KEY.fail, {})[chosen] || 0) >= 4));
     $("lockErr").textContent = "";
     if (mode === "recover" && chosen) {
       const acc = accountOf(chosen);
@@ -2012,7 +2040,10 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     });
     if (ok !== "yes") return;
     if (which === "other") signOutEverywhere();
-    else lock();
+    else {
+      try { const client = cloudClient(); if (client) await client.auth.signOut(); } catch {}
+      lock();
+    }
   }
   function signOutEverywhere() {
     store.set(KEY.sessions, store.get(KEY.sessions, []).filter(x => x.id === sessionId));
@@ -2223,6 +2254,21 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
         else if (f.type.startsWith("audio/")) await addMedia("audio", f, { dur: await audioDuration(f), mime: f.type });
         else notice("That file type isn't supported", "Choose a photo or an audio file.", { error: true });
       } catch { notice("Couldn't add " + (f.name || "that file"), "", { error: true }); }
+    }
+  }
+
+  let micPrimed = false, micGestureTried = false;
+  async function primeMic(fromGesture) {
+    if (micPrimed || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop());
+      micPrimed = true;
+    } catch {
+      if (fromGesture) {
+        micGestureTried = true;
+        notice("Microphone is blocked", "Allow the microphone for this site, then tap the mic again.", { error: true });
+      }
     }
   }
 
@@ -2574,16 +2620,25 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     else if (e.key === KEY.seen || e.key === KEY.settings || e.key === KEY.sched) { applyTheme(); render(); renderHome(); }
   });
 
+  async function idleSignOut() {
+    if (!unlocked || idleSignOut.busy) return;
+    idleSignOut.busy = true;
+    try { const client = cloudClient(); if (client) await client.auth.signOut(); } catch {}
+    lock();
+    $("lockErr").textContent = "Signed out after 5 minutes of inactivity.";
+    idleSignOut.busy = false;
+  }
+
   // Timers: presence, scheduled delivery, idle auto-lock.
   setInterval(() => {
     if (!unlocked) return;
     renderPresence();
     deliverDue();
     if (rec || [...voiceCache.values()].some(w => !w._audio.paused)) lastActivity = Date.now();
-    if (Date.now() - lastActivity > IDLE_MS) { lock(); $("lockErr").textContent = "Signed out after 5 minutes of inactivity."; }
+    if (Date.now() - lastActivity > IDLE_MS) idleSignOut();
   }, 15000);
   ["keydown", "touchstart", "scroll"].forEach(ev => document.addEventListener(ev, () => { lastActivity = Date.now(); }, { passive: true }));
-  document.addEventListener("visibilitychange", () => { if (!document.hidden && unlocked && Date.now() - lastActivity > IDLE_MS) { lock(); $("lockErr").textContent = "Signed out after 5 minutes of inactivity."; } });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && unlocked && Date.now() - lastActivity > IDLE_MS) idleSignOut(); });
   setInterval(applyTheme, 60 * 1000);
 
 
@@ -2592,9 +2647,10 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtaW13bHBzZmNobmR4YXh6c3doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ3NDg0NTQsImV4cCI6MjExMDMyNDQ1NH0.RVVgRCNJJO588H2EDAkjftploDFVXIKmy2zvv-iJldA";
   const SIDE_EMAIL = { Lewis: "lewis@the-lees.app", Agnes: "agnes@the-lees.app" };
   let sb = null, pairId = null, myUserId = null, sideOfUser = {}, userOfSide = {};
-  let cacheThread = [], cacheNotes = [], cacheSched = [], cacheJournal = [], cacheShared = { theme: "warm", archiveDays: 0, appIcon: null };
+  let cacheThread = [], cacheNotes = [], cacheSched = [], cacheJournal = [], cacheShared = { theme: "warm", archiveDays: 0, appIcon: null, pinnedId: null };
   let cacheMembers = {}, cacheSeen = {}, cacheNread = {}, presenceState = {};
-  let cloudChannel = null, presenceChannel = null, lastPull = 0;
+  let cloudChannel = null, presenceChannel = null, typeChannel = null, lastPull = 0;
+  let partnerTypingUntil = 0;
 
   function needSecure() {
     if (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1") return true;
@@ -2635,14 +2691,15 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   async function reloadAll() {
     const client = cloudClient();
     if (!client || !pairId) return;
-    const [members, settings, messages, notes, scheduled, reads, nreads] = await Promise.all([
+    const [members, settings, messages, notes, scheduled, reads, nreads, journal] = await Promise.all([
       client.from("pair_members").select("*").eq("pair_id", pairId),
       client.from("pair_settings").select("*").eq("pair_id", pairId).maybeSingle(),
       client.from("messages").select("*").eq("pair_id", pairId).order("created_at"),
       client.from("notes").select("*").eq("pair_id", pairId),
       client.from("scheduled_messages").select("*").eq("pair_id", pairId).eq("sender_id", myUserId).eq("cancelled", false).is("delivered_at", null),
       client.from("read_markers").select("*").eq("pair_id", pairId),
-      client.from("note_reads").select("note_id").eq("user_id", myUserId)
+      client.from("note_reads").select("note_id").eq("user_id", myUserId),
+      client.from("journal_entries").select("*").eq("pair_id", pairId).order("created_at", { ascending: false })
     ]);
     sideOfUser = {}; userOfSide = {}; cacheMembers = {};
     for (const row of members.data || []) {
@@ -2650,10 +2707,11 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       userOfSide[row.side] = row.user_id;
       cacheMembers[row.side] = memberView(row);
     }
-    if (settings.data) { cacheShared = { theme: settings.data.theme || "warm", archiveDays: settings.data.archive_days || 0, appIcon: settings.data.app_icon || null }; if (cacheShared.appIcon) applyAppIcon(cacheShared.appIcon); }
+    if (settings.data) { cacheShared = { theme: settings.data.theme || "warm", archiveDays: settings.data.archive_days || 0, appIcon: settings.data.app_icon || null, pinnedId: settings.data.pinned_message_id || null }; if (cacheShared.appIcon) applyAppIcon(cacheShared.appIcon); }
     const pending = cacheThread.filter(m => m.pending);
     cacheThread = (messages.data || []).map(msgFromRow).concat(pending);
     cacheNotes = (notes.data || []).map(noteFromRow);
+    cacheJournal = (journal.data || []).map(e => ({ id: e.id, from: e.side, kind: e.kind, text: e.text, ts: new Date(e.created_at).getTime() }));
     cacheSched = (scheduled.data || []).filter(s => s.side === me).map(s => ({ id: s.id, from: s.side, text: s.text, effect: s.effect, sendAt: new Date(s.send_at).getTime(), createdAt: new Date(s.created_at).getTime() }));
     cacheSeen = {};
     for (const r of reads.data || []) cacheSeen[r.side] = new Date(r.read_at).getTime();
@@ -2687,6 +2745,17 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     presenceChannel.subscribe(async (status) => {
       if (status === "SUBSCRIBED") await presenceChannel.track({ typing: false, ts: Date.now() });
     });
+    if (typeChannel) client.removeChannel(typeChannel);
+    typeChannel = client.channel(String(pairId));
+    typeChannel.on("broadcast", { event: "typing" }, (msg) => {
+      const payload = (msg && msg.payload) || {};
+      if (!payload.side || payload.side === me) return;
+      partnerTypingUntil = Date.now() + 3000;
+      if (unlocked) renderPresence();
+      clearTimeout(typeChannel._hide);
+      typeChannel._hide = setTimeout(() => { if (unlocked) renderPresence(); }, 3100);
+    });
+    typeChannel.subscribe();
   }
   async function openCloud(side) {
     const client = cloudClient();
@@ -2724,9 +2793,9 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
       el.textContent = "";
       el.appendChild(img);
     };
-    const meAv = document.querySelector("#people .person .avatar");
-    const otherAv = document.querySelectorAll("#people .person .avatar")[1];
+    const meAv = document.querySelector("#homeAvatar");
     if (meAv) set(me, meAv);
+    const otherAv = document.querySelector("#people .person .avatar");
     if (otherAv) set(other(), otherAv);
     const home = $("homeAvatar");
     if (home) {
@@ -2999,6 +3068,31 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     await reloadAll();
     render();
   }
+  async function setEmoji(id, emoji) {
+    if (String(id).startsWith("local-")) { notice("Send it first", "Reactions wait until the message is sent."); return; }
+    const client = cloudClient();
+    if (!client) return;
+    const res = await client.rpc("set_emoji", { p_id: id, p_emoji: emoji });
+    if (res.error) { notice("Couldn't react", res.error.message, { error: true }); return; }
+    await reloadAll();
+    render();
+  }
+  async function copyMessage(m) {
+    try {
+      await navigator.clipboard.writeText(m.text || "");
+      notice("Copied");
+    } catch { notice("Couldn't copy", "The browser blocked the clipboard.", { error: true }); }
+  }
+  async function setPinned(id) {
+    if (String(id).startsWith("local-")) { notice("Send it first", "Pin waits until the message is sent."); return; }
+    const client = cloudClient();
+    if (!client || !pairId) return;
+    const next = cacheShared.pinnedId === id ? null : id;
+    const upd = await client.from("pair_settings").update({ pinned_message_id: next }).eq("pair_id", pairId);
+    if (upd.error) { notice("Couldn't pin that", upd.error.message, { error: true }); return; }
+    cacheShared.pinnedId = next;
+    render();
+  }
   async function setHidden(id, on) {
     const client = cloudClient();
     if (!client) return;
@@ -3076,8 +3170,8 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
     await reloadAll();
   }
   async function trackTyping(on) {
-    if (presenceChannel) {
-      try { await presenceChannel.track({ typing: !!on, ts: Date.now() }); } catch {}
+    if (on && typeChannel) {
+      try { await typeChannel.send({ type: "broadcast", event: "typing", payload: { side: me } }); } catch {}
     }
   }
   async function unlock(side) {
@@ -3281,18 +3375,27 @@ footer{display:flex;align-items:flex-end;gap:4px;padding:8px 10px calc(8px + env
   // Start.
   applyTheme();
   if (document.hidden) document.body.classList.add("private");
+  $("journalBtn").addEventListener("click", () => { if (unlocked) openJournal(); });
+  primeMic(false);
+  const askMicOnGesture = () => { if (!micPrimed && !micGestureTried) primeMic(true); };
+  document.addEventListener("pointerdown", askMicOnGesture, true);
+  document.addEventListener("keydown", askMicOnGesture, true);
   (async () => {
+    rebindAuthForms();
     const client = cloudClient();
     if (client) {
       const { data } = await client.auth.getSession();
       if (data.session) {
         const side = Object.keys(SIDE_EMAIL).find(k => SIDE_EMAIL[k] === data.session.user.email);
-        if (side) { me = side; chosen = side; const ok = await openCloud(side); if (ok) { unlocked = true; showView("home"); renderHome(); return; } }
+        if (side) {
+          me = side; chosen = side; lastActivity = Date.now();
+          const ok = await openCloud(side);
+          if (ok) { unlocked = true; showView("home"); renderHome(); return; }
+        }
       }
     }
     applyRemembered();
     autosize();
-    rebindAuthForms();
     $("pass").focus();
   })();
 })();

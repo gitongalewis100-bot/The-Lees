@@ -244,6 +244,37 @@ begin
 end;
 $$;
 
+create or replace function public.set_emoji(p_id uuid, p_emoji text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  s text;
+  m public.messages;
+  token text;
+  allowed text[] := array['❤','😂','😢','👍'];
+begin
+  if not (p_emoji = any (allowed)) then raise exception 'bad emoji'; end if;
+  s := public.my_side();
+  if s is null then raise exception 'not a member'; end if;
+  select * into m from public.messages
+    where id = p_id and pair_id in (select public.my_pair_ids());
+  if m.id is null then raise exception 'not found'; end if;
+  token := s || ':' || p_emoji;
+  update public.messages
+    set hearts = coalesce((
+      select array_agg(x) from unnest(hearts) x
+      where x <> all (array[s || ':❤', s || ':😂', s || ':😢', s || ':👍'])
+    ), '{}')
+    where id = p_id;
+  if not (token = any (m.hearts)) then
+    update public.messages set hearts = array_append(hearts, token) where id = p_id;
+  end if;
+end;
+$$;
+
 create or replace function public.set_hidden(p_id uuid, p_on boolean)
 returns void
 language plpgsql
@@ -520,14 +551,18 @@ create table if not exists public.journal_entries (
   author_id uuid not null default auth.uid() references auth.users(id),
   side text not null check (side in ('Lewis','Agnes')),
   kind text not null check (kind in ('diary','note')),
-  text text not null check (char_length(text) <= 10000),
+  text text not null check (char_length(text) between 1 and 10000),
   created_at timestamptz not null default now()
 );
 alter table public.journal_entries enable row level security;
-create policy journal_read on public.journal_entries for select to authenticated using (pair_id in (select pair_id from public.pair_members where user_id = auth.uid()));
-create policy journal_insert on public.journal_entries for insert to authenticated with check (pair_id in (select pair_id from public.pair_members where user_id = auth.uid()) and author_id = auth.uid() and side = (select side from public.pair_members where user_id = auth.uid()));
+create policy journal_read on public.journal_entries for select to authenticated
+  using (pair_id in (select public.my_pair_ids()));
+create policy journal_insert on public.journal_entries for insert to authenticated
+  with check (pair_id in (select public.my_pair_ids()) and author_id = auth.uid()
+              and side = public.my_side());
+revoke all on public.journal_entries from anon, public;
+revoke all on public.journal_entries from authenticated;
 grant select, insert on public.journal_entries to authenticated;
-revoke all on public.journal_entries from anon;
 
 -- ---------- privileges ----------
 
@@ -549,8 +584,9 @@ grant usage on schema public to authenticated;
 grant select on public.pairs to authenticated;
 revoke update on public.pair_settings from authenticated;
 alter table public.pair_settings add column if not exists app_icon text check (app_icon is null or char_length(app_icon) <= 300000);
+alter table public.pair_settings add column if not exists pinned_message_id uuid;
 grant update (theme, archive_days) on public.pair_settings to authenticated;
-grant update (app_icon) on public.pair_settings to authenticated;
+grant update (app_icon, pinned_message_id) on public.pair_settings to authenticated;
 grant select on public.pair_members to authenticated;
 revoke update on public.pair_members from authenticated;
 grant update (status, tz, haptics, sound, auto_blur, shake, blur_words) on public.pair_members to authenticated;
@@ -571,6 +607,7 @@ grant execute on function public.my_side() to authenticated;
 grant execute on function public.claim_side(text) to authenticated;
 grant execute on function public.recovery_prompts(text) to anon, authenticated;
 grant execute on function public.set_reaction(uuid) to authenticated;
+grant execute on function public.set_emoji(uuid, text) to authenticated;
 grant execute on function public.set_hidden(uuid, boolean) to authenticated;
 grant execute on function public.set_moment(uuid, boolean) to authenticated;
 grant execute on function public.delete_for_me(uuid) to authenticated;
@@ -617,4 +654,5 @@ alter publication supabase_realtime add table public.notes;
 alter publication supabase_realtime add table public.scheduled_messages;
 alter publication supabase_realtime add table public.read_markers;
 alter publication supabase_realtime add table public.pair_settings;
+alter publication supabase_realtime add table public.journal_entries;
 alter publication supabase_realtime add table public.pair_members;
