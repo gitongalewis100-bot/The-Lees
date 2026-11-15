@@ -124,12 +124,13 @@ select.in{padding-right:12px}
 .journal-btn{width:48px;height:48px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--accent)}
 .navrow{display:flex;gap:8px;flex-wrap:wrap;padding:4px 0 8px}
 .homegrid{display:grid;grid-template-columns:0.82fr 1.45fr;gap:10px;align-items:stretch}
+@media (max-width:720px){.homegrid{grid-template-columns:1fr}.navbtn.settings-box{min-height:auto}.fnbox{min-height:auto}}
 .navbtn.settings-box{width:100%;height:100%;min-height:280px;flex-direction:column;align-items:stretch;justify-content:space-between;font-size:18px;padding:16px;gap:12px}
 .settings-main{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:10px;flex:1;text-align:left;font-size:22px;color:var(--ink)}
 .settings-out{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px 12px;border-radius:16px;background:color-mix(in srgb,var(--rose) 14%,var(--surface));color:var(--rose);border:1px solid color-mix(in srgb,var(--rose) 40%,var(--line));font-size:16px}
 .fnbox{display:flex;flex-direction:column;gap:8px;min-height:320px;height:100%;padding:12px;border-radius:28px;background:color-mix(in srgb,var(--surface) 90%,transparent);border:1px solid var(--line);box-shadow:var(--shadow)}
 .tools2{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start}
-.tools2 .navbtn{width:100%}
+.tools2 .navbtn{width:100%;white-space:normal;text-align:left}
 .navbtn{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:16px;background:color-mix(in srgb,var(--surface) 86%,transparent);border:1px solid var(--line);white-space:nowrap;font-size:15px;color:var(--ink);flex:none;box-shadow:var(--shadow)}
 .navbtn.journal-tool{min-height:54px;font-family:var(--serif);font-size:18px;color:var(--accent);background:linear-gradient(165deg,color-mix(in srgb,var(--accent) 18%,var(--surface)),var(--surface));border-color:color-mix(in srgb,var(--accent) 42%,var(--line))}
 .navbtn.journal-tool .i{width:28px;height:28px}
@@ -285,7 +286,7 @@ mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 
 .receipt{margin-top:3px;color:var(--muted);padding-right:4px;font-family:var(--mono);font-size:10px;letter-spacing:.06em}
 .empty{margin:auto;text-align:center;color:var(--muted);font-size:14px;line-height:1.7;padding:24px}
 .empty b{display:block;color:var(--ink);font-family:var(--serif);font-weight:normal;font-size:17px;margin-bottom:4px}
-.voice{display:flex;align-items:center;gap:10px;min-width:230px;transition:filter .3s}
+.voice{display:flex;align-items:center;gap:10px;min-width:min(230px,72vw);transition:filter .3s}
 .vplay{width:38px;height:38px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none}
 .vplay .i{width:15px;height:15px;fill:currentColor;stroke:none}
 .bars{display:flex;align-items:center;gap:2px;flex:1;height:32px;cursor:pointer}
@@ -293,16 +294,16 @@ mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 
 .bars i.on{background:var(--accent);opacity:1}
 .vt{min-width:34px;text-align:right;color:var(--muted)}
 .vspeed{padding:3px 6px;border-radius:7px;border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:10px}
-#typing{display:none;padding:0 14px 8px}
+#typing{display:none;padding:0 14px 10px}
 #typing.show{display:block}
-.tdots{display:inline-flex;gap:5px;align-items:center;padding:10px 14px;border-radius:18px;border-bottom-left-radius:6px;background:var(--theirs);border:1px solid var(--line);box-shadow:var(--shadow)}
-.tdots i{width:7px;height:7px;border-radius:50%;background:var(--muted);opacity:.35;animation:tdot 1.2s ease-in-out infinite}
-.tdots i:nth-child(2){animation-delay:.15s}
-.tdots i:nth-child(3){animation-delay:.3s}
-#typing[data-energy="fast"] .tdots{animation:bubblepop .42s ease-in-out infinite}
-#typing[data-energy="fast"] .tdots i{animation-duration:.42s}
-#typing[data-energy="slow"] .tdots i{animation-duration:1.9s;transform:none}
-@keyframes bubblepop{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.tdots{position:relative;display:inline-flex;gap:5px;align-items:center;padding:12px 16px;border-radius:20px;border-bottom-left-radius:5px;background:var(--theirs);border:1px solid var(--line);box-shadow:var(--shadow)}
+.tdots::after{content:"";position:absolute;left:-4px;bottom:0;width:10px;height:10px;background:var(--theirs);border-left:1px solid var(--line);border-bottom:1px solid var(--line);border-bottom-left-radius:10px;clip-path:polygon(0 0,100% 100%,0 100%)}
+.tdots i{width:8px;height:8px;border-radius:50%;background:var(--muted);animation:tdot 1.4s ease-in-out infinite}
+.tdots i:nth-child(2){animation-delay:.2s}
+.tdots i:nth-child(3){animation-delay:.4s}
+#typing[data-energy="fast"] .tdots i{animation-duration:.55s}
+#typing[data-energy="slow"] .tdots i{animation-duration:2.4s}
+@keyframes tdot{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}
 
 /* Thin banners */
 .bar{position:fixed;left:10px;right:10px;z-index:45;background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,.18);animation:up .3s var(--ease) both;padding:6px}
@@ -2695,14 +2696,13 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const box = $("live");
     if (!box || !me) return;
     box.textContent = "";
-    const openBtn = el("button", "play-go", playOpen ? "Hide the game" : "Live games");
+    const openBtn = el("button", "play-go", "Coming soon");
     openBtn.type = "button";
-    openBtn.addEventListener("click", () => {
-      playOpen = !playOpen;
-      if (playOpen && !activePlay()) sendPlay({ g: uid(), e: "start", by: me });
-      else renderPlay();
-    });
+    openBtn.disabled = true;
+    openBtn.style.opacity = ".6";
+    openBtn.style.cursor = "default";
     box.appendChild(openBtn);
+    return;
     if (!playOpen) return;
     const g = activePlay() || playGames().slice(-1)[0];
     const card = el("div", "play-board");
