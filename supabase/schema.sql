@@ -697,3 +697,11 @@ $$;
 revoke all on function public.unread_count() from public;
 grant execute on function public.unread_count() to authenticated;
 
+-- Telegram alerts. No policies: only the service role writes this log.
+create table if not exists public.notify_log (
+  message_id uuid primary key references public.messages(id) on delete cascade,
+  sent_at timestamptz not null default now()
+);
+alter table public.notify_log enable row level security;
+revoke all on public.notify_log from anon, authenticated, public;
+
