@@ -31,7 +31,7 @@ body.ghost #list::before{content:"No messages";display:block;text-align:center;p
 /* Composer: + button with a pop-out panel for attach, voice and schedule */
 #footer{position:relative}
 #footer #input{flex:1 1 0;min-width:0}
-.lp-plus{width:38px;height:38px;border-radius:50%;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);display:grid;place-items:center;cursor:pointer;flex:none;padding:0;animation:lpWave 3.2s ease-in-out infinite}
+.lp-plus{width:46px;height:46px;border-radius:50%;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);display:grid;place-items:center;cursor:pointer;flex:none;padding:0;animation:lpWave 3.2s ease-in-out infinite}
 .lp-plus svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;transition:transform .3s cubic-bezier(.2,.8,.2,1)}
 .lp-plus[aria-expanded="true"] svg{transform:rotate(45deg)}
 @keyframes lpWave{0%,100%{border-radius:50%}50%{border-radius:46% 54% 52% 48%/54% 46% 54% 46%}}
@@ -86,7 +86,7 @@ html body #list .msg,html body #list .msg *{-webkit-user-select:none;user-select
 .lp-mini i:nth-child(3){animation-delay:.3s}
 .lp-tray .lp-mini{padding:0;background:transparent;gap:4px}
 @keyframes lpBob{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
-.lp-tray{position:absolute;z-index:9;left:12px;right:12px;bottom:92px;display:flex;align-items:center;gap:12px;padding:8px;border-radius:24px;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(16px) saturate(1.3);-webkit-backdrop-filter:blur(16px) saturate(1.3);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--ink);cursor:pointer;animation:lpTrayIn .5s cubic-bezier(.2,1.3,.4,1) both}
+.lp-tray{position:absolute;z-index:9;left:auto;right:12px;bottom:96px;width:max-content;max-width:calc(100% - 24px);display:flex;align-items:center;gap:10px;padding:6px 6px 6px 14px;border-radius:999px;background:color-mix(in srgb,var(--surface) 62%,transparent);backdrop-filter:blur(16px) saturate(1.3);-webkit-backdrop-filter:blur(16px) saturate(1.3);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--ink);cursor:pointer;animation:lpTrayIn .5s cubic-bezier(.2,1.3,.4,1) both}
 .lp-glow{position:absolute;left:0;right:0;bottom:80px;height:110px;pointer-events:none;z-index:4;opacity:0;transition:opacity .4s;background:linear-gradient(to top,color-mix(in srgb,var(--accent) 22%,transparent),transparent)}
 .lp-glow.show{opacity:1}
 .lp-boom{overflow:visible}
@@ -98,7 +98,8 @@ html body #list .msg,html body #list .msg *{-webkit-user-select:none;user-select
 @keyframes lpDrop{0%,100%{transform:translateY(0)}50%{transform:translateY(3px)}}
 .lp-count{min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--surface);color:var(--accent);display:grid;place-items:center;font-size:12px;font-weight:700}
 .lp-count.hidden{display:none}
-.lp-chip{position:absolute;z-index:8;left:50%;top:calc(env(safe-area-inset-top,0px) + 76px);transform:translateX(-50%);padding:7px 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--ink);font-size:13px;cursor:pointer;white-space:nowrap;animation:lpTrayIn .5s cubic-bezier(.2,1.3,.4,1) both}
+.lp-chip{position:absolute;z-index:8;left:50%;top:calc(env(safe-area-inset-top,0px) + 72px);transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:color-mix(in srgb,var(--surface) 82%,transparent);backdrop-filter:blur(14px);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--ink);font-size:14px;cursor:pointer;white-space:nowrap;animation:lpTrayIn .5s cubic-bezier(.2,1.3,.4,1) both}
+.lp-chip::before{content:"";width:8px;height:8px;border-left:2px solid currentColor;border-top:2px solid currentColor;transform:translateY(2px) rotate(45deg)}
 .lp-chip.hidden{display:none}
 .lp-divider{display:flex;align-items:center;gap:12px;margin:18px 0 6px;font-size:12px;color:var(--accent);animation:lpEnter .45s ease both;transition:opacity .3s}
 .lp-divider::before,.lp-divider::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent)}
@@ -125,15 +126,15 @@ html body #list .msg,html body #list .msg *{-webkit-user-select:none;user-select
 }
 
 /* ---- Part 2.3: sign-in loading box and welcome ---- */
-.lp-loader{background:var(--bg)}
+.lp-welcome.lp-loader{background:var(--bg)}
 .lp-box{padding:26px 34px;border-radius:26px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
-.lp-loader .lp-box{animation:lpInBox .22s cubic-bezier(.2,1.2,.4,1) both}
-.lp-word{font:500 26px var(--serif);color:var(--accent);display:flex;gap:1px;letter-spacing:.28em;justify-content:center}
+.lp-loader .lp-box{animation:lpInBox .28s cubic-bezier(.2,1.2,.4,1) both}
+.lp-word{font:500 28px var(--serif);color:var(--accent);display:flex;gap:1px;letter-spacing:.22em;justify-content:center}
 .lp-ch{display:inline-block}
-.lp-word.lp-zoom .lp-ch{animation:lpIn .2s cubic-bezier(.2,1.3,.4,1) both;animation-delay:calc(var(--i) * 28ms)}
-.lp-word.lp-wave .lp-ch{animation:lpWave .34s ease-in-out both;animation-delay:calc(var(--i) * 26ms)}
-.lp-word.lp-join{animation:lpJoin .22s ease forwards}
-.lp-word.lp-jerk{animation:lpJerk .1s linear infinite;letter-spacing:0}
+.lp-word.lp-zoom .lp-ch{animation:lpIn .46s cubic-bezier(.2,1.3,.4,1) both;animation-delay:calc(var(--i) * 40ms)}
+.lp-word.lp-wave .lp-ch{animation:lpWave .72s ease-in-out 2 both;animation-delay:calc(var(--i) * 42ms)}
+.lp-word.lp-join{animation:lpJoin .4s ease forwards}
+.lp-word.lp-jerk .lp-ch{animation:lpJerk .14s linear infinite;animation-delay:calc(var(--i) * 18ms)}
 @keyframes lpIn{from{opacity:0;transform:scale(.55)}to{opacity:1;transform:scale(1.16)}}
 @keyframes lpWave{0%,100%{transform:translateY(0)}35%{transform:translateY(-8px)}65%{transform:translateY(3px)}}
 @keyframes lpJoin{to{letter-spacing:0;transform:scale(1.06)}}

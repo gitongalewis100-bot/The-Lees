@@ -191,14 +191,14 @@
   hooks.primeAudio = unlockAudio;
   function playPreset(key, vol, tried) {
     var P = PRESETS[key];
-    if (!P) return;
+    if (!P) return false;
     try {
       actx = actx || new (window.AudioContext || window.webkitAudioContext)();
       if (actx.state === "suspended") {
         var resume = actx.resume();
         if (!tried && resume && resume.then) resume.then(function () { playPreset(key, vol, true); });
         else if (!tried) setTimeout(function () { playPreset(key, vol, true); }, 40);
-        return;
+        return false;
       }
       var t = actx.currentTime;
       var g = actx.createGain();
@@ -213,7 +213,7 @@
         var src = actx.createBufferSource(); src.buffer = buf;
         var bp = actx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = P.f;
         src.connect(bp); bp.connect(g); src.start(t);
-        return;
+        return true;
       }
       var o = actx.createOscillator();
       o.type = P.type;
@@ -226,7 +226,8 @@
         o2.frequency.setValueAtTime(P.f0 * P.h, t);
         o2.connect(g2); g2.connect(g); o2.start(t); o2.stop(t + P.d);
       }
-    } catch (e) { /* audio blocked until the first gesture: ignore */ }
+      return true;
+    } catch (e) { return false; }
   }
   var SOUND_KEY = "lp-sounds";
   var DEFAULTS = { inChat: { preset: "glass", vol: 0.6 }, outChat: { preset: "tin", vol: 0.7 } };
@@ -237,7 +238,7 @@
   /* Grok calls this where chime() plays today: where = "inChat" or "outChat". */
   hooks.playArrival = function (where) {
     var p = soundPrefs()[where === "inChat" ? "inChat" : "outChat"];
-    playPreset(p.preset, p.vol);
+    return playPreset(p.preset, Math.max(0.55, p.vol));
   };
   function soundsBlock() {
     var wrap = document.createElement("div"); wrap.className = "lp-block";
@@ -316,31 +317,58 @@
     var send = $("send");
     if (!send || (reduceMq && reduceMq.matches)) return;
     var r = send.getBoundingClientRect();
+    var size = 36;
     var fly = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     fly.setAttribute("viewBox", "0 0 24 24");
     fly.setAttribute("class", "lp-boom");
     fly.setAttribute("aria-hidden", "true");
-    fly.innerHTML = '<path d="M22 2L11 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2l-7 20-4-9-9-4 20-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
-    var size = 28;
+    fly.innerHTML = '<path d="M22 2 L2 10.2 L10.2 13.2 L13.4 22 Z" fill="currentColor"/><path d="M10.15 13.15 L22 2" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="0.8" stroke-linejoin="round"/>';
+    var cx = r.left + r.width / 2;
+    var cy = r.top + r.height / 2;
     fly.style.position = "fixed";
-    fly.style.left = (r.left + r.width / 2 - size / 2) + "px";
-    fly.style.top = (r.top + r.height / 2 - size / 2) + "px";
+    fly.style.left = "0";
+    fly.style.top = "0";
     fly.style.width = size + "px";
     fly.style.height = size + "px";
     fly.style.zIndex = "90";
     fly.style.pointerEvents = "none";
-    fly.style.color = getComputedStyle(send).color || "currentColor";
     fly.style.overflow = "visible";
-    fly.style.offsetPath = 'path("M 0 0 C 70 -8 120 -36 108 -96 C 96 -156 20 -188 -28 -168 C -92 -142 -132 -78 -96 -28 C -64 14 -22 18 0 0")';
-    fly.style.offsetRotate = "auto -45deg";
-    fly.style.offsetAnchor = "center";
+    fly.style.transformOrigin = "center center";
+    fly.style.color = getComputedStyle(send).backgroundColor || "#9a5a48";
     document.body.appendChild(fly);
     var icon = send.querySelector("svg");
     if (icon) icon.style.opacity = "0";
-    var anim = fly.animate(
-      [{ offsetDistance: "0%" }, { offsetDistance: "100%" }],
-      { duration: 1280, easing: "cubic-bezier(.33,.04,.2,1)", fill: "forwards" }
-    );
+    function bez(a, b, c, d, t) {
+      var u = 1 - t;
+      return u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d;
+    }
+    var segs = [
+      [[0, 0], [168, -10], [176, -168], [8, -214]],
+      [[8, -214], [-176, -206], [-96, -36], [0, 0]]
+    ];
+    var pts = [];
+    for (var s = 0; s < segs.length; s++) {
+      var p = segs[s];
+      for (var i = 0; i < 28; i++) {
+        var t = i / 28;
+        pts.push([
+          bez(p[0][0], p[1][0], p[2][0], p[3][0], t),
+          bez(p[0][1], p[1][1], p[2][1], p[3][1], t)
+        ]);
+      }
+    }
+    pts.push([0, 0]);
+    var frames = pts.map(function (pt, i) {
+      var nxt = pts[Math.min(i + 1, pts.length - 1)];
+      var dx = nxt[0] - pt[0], dy = nxt[1] - pt[1];
+      if (Math.abs(dx) + Math.abs(dy) < 0.4 && i > 0) {
+        dx = pt[0] - pts[i - 1][0];
+        dy = pt[1] - pts[i - 1][1];
+      }
+      var rot = Math.atan2(dy, dx) * 180 / Math.PI + 45;
+      return { transform: "translate(" + (cx + pt[0] - size / 2) + "px," + (cy + pt[1] - size / 2) + "px) rotate(" + rot.toFixed(2) + "deg)" };
+    });
+    var anim = fly.animate(frames, { duration: 1480, easing: "linear", fill: "forwards" });
     var done = function () { fly.remove(); if (icon) icon.style.opacity = ""; };
     anim.onfinish = done;
     anim.oncancel = done;
@@ -354,7 +382,10 @@
     var send = $("send"), input = $("input");
     if (!send || send.dataset.lp) return;
     send.dataset.lp = "1";
-    send.addEventListener("click", function () { if (sendingNow()) boomerang(); }, true);
+    send.addEventListener("click", function () {
+      if (send.dataset.lpHold === "1") { send.dataset.lpHold = ""; return; }
+      if (sendingNow()) boomerang();
+    }, true);
     if (input) input.addEventListener("keydown", function (e) {
       var coarse = window.matchMedia && matchMedia("(pointer: coarse)").matches;
       if (e.key === "Enter" && !e.shiftKey && !coarse && sendingNow()) boomerang();
@@ -417,9 +448,9 @@
   function clearLoader() { if (loadEl) { loadEl.remove(); loadEl = null; } }
   function escCh(s) {
     return String(s).replace(/[&<>]/g, function (c) {
-      if (c === "&") return "&";
-      if (c === "<") return "<";
-      return ">";
+      if (c === "&") return "&" + "amp;";
+      if (c === "<") return "&" + "lt;";
+      return "&" + "gt;";
     });
   }
   function buildLoader() {
@@ -460,21 +491,17 @@
     clearLoader();
     loadEl = buildLoader();
     var word = loadEl.querySelector(".lp-word");
-    setTimeout(function () { if (tok === loadTok && word) word.classList.add("lp-wave"); }, 160);
+    setTimeout(function () { if (tok === loadTok && word) { word.classList.remove("lp-zoom"); word.classList.add("lp-wave"); } }, 480);
     setTimeout(function () {
       if (tok !== loadTok || !word) return;
-      word.classList.remove("lp-zoom", "lp-wave");
-      var check = "Checking", html = "", i;
-      for (i = 0; i < check.length; i++) html += "<span class='lp-ch' style='--i:" + i + "'>" + check.charAt(i) + "</span>";
-      word.innerHTML = html;
+      word.classList.remove("lp-wave");
       word.classList.add("lp-join", "lp-jerk");
-    }, 520);
+    }, 1240);
     setTimeout(function () {
       if (tok !== loadTok) return;
-      if (word) word.classList.add("lp-jerk");
       loadDone = true;
       if (loadOk) { var f = loadOk; loadOk = null; f(); }
-    }, 700);
+    }, 1750);
   };
   hooks.signInOk = function (name) {
     var tok = loadTok;
@@ -612,8 +639,7 @@
     var away = !!(st.inChat && signedIn() && !nearBottom());
     var showTyping = !!(st.typing && away);
     var showUnread = !!(st.unread > 0 && st.inChat && signedIn());
-    var reading = away && !showTyping && !showUnread;
-    var on = (showTyping || showUnread || reading) && !st.trayOff;
+    var on = (showTyping || showUnread) && !st.trayOff;
     tray.classList.toggle("hidden", !on);
     var glow = document.getElementById("lpGlow");
     if (glow) glow.classList.toggle("show", !!(showUnread && !st.trayOff));
@@ -627,7 +653,7 @@
       mini.innerHTML = "<i></i><i></i><i></i>";
       trayLabel.appendChild(mini);
       trayLabel.appendChild(document.createTextNode((st.name || "They") + " is typing"));
-    } else trayLabel.textContent = "Earlier in the conversation";
+    }
     trayCount.textContent = st.unread;
     trayCount.classList.toggle("hidden", !showUnread);
   }
@@ -818,6 +844,8 @@
       figs: art.querySelector(".figs"),
       headL: art.querySelector(".headL"),
       headR: art.querySelector(".headR"),
+      armL: art.querySelector(".armL"),
+      armR: art.querySelector(".armR"),
       handL: art.querySelector(".handL"),
       handR: art.querySelector(".handR")
     };
@@ -826,23 +854,23 @@
       star.style.animationDuration = (1.6 + (n % 5) * 0.35) + "s";
     });
     var poses = [
-      { figs: "none", headL: "none", headR: "none", handL: "none", handR: "none" },
-      { figs: "translate(-8px,2px) rotate(-4deg)", headL: "rotate(-10deg)", headR: "rotate(6deg)", handL: "rotate(8deg)", handR: "rotate(-6deg)" },
-      { figs: "translate(10px,1px) rotate(4deg)", headL: "rotate(7deg)", headR: "rotate(-12deg)", handL: "rotate(-10deg)", handR: "rotate(16deg)" },
-      { figs: "translate(0,-6px)", headL: "translateY(-7px) rotate(-8deg)", headR: "translateY(-9px) rotate(8deg)", handL: "rotate(12deg)", handR: "rotate(-46deg)" },
-      { figs: "translate(-3px,0) rotate(-1deg)", headL: "rotate(-4deg)", headR: "rotate(3deg)", handL: "rotate(-40deg)", handR: "rotate(14deg)" },
-      { figs: "translate(0,4px)", headL: "translate(4px,-2px) rotate(2deg)", headR: "translate(-4px,-2px) rotate(-2deg)", handL: "rotate(18deg)", handR: "rotate(-16deg)" },
-      { figs: "translate(2px,-3px) rotate(1deg)", headL: "rotate(-16deg) translateY(-4px)", headR: "rotate(3deg)", handL: "rotate(6deg)", handR: "rotate(-10deg)" },
-      { figs: "translate(-2px,-2px)", headL: "rotate(4deg)", headR: "rotate(-18deg) translateY(-5px)", handL: "rotate(22deg)", handR: "rotate(-52deg)" },
-      { figs: "translate(0,2px) rotate(-2deg)", headL: "translate(2px,3px)", headR: "translate(-2px,2px)", handL: "rotate(-8deg)", handR: "rotate(8deg)" },
-      { figs: "translate(6px,-4px) rotate(2deg)", headL: "rotate(-6deg) translateY(-3px)", headR: "rotate(-6deg) translateY(-5px)", handL: "rotate(-28deg)", handR: "rotate(-24deg)" }
+      { figs: "translateY(-2px)", headL: "translateY(-6px) rotate(-6deg)", headR: "translateY(-8px) rotate(5deg)", armL: "none", armR: "none", handL: "rotate(-8deg)", handR: "rotate(6deg)" },
+      { figs: "translate(-6px,1px) rotate(-2deg)", headL: "translateY(-10px) rotate(-14deg)", headR: "translateY(-4px) rotate(4deg)", armL: "rotate(-28deg)", armR: "rotate(4deg)", handL: "rotate(-18deg)", handR: "rotate(8deg)" },
+      { figs: "translate(7px,0) rotate(2deg)", headL: "translateY(-3px) rotate(6deg)", headR: "translateY(-12px) rotate(16deg)", armL: "rotate(6deg)", armR: "rotate(34deg)", handL: "rotate(10deg)", handR: "rotate(-20deg)" },
+      { figs: "translateY(-4px)", headL: "translateY(-14px) rotate(-4deg)", headR: "translateY(-14px) rotate(4deg)", armL: "rotate(-46deg)", armR: "rotate(42deg)", handL: "rotate(-8deg)", handR: "rotate(8deg)" },
+      { figs: "translate(-2px,2px)", headL: "translate(3px,-6px) rotate(-8deg)", headR: "translate(-4px,-7px) rotate(3deg)", armL: "rotate(8deg)", armR: "rotate(-6deg)", handL: "rotate(14deg)", handR: "rotate(-12deg)" },
+      { figs: "translate(2px,-1px) rotate(1deg)", headL: "translateY(-5px) rotate(2deg)", headR: "translateY(-16px) rotate(-12deg)", armL: "rotate(-8deg)", armR: "rotate(-38deg)", handL: "rotate(4deg)", handR: "rotate(16deg)" },
+      { figs: "translateY(3px)", headL: "translateY(2px) rotate(3deg)", headR: "translateY(1px) rotate(-2deg)", armL: "rotate(12deg)", armR: "rotate(-10deg)", handL: "rotate(6deg)", handR: "rotate(-4deg)" },
+      { figs: "translate(-4px,-3px) rotate(-1deg)", headL: "translateY(-9px) rotate(-18deg)", headR: "translateY(-6px) rotate(-4deg)", armL: "rotate(-52deg)", armR: "rotate(8deg)", handL: "rotate(-12deg)", handR: "rotate(18deg)" },
+      { figs: "translate(3px,-2px)", headL: "translateY(-7px) rotate(8deg)", headR: "translateY(-11px) rotate(14deg)", armL: "rotate(4deg)", armR: "rotate(48deg)", handL: "rotate(-6deg)", handR: "rotate(-14deg)" },
+      { figs: "none", headL: "translateY(-4px)", headR: "translateY(-5px)", armL: "rotate(-6deg)", armR: "rotate(6deg)", handL: "none", handR: "none" }
     ];
     var running = [], i = 0;
     function go() {
       running.forEach(function (a) { try { a.cancel(); } catch (e) {} });
       running = [];
       var pose = poses[i];
-      var ms = 820 + Math.random() * 980;
+      var ms = 1100 + Math.random() * 900;
       Object.keys(bits).forEach(function (k) {
         var el = bits[k];
         if (!el || !el.animate) return;

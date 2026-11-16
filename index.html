@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="The Lees">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="icon" href="/icon-192.png">
-<link rel="stylesheet" href="/lees-patch.css?v=6">
+<link rel="stylesheet" href="/lees-patch.css?v=7">
 <style>
 :root{
   --bg:#f8f4ee;--surface:#fffdf9;--ink:#2a2420;--muted:#8c8179;--line:#ebe2d7;--line-strong:#dcd0c2;
@@ -55,33 +55,40 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .hdr{font-family:var(--serif);font-size:20px;letter-spacing:.01em;margin:0}
 
 /* ---------- Sign-in ---------- */
-#lock{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 24px;gap:10px;overflow-y:auto;animation:rise .5s var(--ease) both}
+#lock{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 24px;gap:10px;overflow-y:auto;animation:rise .5s var(--ease) both;z-index:30;background:var(--bg)}
 .monoArt{width:min(300px,86vw);height:auto;color:var(--ink);overflow:visible}
 .monoArt *{vector-effect:non-scaling-stroke}
 .monoArt .star{transform-box:fill-box;transform-origin:center;animation:twinkle 2.8s ease-in-out infinite}
-.monoArt .figs,.monoArt .headL,.monoArt .headR,.monoArt .handL,.monoArt .handR{transform-box:fill-box;transform-origin:center}
+.monoArt .figs,.monoArt .headL,.monoArt .headR,.monoArt .armL,.monoArt .armR,.monoArt .handL,.monoArt .handR{transform-box:fill-box;transform-origin:center bottom}
 @keyframes twinkle{0%,100%{opacity:.2}40%{opacity:1}70%{opacity:.35}}
 @media (prefers-reduced-motion: reduce){.monoArt .star{animation:none!important}}
 .monoArt.checking{filter:blur(10px);opacity:.35}
-.acct-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:16px;background:color-mix(in srgb,var(--bg) 70%,var(--surface));border:1px solid var(--line)}
-.acct-switch button{padding:11px 8px;border-radius:12px;font-family:var(--serif);font-size:16px;color:var(--muted)}
+.acct-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:18px;background:color-mix(in srgb,var(--bg) 70%,var(--surface));border:1px solid var(--line)}
+.acct-switch button{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 8px;border-radius:14px;font-family:var(--serif);font-size:17px;color:var(--muted)}
+.acct-switch button .av{width:28px;height:28px;font-size:13px}
 .acct-switch button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
-#lockForm #pass{font-size:18px;padding-top:16px;padding-bottom:16px;min-height:56px}
+#lockForm #pass{font-size:20px;padding-top:18px;padding-bottom:18px;min-height:64px}
 .media-grid{display:grid;grid-template-columns:1fr;gap:12px}
-.media-kind{display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:100%;padding:18px 16px;border-radius:22px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);text-align:left}
-.media-kind b{font-family:var(--serif);font-weight:normal;font-size:22px}
-.media-kind small{color:var(--muted);font-size:13px}
-.media-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
-.media-card{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:22px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);min-width:0}
-.media-card img,.media-card video{width:100%;height:128px;object-fit:cover;border-radius:16px;background:#141210}
+.media-kind{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:6px;width:100%;min-height:132px;padding:18px 16px;border-radius:28px;background:
+  radial-gradient(140px 90px at 100% 0%, color-mix(in srgb,var(--accent) 22%,transparent), transparent 70%),
+  var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);text-align:left;transform-style:preserve-3d}
+.media-kind .mark{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:color-mix(in srgb,var(--accent) 14%,var(--bg));color:var(--accent);margin-bottom:8px}
+.media-kind b{font-family:var(--serif);font-weight:normal;font-size:26px}
+.media-kind small{color:var(--muted);font-size:14px}
+.media-cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.media-card{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:26px;background:var(--surface);border:1px solid var(--line);box-shadow:0 10px 24px rgba(42,36,32,.08);min-width:0;transform-style:preserve-3d}
+.media-card img,.media-card video{width:100%;height:148px;object-fit:cover;border-radius:18px;background:#141210}
 .media-card audio{width:100%}
-.media-card .cap{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.media-card .cap{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .media-card .acts{display:flex;flex-wrap:wrap;gap:6px}
 .who-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.who-card{display:flex;flex-direction:column;align-items:flex-start;gap:6px;width:100%;padding:16px;border-radius:22px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);text-align:left}
-.who-card b{font-family:var(--serif);font-weight:normal;font-size:18px}
-.who-card small{color:var(--muted);font-size:12.5px}
-.who-card.me{opacity:.4}
+.who-card{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:6px;width:100%;min-height:168px;padding:16px;border-radius:26px;background:
+  radial-gradient(120px 80px at 0% 0%, color-mix(in srgb,var(--accent) 16%,transparent), transparent 72%),
+  var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);text-align:left;transform-style:preserve-3d}
+.who-card .av{width:44px;height:44px;font-size:18px}
+.who-card b{font-family:var(--serif);font-weight:normal;font-size:22px}
+.who-card small{color:var(--muted);font-size:13px}
+.who-card.me{opacity:.45}
 .heldvoice{display:flex;align-items:center;gap:10px;margin:0 12px 8px;padding:8px 10px;border-radius:16px;background:var(--surface);border:1px solid var(--line)}
 .heldvoice .heldlabel{flex:1;min-width:0;font-size:13.5px;color:var(--ink)}
 #lock h1{font-family:var(--serif);font-weight:normal;font-size:26px;margin:0}
@@ -404,11 +411,11 @@ mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 
 
 /* Composer */
 footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));background:var(--surface);border:1px solid var(--line);border-radius:28px}
-.tool{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:var(--muted);flex:none}
+.tool{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;color:var(--muted);flex:none}
 .tool:hover{color:var(--ink);background:var(--bg)}
-#input{flex:1;resize:none;min-height:72px;max-height:190px;padding:14px 16px;border:1px solid var(--line);border-radius:26px;background:var(--bg);outline:none;line-height:1.4;font-size:18px;transition:border-color .2s}
+#input{flex:1;resize:none;min-height:52px;max-height:140px;padding:14px 16px;border:1px solid var(--line);border-radius:26px;background:var(--bg);outline:none;line-height:1.4;font-size:18px;transition:border-color .2s}
 #input:focus{border-color:var(--accent)}
-#send{width:42px;height:42px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none;transition:transform .15s var(--ease),opacity .2s}
+#send{width:52px;height:52px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none;transition:transform .15s var(--ease),opacity .2s}
 #mic,#send{touch-action:manipulation}
 #send:active{transform:scale(.92)}
 #send:disabled{opacity:.35}
@@ -493,59 +500,69 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
 <!-- Sign-in -->
 <section id="lock" style="position:absolute;inset:0">
-  <svg id="lpArt" class="monoArt" viewBox="0 0 360 250" role="img" aria-label="Two people, seen from behind, sitting close on a wooden chair and watching the stars">
+  <svg id="lpArt" class="monoArt" viewBox="0 0 360 280" role="img" aria-label="Two people, seen from behind, sitting close on a wooden chair and watching the stars">
     <g class="sky" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-      <circle class="star" cx="42" cy="28" r="1.5" fill="currentColor" stroke="none"/>
-      <circle class="star" cx="78" cy="52" r="1" fill="currentColor" stroke="none"/>
-      <path class="star" d="M118 22 l1.4 3.4 3.4 1.4 -3.4 1.4 -1.4 3.4 -1.4 -3.4 -3.4 -1.4 3.4 -1.4z" stroke-width="1.2"/>
-      <circle class="star" cx="156" cy="40" r="1.2" fill="currentColor" stroke="none"/>
-      <circle class="star" cx="198" cy="18" r="1.6" fill="currentColor" stroke="none"/>
-      <path class="star" d="M236 34 l1.2 3 3 1.2 -3 1.2 -1.2 3 -1.2 -3 -3 -1.2 3 -1.2z" stroke-width="1.2"/>
-      <circle class="star" cx="274" cy="20" r="1" fill="currentColor" stroke="none"/>
-      <circle class="star" cx="308" cy="46" r="1.4" fill="currentColor" stroke="none"/>
-      <circle class="star" cx="332" cy="24" r=".9" fill="currentColor" stroke="none"/>
-      <circle class="star" cx="96" cy="74" r=".8" fill="currentColor" stroke="none"/>
-      <path class="star" d="M286 68 l1 2.4 2.4 1 -2.4 1 -1 2.4 -1 -2.4 -2.4 -1 2.4 -1z" stroke-width="1.1"/>
+      <circle class="star" cx="36" cy="34" r="1.6" fill="currentColor" stroke="none"/>
+      <circle class="star" cx="72" cy="58" r="1" fill="currentColor" stroke="none"/>
+      <path class="star" d="M108 26 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6z" fill="currentColor" stroke="none"/>
+      <circle class="star" cx="148" cy="18" r="1.2" fill="currentColor" stroke="none"/>
+      <circle class="star" cx="186" cy="42" r="1.5" fill="currentColor" stroke="none"/>
+      <path class="star" d="M224 20 l1.3 3.2 3.2 1.3 -3.2 1.3 -1.3 3.2 -1.3 -3.2 -3.2 -1.3 3.2 -1.3z" fill="currentColor" stroke="none"/>
+      <circle class="star" cx="262" cy="36" r="1.1" fill="currentColor" stroke="none"/>
+      <circle class="star" cx="298" cy="16" r="1.7" fill="currentColor" stroke="none"/>
+      <path class="star" d="M328 48 l1.2 2.8 2.8 1.2 -2.8 1.2 -1.2 2.8 -1.2 -2.8 -2.8 -1.2 2.8 -1.2z" fill="currentColor" stroke="none"/>
+      <circle class="star" cx="54" cy="88" r=".8" fill="currentColor" stroke="none"/>
+      <circle class="star" cx="312" cy="78" r=".9" fill="currentColor" stroke="none"/>
+      <circle class="star" cx="168" cy="64" r=".7" fill="currentColor" stroke="none"/>
     </g>
-    <g class="chair" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M96 132 h168"/>
-      <path d="M108 132 v78"/>
-      <path d="M252 132 v78"/>
-      <path d="M108 168 h144"/>
-      <path d="M116 210 h128"/>
-      <path d="M132 210 v32"/>
-      <path d="M228 210 v32"/>
-      <path d="M118 242 h28"/>
-      <path d="M214 242 h28"/>
+    <g class="chair" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M104 148 H256"/>
+      <path d="M118 148 V108"/>
+      <path d="M242 148 V108"/>
+      <path d="M108 108 H252"/>
+      <path d="M132 108 V148"/>
+      <path d="M180 108 V148"/>
+      <path d="M228 108 V148"/>
+      <path d="M112 148 V228"/>
+      <path d="M248 148 V228"/>
+      <path d="M112 196 H248"/>
+      <path d="M100 228 H128"/>
+      <path d="M232 228 H260"/>
     </g>
     <g class="figs" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-      <g class="headL" stroke-width="6">
-        <circle cx="158" cy="78" r="18"/>
-        <path d="M144 70 q14 -16 28 0" stroke-width="4"/>
+      <g class="headL">
+        <circle cx="156" cy="86" r="16" stroke-width="5"/>
+        <path d="M142 80 q14 -18 28 0" stroke-width="3.4"/>
       </g>
-      <g class="headR" stroke-width="6">
-        <circle cx="202" cy="76" r="18"/>
-        <path d="M188 68 q14 -16 28 0" stroke-width="4"/>
+      <g class="headR">
+        <circle cx="198" cy="84" r="16" stroke-width="5"/>
+        <path d="M184 78 q14 -18 28 0" stroke-width="3.4"/>
       </g>
-      <path d="M150 96 v14" stroke-width="5"/>
-      <path d="M210 94 v14" stroke-width="5"/>
-      <path d="M132 118 C108 132 104 162 118 198" stroke-width="7"/>
-      <path d="M176 116 C166 142 164 170 176 202" stroke-width="7"/>
-      <path d="M184 114 C194 140 196 168 186 202" stroke-width="7"/>
-      <path d="M228 116 C252 130 256 160 242 196" stroke-width="7"/>
-      <g class="handL" stroke-width="2.6">
-        <path d="M116 196 l-18 6"/>
-        <path d="M116 198 l-16 14"/>
-        <path d="M118 198 l-6 18"/>
-        <path d="M120 200 l6 16"/>
-        <path d="M122 200 l14 10"/>
+      <path d="M156 102 V118" stroke-width="4.5"/>
+      <path d="M198 100 V116" stroke-width="4.5"/>
+      <path d="M140 122 C124 136 122 146 134 148" stroke-width="6"/>
+      <path d="M172 120 C166 134 164 146 170 148" stroke-width="6"/>
+      <path d="M184 118 C190 134 192 146 186 148" stroke-width="6"/>
+      <path d="M214 120 C230 134 232 146 220 148" stroke-width="6"/>
+      <g class="armL">
+        <path d="M134 132 C118 150 112 168 108 186" stroke-width="4"/>
+        <g class="handL" stroke-width="2.2">
+          <path d="M108 186 l-16 2"/>
+          <path d="M108 188 l-14 10"/>
+          <path d="M110 188 l-4 16"/>
+          <path d="M112 190 l6 14"/>
+          <path d="M114 190 l14 8"/>
+        </g>
       </g>
-      <g class="handR" stroke-width="2.6">
-        <path d="M244 194 l18 4"/>
-        <path d="M244 196 l16 12"/>
-        <path d="M242 198 l6 18"/>
-        <path d="M240 200 l-6 16"/>
-        <path d="M238 200 l-14 10"/>
+      <g class="armR">
+        <path d="M220 130 C236 146 240 164 246 182" stroke-width="4"/>
+        <g class="handR" stroke-width="2.2">
+          <path d="M246 182 l16 2"/>
+          <path d="M246 184 l14 10"/>
+          <path d="M244 186 l4 16"/>
+          <path d="M242 188 l-6 14"/>
+          <path d="M240 188 l-14 8"/>
+        </g>
       </g>
     </g>
   </svg>
@@ -558,8 +575,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   <form id="lockForm" class="form" autocomplete="off">
     <div class="acct-switch" id="acctSwitch" role="group" aria-label="Switch account">
-      <button type="button" data-side="Lewis" aria-pressed="false">Mr Lees</button>
-      <button type="button" data-side="Agnes" aria-pressed="false">Mrs Lees</button>
+      <button type="button" data-side="Lewis" aria-pressed="false"><span class="av avatar lewis">L</span><b>Mr Lees</b></button>
+      <button type="button" data-side="Agnes" aria-pressed="false"><span class="av avatar agnes">A</span><b>Mrs Lees</b></button>
     </div>
     <div class="field">
       <input id="pass" class="in" type="password" placeholder="Your passphrase" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Passphrase">
@@ -814,6 +831,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   /* ================= Notices (structured system messages) ================= */
   let noticeTimer = 0;
   function notice(title, detail, opts) {
+    if (!unlocked && /new message|is typing|unread/i.test(String(title || ""))) return;
     const n = $("notice");
     n.className = (opts && opts.error) ? "err" : "";
     n.textContent = "";
@@ -905,24 +923,45 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     try {
       if (!unlocked) return;
       if (S(me || "Lewis").sound === false) return;
-      ensureAudio();
-      if (window.LeesHooks && LeesHooks.playArrival) { LeesHooks.playArrival(view === "chat" ? "inChat" : "outChat"); return; }
-      const t = audioCtx.currentTime;
-      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-      o.type = "sine";
-      o.frequency.setValueAtTime(660, t);
-      o.frequency.exponentialRampToValueAtTime(880, t + 0.12);
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.12, t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
-      o.connect(g).connect(audioCtx.destination);
-      o.start(t); o.stop(t + 0.4);
+      const ctx = ensureAudio();
+      const tone = () => {
+        const t = ctx.currentTime;
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = "sine";
+        o.frequency.setValueAtTime(660, t);
+        o.frequency.exponentialRampToValueAtTime(990, t + 0.14);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.22, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
+        o.connect(g).connect(ctx.destination);
+        o.start(t); o.stop(t + 0.46);
+      };
+      const run = () => {
+        let preset = false;
+        try { if (window.LeesHooks && LeesHooks.playArrival) preset = LeesHooks.playArrival(view === "chat" ? "inChat" : "outChat") === true; } catch {}
+        if (!preset) tone();
+      };
+      if (ctx.state === "suspended") {
+        const resumed = ctx.resume();
+        if (resumed && resumed.then) resumed.then(run, run);
+        else run();
+      } else run();
     } catch {}
   }
 
   function ensureAudio() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === "suspended") audioCtx.resume();
+    if (!ensureAudio.primed && audioCtx.state !== "suspended") {
+      try {
+        const buf = audioCtx.createBuffer(1, 1, 22050);
+        const src = audioCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(audioCtx.destination);
+        src.start(0);
+        ensureAudio.primed = true;
+      } catch {}
+    }
     return audioCtx;
   }
   let noiseBuf = null, lastGrain = 0;
@@ -2562,18 +2601,20 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   function openMedia() {
     const scopes = [
-      ["image", "Pictures", "Photos shared in the chat"],
-      ["audio", "Audio", "Voice notes and sound files"],
-      ["video", "Videos", "Clips shared in the chat"]
+      ["image", "Pictures", "Photos shared in the chat", "image"],
+      ["audio", "Audio", "Voice notes and sound files", "mic"],
+      ["video", "Videos", "Clips shared in the chat", "sparkle"]
     ];
     openPanel("Media", "Choose a kind", (body) => {
       const all = thread().filter(m => !m.deleted && !m.archived && m.mid && (m.kind === "image" || m.kind === "audio" || m.kind === "video") && !(m.deletedFor || []).includes(me));
       const menu = el("div", "media-grid");
-      scopes.forEach(([kind, title, sub]) => {
+      scopes.forEach(([kind, title, sub, icon]) => {
         const n = all.filter(m => m.kind === kind).length;
         const b = el("button", "media-kind lift");
         b.type = "button";
-        b.append(el("b", "", title), el("small", "", n ? (n + " · " + sub) : "None yet"));
+        const mark = el("span", "mark");
+        mark.innerHTML = ic(icon);
+        b.append(mark, el("b", "", title), el("small", "", n ? (n + " · " + sub) : "None yet"));
         b.addEventListener("click", () => showMediaScope(kind, title));
         menu.appendChild(b);
       });
@@ -3064,6 +3105,11 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     $("recoverForm").classList.toggle("on", mode === "recover");
     $("forgot").classList.toggle("hidden", mode !== "signin" || !chosen);
     $("lockErr").textContent = "";
+    const picking = mode === "signin" && !!chosen;
+    const sides = document.querySelector("#lock .sides");
+    const sub = document.querySelector("#lock > .sub");
+    if (sides) sides.classList.toggle("hidden", picking);
+    if (sub) sub.classList.toggle("hidden", picking);
     if (mode === "recover" && chosen) {
       const acc = accountOf(chosen);
       if (acc && acc.qs) { $("rq1l").textContent = acc.qs[0].q; $("rq2l").textContent = acc.qs[1].q; }
@@ -3657,7 +3703,18 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function closeLightbox() { $("lightbox").classList.add("hidden"); $("lbImg").removeAttribute("src"); }
 
   /* ================= Wiring ================= */
-  $("send").addEventListener("click", () => { if (sendSuppress) { sendSuppress = false; return; } sendText(); });
+  $("send").addEventListener("click", async () => {
+    if (sendSuppress) { sendSuppress = false; return; }
+    if (rec) {
+      const typed = $("input").value;
+      stopRecording(true);
+      const started = Date.now();
+      while (!heldClip && Date.now() - started < 1600) await new Promise(r => setTimeout(r, 40));
+      $("input").value = typed;
+      autosize();
+    }
+    sendText();
+  });
   $("input").addEventListener("input", () => {
     autosize();
     saveDraft();
@@ -3668,7 +3725,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if ($("input").value.trim()) {
       trackTyping(true, typingEnergy());
       clearTimeout(typingTail);
-      typingTail = setTimeout(() => trackTyping(false), 140);
+      typingTail = setTimeout(() => trackTyping(false), 40);
     } else trackTyping(false);
   });
   $("input").addEventListener("blur", () => trackTyping(false));
@@ -3703,6 +3760,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const now = new Date();
     const at = (h, m, addDays) => { const d = new Date(now); d.setDate(d.getDate() + (addDays || 0)); d.setHours(h, m, 0, 0); return d.getTime(); };
     let effect = "hearts";
+    let phrase = "Good night, dear.";
     sheetOpen((body) => {
       body.appendChild(el("h3", "fp-title", "Send later"));
       body.appendChild(el("p", "fp-desc", "Choose when it should arrive, and how it appears on her side."));
@@ -3718,11 +3776,12 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       bubble.appendChild(pv);
       preview.appendChild(bubble);
       const phrases = el("div", "kinds");
-      ["Good night, dear.", "Good day, dear."].forEach((phrase, i) => {
-        const c = el("button", "chip" + (i === 0 ? " on" : ""), phrase);
+      ["Good night, dear.", "Good day, dear."].forEach((line, i) => {
+        const c = el("button", "chip" + (i === 0 ? " on" : ""), line);
         c.type = "button";
         c.addEventListener("click", () => {
-          pv.textContent = phrase;
+          phrase = line;
+          pv.textContent = line;
           phrases.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === c));
         });
         phrases.appendChild(c);
@@ -3741,7 +3800,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       for (const [label, when] of quick) {
         const b = el("button", "choice");
         b.append(el("b", "", label), el("small", "", fmtDateTime(when)));
-        b.addEventListener("click", () => { sheetClose(); scheduleText(when, effect); });
+        b.addEventListener("click", () => { sheetClose(); scheduleText(when, effect, phrase); });
         body.appendChild(b);
       }
       body.appendChild(el("div", "gh", "Or choose a date and time"));
@@ -3754,7 +3813,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         const t = new Date(dt.value).getTime();
         if (!t || t <= Date.now()) { notice("Pick a time in the future", "", { error: true }); return; }
         sheetClose();
-        scheduleText(t, effect);
+        scheduleText(t, effect, phrase);
       });
       body.appendChild(go);
     });
@@ -3809,15 +3868,29 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   
   let sendHold = 0, sendSuppress = false;
-  $("send").addEventListener("pointerdown", () => {
+  $("send").addEventListener("pointerdown", (e) => {
+    if (e.button && e.button !== 0) return;
     sendSuppress = false;
+    $("send").dataset.lpHold = "";
+    const x0 = e.clientX, y0 = e.clientY;
+    const move = (ev) => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 16) { clearTimeout(sendHold); sendHold = 0; } };
+    const up = () => {
+      clearTimeout(sendHold);
+      $("send").removeEventListener("pointermove", move);
+      $("send").removeEventListener("pointerup", up);
+      $("send").removeEventListener("pointercancel", up);
+    };
     sendHold = setTimeout(() => {
-      sendHold = 0; sendSuppress = true; haptic("press");
-      if (!$("input").value.trim()) { notice("Write the message first", "Then choose when it should arrive."); return; }
+      sendHold = 0;
+      sendSuppress = true;
+      $("send").dataset.lpHold = "1";
+      haptic("press");
       openSchedulePicker();
-    }, 500);
+    }, 480);
+    $("send").addEventListener("pointermove", move);
+    $("send").addEventListener("pointerup", up);
+    $("send").addEventListener("pointercancel", up);
   });
-  ["pointerup", "pointercancel"].forEach(ev => $("send").addEventListener(ev, () => clearTimeout(sendHold)));
 
   function openAttachMenu() {
     sheetOpen((body) => {
@@ -3964,7 +4037,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const typing = a && (a.tagName === "TEXTAREA" || a.tagName === "INPUT" || a.tagName === "SELECT");
     if (e.key === "/" && unlocked && !typing) { e.preventDefault(); if (view !== "chat") openChat(); toggleSearch(true); }
   });
-  document.addEventListener("pointerdown", () => { lastActivity = Date.now(); });
+  document.addEventListener("pointerdown", () => { lastActivity = Date.now(); try { ensureAudio(); } catch (e) {} });
 
   document.addEventListener("visibilitychange", () => {
     document.body.classList.toggle("private", document.hidden);
@@ -4018,7 +4091,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     deliverDue();
     if (rec || [...voiceCache.values()].some(w => !w._audio.paused)) lastActivity = Date.now();
     if (Date.now() - lastActivity > IDLE_MS) idleSignOut();
-  }, 15000);
+  }, 4000);
   ["keydown", "touchstart", "scroll"].forEach(ev => document.addEventListener(ev, () => { lastActivity = Date.now(); }, { passive: true }));
   document.addEventListener("visibilitychange", () => { if (!document.hidden && unlocked && Date.now() - lastActivity > IDLE_MS) idleSignOut(); });
   setInterval(applyTheme, 60 * 1000);
@@ -4575,19 +4648,18 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     haptic("send");
     render();
   }
-  async function scheduleText(sendAt, effect) {
+  async function scheduleText(sendAt, effect, fallback) {
     const input = $("input");
-    const text = input.value.trim();
-    if (!text) { notice("Nothing to schedule", "Write a message first, then choose when it should arrive.", { error: true }); return; }
+    const typed = input.value.trim();
+    const text = typed || String(fallback || "").trim();
+    if (!text) { notice("Nothing to schedule", "Write a message first, then hold Send.", { error: true }); return; }
     const client = cloudClient();
     if (!client) return;
     const ins = await client.from("scheduled_messages").insert({
       pair_id: pairId, sender_id: myUserId, side: me, text, effect: effect || "none", send_at: new Date(sendAt).toISOString()
     });
     if (ins.error) { notice("Couldn't schedule that", ins.error.message, { error: true }); return; }
-    input.value = "";
-    autosize();
-    saveDraft(true);
+    if (typed) { input.value = ""; autosize(); saveDraft(true); }
     haptic("schedule");
     await reloadAll();
     renderChips();
@@ -4595,7 +4667,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
   async function deliverDue() {
     if (!unlocked) return;
-    if (Date.now() - lastPull < 15000) return;
+    if (Date.now() - lastPull < 2500) return;
     lastPull = Date.now();
     const prev = new Set(cacheThread.map(m => m.id));
     const prevSched = cacheSched.map(s => s.id);
@@ -5366,6 +5438,6 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   })();
 })();
 </script>
-<script src="/lees-patch.js?v=6" defer></script>
+<script src="/lees-patch.js?v=7" defer></script>
 </body>
 </html>
