@@ -72,7 +72,7 @@ html body #list .msg,html body #list .msg *{-webkit-user-select:none;user-select
 
 /* Live surfaces from the approved mock-up */
 #toBottom{display:none!important}
-.lp-banner{position:fixed;z-index:60;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 8px);display:flex;align-items:center;gap:12px;padding:10px;border-radius:24px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--ink);cursor:pointer;transform:translateY(-150%);opacity:0;visibility:hidden;transition:transform .55s cubic-bezier(.2,1.3,.4,1),opacity .3s,visibility .3s}
+.lp-banner{position:fixed;z-index:60;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 8px);display:flex;align-items:center;gap:12px;padding:10px;border-radius:24px;background:color-mix(in srgb,var(--surface) 78%,transparent);backdrop-filter:blur(18px) saturate(1.35);-webkit-backdrop-filter:blur(18px) saturate(1.35);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--ink);cursor:pointer;transform:translateY(-150%);opacity:0;visibility:hidden;transition:transform .55s cubic-bezier(.2,1.3,.4,1),opacity .3s,visibility .3s}
 .lp-banner.lp-show{transform:none;opacity:1;visibility:visible}
 .lp-bn-av{width:40px;height:40px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:600;font-size:15px;flex:none}
 .lp-bn-body{flex:1;min-width:0}
@@ -84,17 +84,21 @@ html body #list .msg,html body #list .msg *{-webkit-user-select:none;user-select
 .lp-mini i{display:block;width:6px;height:6px;border-radius:50%;background:var(--muted);animation:lpBob 1s infinite}
 .lp-mini i:nth-child(2){animation-delay:.15s}
 .lp-mini i:nth-child(3){animation-delay:.3s}
+.lp-tray .lp-mini{padding:0;background:transparent;gap:4px}
 @keyframes lpBob{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
-.lp-tray{position:absolute;z-index:9;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 96px);display:flex;align-items:center;gap:12px;padding:8px;border-radius:24px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--ink);cursor:pointer;animation:lpTrayIn .5s cubic-bezier(.2,1.3,.4,1) both}
+.lp-tray{position:absolute;z-index:9;left:12px;right:12px;bottom:92px;display:flex;align-items:center;gap:12px;padding:8px;border-radius:24px;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(16px) saturate(1.3);-webkit-backdrop-filter:blur(16px) saturate(1.3);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--ink);cursor:pointer;animation:lpTrayIn .5s cubic-bezier(.2,1.3,.4,1) both}
+.lp-glow{position:absolute;left:0;right:0;bottom:80px;height:110px;pointer-events:none;z-index:4;opacity:0;transition:opacity .4s;background:linear-gradient(to top,color-mix(in srgb,var(--accent) 22%,transparent),transparent)}
+.lp-glow.show{opacity:1}
+.lp-boom{overflow:visible}
 .lp-tray.hidden{display:none}
 @keyframes lpTrayIn{from{transform:translateY(60%);opacity:0}to{transform:none;opacity:1}}
-.lp-tray-label{flex:1;min-width:0;padding-left:6px;font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lp-tray-label{flex:1;min-width:0;padding-left:6px;font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:8px}
 .lp-newest{height:40px;padding:0 14px 0 12px;border-radius:999px;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;flex:none}
 .lp-newest svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;animation:lpDrop 1.4s ease-in-out infinite}
 @keyframes lpDrop{0%,100%{transform:translateY(0)}50%{transform:translateY(3px)}}
 .lp-count{min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--surface);color:var(--accent);display:grid;place-items:center;font-size:12px;font-weight:700}
 .lp-count.hidden{display:none}
-.lp-chip{position:absolute;z-index:8;left:50%;top:calc(env(safe-area-inset-top,0px) + 70px);transform:translateX(-50%);padding:7px 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--ink);font-size:13px;cursor:pointer;white-space:nowrap;animation:lpTrayIn .5s cubic-bezier(.2,1.3,.4,1) both}
+.lp-chip{position:absolute;z-index:8;left:50%;top:calc(env(safe-area-inset-top,0px) + 76px);transform:translateX(-50%);padding:7px 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--ink);font-size:13px;cursor:pointer;white-space:nowrap;animation:lpTrayIn .5s cubic-bezier(.2,1.3,.4,1) both}
 .lp-chip.hidden{display:none}
 .lp-divider{display:flex;align-items:center;gap:12px;margin:18px 0 6px;font-size:12px;color:var(--accent);animation:lpEnter .45s ease both;transition:opacity .3s}
 .lp-divider::before,.lp-divider::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent)}
@@ -121,7 +125,7 @@ html body #list .msg,html body #list .msg *{-webkit-user-select:none;user-select
 }
 
 /* ---- Part 2.3: sign-in loading box and welcome ---- */
-.lp-loader{background:color-mix(in srgb,var(--bg) 55%,transparent)}
+.lp-loader{background:var(--bg)}
 .lp-box{padding:26px 34px;border-radius:26px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);animation:lpGrow 3s cubic-bezier(.4,0,.2,1) both}
 .lp-word{font:500 24px var(--serif);color:var(--accent);display:flex;gap:1px;letter-spacing:.02em}
 .lp-ch{display:inline-block;animation:lpWave 1.5s ease-in-out 2 both}

@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="The Lees">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="icon" href="/icon-192.png">
-<link rel="stylesheet" href="/lees-patch.css?v=3">
+<link rel="stylesheet" href="/lees-patch.css?v=4">
 <style>
 :root{
   --bg:#f8f4ee;--surface:#fffdf9;--ink:#2a2420;--muted:#8c8179;--line:#ebe2d7;--line-strong:#dcd0c2;
@@ -56,12 +56,28 @@ button{cursor:pointer;background:none;border:0;padding:0}
 
 /* ---------- Sign-in ---------- */
 #lock{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 24px;gap:10px;overflow-y:auto;animation:rise .5s var(--ease) both}
-.stringArt{width:min(200px,62vw);height:auto;aspect-ratio:280/250;overflow:visible;transition:filter .35s ease}
-.stringArt.checking{filter:blur(7px);opacity:.75}
-.stringArt .head{fill:#c9ced6}
-.stringArt .body{fill:none;stroke:#c9ced6;stroke-width:4.5;stroke-linecap:round;stroke-linejoin:round}
-.stringArt .figL{--apart:translateX(-34px);animation:closeIn 4s ease-in-out infinite}
-.stringArt .figR{--apart:translateX(34px);animation:closeIn 4s ease-in-out infinite}
+.stringArt{width:min(300px,86vw);height:auto;aspect-ratio:360/250;overflow:hidden;border-radius:28px;transition:filter .35s ease}
+.nightScene .cam{transform-box:view-box;transform-origin:180px 125px;animation:skyPan 18s ease-in-out infinite}
+.nightScene .stars circle{transform-box:fill-box;transform-origin:center;animation:twinkle 3.4s ease-in-out infinite}
+.nightScene .stars circle:nth-child(3n){animation-delay:.6s}
+.nightScene .stars circle:nth-child(3n+1){animation-delay:1.3s}
+.nightScene .pose{display:none}
+.nightScene[data-scene="watch"] .pose-watch,
+.nightScene[data-scene="point"] .pose-point,
+.nightScene[data-scene="sit"] .pose-sit{display:block}
+.nightScene .armR{transform-box:fill-box;transform-origin:0 80%;animation:pointSky 5.5s ease-in-out infinite}
+.nightScene .armL{transform-box:fill-box;transform-origin:100% 80%;animation:leanSky 7s ease-in-out infinite}
+.nightScene .sway{transform-box:fill-box;transform-origin:center bottom;animation:swayBody 8s ease-in-out infinite}
+@keyframes skyPan{0%,100%{transform:translate(0,0) scale(1)}32%{transform:translate(-42px,-16px) scale(1.08)}68%{transform:translate(16px,-4px) scale(1.04)}}
+@keyframes twinkle{0%,100%{opacity:.35}50%{opacity:1}}
+@keyframes pointSky{0%,100%{transform:rotate(0)}28%{transform:rotate(-16deg)}58%{transform:rotate(10deg)}82%{transform:rotate(-6deg)}}
+@keyframes leanSky{0%,100%{transform:rotate(0)}40%{transform:rotate(12deg)}72%{transform:rotate(-9deg)}}
+@keyframes swayBody{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@media (prefers-reduced-motion: reduce){.nightScene .cam,.nightScene .armR,.nightScene .armL,.nightScene .sway,.nightScene .stars circle{animation:none}}
+.stringArt.checking{filter:blur(10px);opacity:.35}
+.scene-menu{display:flex;gap:6px;margin:2px 0 6px}
+.scene-menu button{padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-family:var(--serif);font-size:14px;color:var(--muted)}
+.scene-menu button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 @keyframes closeIn{
   0%{transform:var(--apart)}
   40%,60%{transform:translateX(0)}
@@ -256,9 +272,10 @@ mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 
 .bubblecol{display:flex;flex-direction:column;min-width:0;max-width:100%}
 .msgav{width:32px;height:32px;font-size:13px}
 .msg .text{display:block;background:none;border:0;box-shadow:none;padding:0;margin:0;border-radius:0}
-.msg{position:relative;padding:13px 16px 11px;border-radius:28px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:var(--shadow);-webkit-touch-callout:none;user-select:text;-webkit-user-select:text;touch-action:manipulation}
-.mine .msg{background:var(--mine);color:var(--mine-ink);border-bottom-right-radius:14px}
-.theirs .msg{background:var(--theirs);border:1px solid var(--line);border-bottom-left-radius:14px}
+.msg{position:relative;max-width:min(280px,72vw);padding:14px 18px 12px;border-radius:26px;font-size:17px;line-height:1.35;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 2px 10px rgba(80,30,45,.07);-webkit-touch-callout:none;user-select:text;-webkit-user-select:text;touch-action:manipulation}
+.mine .msg{background:var(--mine);color:var(--mine-ink)}
+.theirs .msg{background:var(--theirs);border:1px solid var(--line)}
+.row.mine .msgav{display:none}
 .msg.flash{animation:flash 1.3s var(--ease)}
 .msg.pressing{transform:scale(.985)}
 .msg.gone{background:transparent;box-shadow:none;border:1px dashed var(--line-strong);color:var(--muted);font-style:italic}
@@ -269,8 +286,8 @@ mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 
 .quote{display:flex;flex-direction:column;gap:1px;padding:6px 10px;margin-bottom:6px;border-left:2px solid var(--accent);border-radius:8px;background:rgba(154,90,72,.08);font-size:12.5px;color:var(--muted)}
 .quote b{font-weight:normal;color:var(--accent);font-size:11.5px}
 .quote span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.photo{display:block;width:100%;height:100%;object-fit:cover;border-radius:12px;cursor:zoom-in;background:var(--line)}
-.phframe{width:min(250px,68vw);aspect-ratio:4/3;border-radius:12px;overflow:hidden;background:var(--line)}
+.photo{display:block;width:100%;height:100%;object-fit:cover;border-radius:28px;cursor:zoom-in;background:var(--line)}
+.phframe{width:min(300px,70vw);aspect-ratio:4/3;border-radius:28px;overflow:hidden;background:var(--line)}
 .stack{display:flex;align-items:center;gap:8px;margin-top:3px;color:var(--muted);padding:0 4px;flex-wrap:wrap;font-family:var(--mono);font-size:10.5px}
 .heart{color:var(--accent);display:inline-flex;align-items:center;gap:3px}
 .heartbtn{position:relative;width:28px;height:28px;display:inline-grid;place-items:center;color:var(--muted)}
@@ -314,7 +331,7 @@ mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 
 .bars i.on{background:var(--accent);opacity:1}
 .vt{min-width:34px;text-align:right;color:var(--muted)}
 .vspeed{padding:3px 6px;border-radius:7px;border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:10px}
-.tdots{position:relative;display:inline-flex;gap:5px;align-items:center;padding:12px 16px;border-radius:20px;border-bottom-left-radius:5px;background:var(--theirs);border:1px solid var(--line);box-shadow:var(--shadow)}
+.tdots{position:relative;display:inline-flex;gap:5px;align-items:center;padding:14px 18px;border-radius:26px;background:var(--theirs);border:1px solid var(--line);box-shadow:0 2px 10px rgba(80,30,45,.07)}
 .tdots::after{content:"";position:absolute;left:-4px;bottom:0;width:10px;height:10px;background:var(--theirs);border-left:1px solid var(--line);border-bottom:1px solid var(--line);border-bottom-left-radius:10px;clip-path:polygon(0 0,100% 100%,0 100%)}
 .tdots i{width:7px;height:7px;border-radius:50%;background:var(--muted);opacity:.4}
 @keyframes typingpop{0%{opacity:0;transform:scale(.42)}58%{opacity:1;transform:scale(1.22)}100%{opacity:1;transform:scale(1)}}
@@ -434,7 +451,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 .item .txt span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14.5px}
 .item .txt small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
 .row-acts{display:flex;flex-direction:column;gap:6px;flex:none}
-.item img{width:52px;height:52px;border-radius:10px;object-fit:cover}
+.item img,.item video{width:72px;height:52px;border-radius:12px;object-fit:cover;background:#111}
 .reading{font-family:var(--serif);font-size:18px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
 .reading-card{padding:20px 4px 22px;border-bottom:1px solid var(--line)}
 .reading-card .meta{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;gap:8px;align-items:center}
@@ -476,16 +493,111 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
 <!-- Sign-in -->
 <section id="lock" style="position:absolute;inset:0">
-  <svg id="lpArt" class="stringArt" viewBox="160 170 280 250" role="img" aria-label="Two people, drawn in silver string">
-    <g class="figL">
-      <circle class="head" cx="256" cy="218" r="30"/>
-      <path class="body" d="M200 408V320A50 50 0 0 1 300 320V392A10 10 0 0 1 280 392V320"/>
-    </g>
-    <g class="figR">
-      <circle class="head" cx="344" cy="218" r="30"/>
-      <path class="body" d="M400 408V320A50 50 0 0 0 300 320V392A10 10 0 0 0 320 392V320"/>
+  <svg id="lpArt" class="stringArt nightScene" data-scene="watch" viewBox="0 0 360 250" role="img" aria-label="Two people, seen from behind, watching the stars">
+    <defs>
+      <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#0e1426"/>
+        <stop offset="0.55" stop-color="#243044"/>
+        <stop offset="1" stop-color="#5a3a32"/>
+      </linearGradient>
+      <linearGradient id="woodG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#e0c49a"/>
+        <stop offset="1" stop-color="#6d4528"/>
+      </linearGradient>
+      <radialGradient id="starG" cx="50%" cy="50%" r="50%">
+        <stop offset="0" stop-color="#fff6d8"/>
+        <stop offset="1" stop-color="#fff6d8" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <g class="cam">
+      <rect x="-80" y="-30" width="520" height="310" fill="url(#skyG)"/>
+      <g class="stars" fill="#f7f1e4">
+        <circle cx="24" cy="30" r="1.3"/><circle cx="62" cy="52" r=".8"/><circle cx="98" cy="18" r="1.5"/>
+        <circle cx="146" cy="42" r=".7"/><circle cx="188" cy="16" r="1.2"/><circle cx="236" cy="34" r=".9"/>
+        <circle cx="278" cy="14" r="1.4"/><circle cx="318" cy="46" r=".8"/><circle cx="352" cy="22" r="1.1"/>
+        <circle cx="40" cy="78" r=".6"/><circle cx="128" cy="70" r=".9"/><circle cx="300" cy="74" r=".7"/>
+        <circle cx="210" cy="58" r=".5"/><circle cx="84" cy="96" r=".6"/><circle cx="260" cy="88" r=".8"/>
+      </g>
+      <circle cx="214" cy="28" r="16" fill="url(#starG)"/>
+      <circle cx="214" cy="28" r="1.8" fill="#fff8e8"/>
+      <path d="M-60 198 C 40 168, 120 188, 210 164 C 280 148, 330 172, 440 150 L 440 280 L -60 280 Z" fill="#1a1412"/>
+      <path d="M-60 214 C 70 196, 160 208, 260 188 C 330 176, 390 198, 440 186 L 440 280 L -60 280 Z" fill="#120e0c" opacity=".85"/>
+      <g class="pose pose-watch">
+        <g class="sway" transform="translate(168,132)">
+          <rect x="8" y="0" width="7" height="58" rx="2" fill="url(#woodG)"/>
+          <rect x="48" y="0" width="7" height="58" rx="2" fill="url(#woodG)"/>
+          <rect x="6" y="6" width="51" height="6" rx="2" fill="#b88958"/>
+          <rect x="10" y="30" width="43" height="5" rx="2" fill="#8d623c"/>
+          <rect x="12" y="54" width="8" height="18" rx="2" fill="#6a4328"/>
+          <rect x="42" y="54" width="8" height="18" rx="2" fill="#6a4328"/>
+        </g>
+        <g class="sway" transform="translate(78,108)">
+          <ellipse cx="26" cy="14" rx="13" ry="14" fill="#1c2430"/>
+          <path d="M14 8 Q26 0 38 8 Q34 16 26 16 Q18 16 14 8Z" fill="#2c3544"/>
+          <path d="M8 30 Q26 24 44 30 L50 96 Q26 104 2 96 Z" fill="#c9d3df"/>
+          <path class="armL" d="M14 42 Q2 28 10 16" fill="none" stroke="#c9d3df" stroke-width="6" stroke-linecap="round"/>
+          <path class="armR" d="M38 42 Q52 26 44 14" fill="none" stroke="#c9d3df" stroke-width="6" stroke-linecap="round"/>
+        </g>
+        <g class="sway" transform="translate(118,100)" style="animation-delay:-2s">
+          <ellipse cx="28" cy="14" rx="13" ry="14" fill="#3a2a28"/>
+          <path d="M16 8 Q28 -1 40 8 Q36 17 28 17 Q20 17 16 8Z" fill="#5c4038"/>
+          <path d="M8 32 Q28 24 48 32 L54 100 Q28 110 2 100 Z" fill="#e7b4ad"/>
+          <path class="armL" d="M12 44 Q0 30 8 16" fill="none" stroke="#e7b4ad" stroke-width="6" stroke-linecap="round"/>
+          <path class="armR" d="M42 44 Q58 22 46 10" fill="none" stroke="#e7b4ad" stroke-width="6" stroke-linecap="round"/>
+        </g>
+      </g>
+      <g class="pose pose-point">
+        <g transform="translate(46,128)">
+          <rect x="6" y="0" width="7" height="56" rx="2" fill="url(#woodG)"/>
+          <rect x="44" y="0" width="7" height="56" rx="2" fill="url(#woodG)"/>
+          <rect x="4" y="6" width="49" height="6" rx="2" fill="#b88958"/>
+          <rect x="8" y="28" width="41" height="5" rx="2" fill="#8d623c"/>
+        </g>
+        <g class="sway" transform="translate(70,118)">
+          <ellipse cx="24" cy="12" rx="12" ry="13" fill="#1c2430"/>
+          <path d="M13 6 Q24 -1 35 6 Q31 14 24 14 Q17 14 13 6Z" fill="#2c3544"/>
+          <path d="M8 28 Q24 22 40 28 L44 78 Q24 86 4 78 Z" fill="#b7c3d1"/>
+          <path class="armL" d="M12 40 Q4 30 14 22" fill="none" stroke="#b7c3d1" stroke-width="6" stroke-linecap="round"/>
+        </g>
+        <g class="sway" transform="translate(150,104)">
+          <ellipse cx="28" cy="14" rx="13" ry="14" fill="#3a2a28"/>
+          <path d="M16 8 Q28 0 40 8 Q36 16 28 16 Q20 16 16 8Z" fill="#5c4038"/>
+          <path d="M8 32 Q28 24 48 32 L54 102 Q28 112 2 102 Z" fill="#e7b4ad"/>
+          <path class="armL" d="M12 46 Q4 34 12 22" fill="none" stroke="#e7b4ad" stroke-width="6" stroke-linecap="round"/>
+          <path class="armR" d="M40 40 Q78 8 96 2" fill="none" stroke="#e7b4ad" stroke-width="6" stroke-linecap="round"/>
+          <circle cx="98" cy="1" r="3.4" fill="#f0d2c8"/>
+        </g>
+      </g>
+      <g class="pose pose-sit">
+        <g transform="translate(118,126)">
+          <rect x="4" y="0" width="8" height="70" rx="2" fill="url(#woodG)"/>
+          <rect x="52" y="0" width="8" height="70" rx="2" fill="url(#woodG)"/>
+          <rect x="2" y="8" width="60" height="8" rx="2" fill="#c49664"/>
+          <rect x="8" y="36" width="48" height="6" rx="2" fill="#8d623c"/>
+          <rect x="10" y="64" width="10" height="22" rx="2" fill="#6a4328"/>
+          <rect x="44" y="64" width="10" height="22" rx="2" fill="#6a4328"/>
+        </g>
+        <g class="sway" transform="translate(132,108)">
+          <ellipse cx="26" cy="13" rx="12" ry="13" fill="#3a2a28"/>
+          <path d="M15 7 Q26 0 37 7 Q33 15 26 15 Q19 15 15 7Z" fill="#5c4038"/>
+          <path d="M10 28 Q26 22 42 28 L46 70 Q26 78 6 70 Z" fill="#e7b4ad"/>
+        </g>
+        <g class="sway" transform="translate(196,100)" style="animation-delay:-3s">
+          <ellipse cx="26" cy="14" rx="13" ry="14" fill="#1c2430"/>
+          <path d="M14 8 Q26 0 38 8 Q34 16 26 16 Q18 16 14 8Z" fill="#2c3544"/>
+          <path d="M8 32 Q26 24 44 32 L50 104 Q26 114 2 104 Z" fill="#c9d3df"/>
+          <path class="armL" d="M14 48 Q2 30 16 18" fill="none" stroke="#c9d3df" stroke-width="6" stroke-linecap="round"/>
+          <path class="armR" d="M36 46 Q62 16 54 4" fill="none" stroke="#c9d3df" stroke-width="6" stroke-linecap="round"/>
+          <circle cx="54" cy="3" r="3.2" fill="#d5deea"/>
+        </g>
+      </g>
     </g>
   </svg>
+  <div class="scene-menu" role="group" aria-label="Lock scene">
+    <button type="button" data-scene="watch" aria-pressed="true">Watch</button>
+    <button type="button" data-scene="point" aria-pressed="false">Point</button>
+    <button type="button" data-scene="sit" aria-pressed="false">Sit</button>
+  </div>
   <p id="tagline" aria-live="polite"></p>
   <button id="notYou" type="button">Not you? Switch side</button>
   <p class="sub">Who are you signing in as?</p>
@@ -572,6 +684,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       <button class="chip on" data-f="all">All</button>
       <button class="chip" data-f="photo">Photos</button>
       <button class="chip" data-f="voice">Voice</button>
+      <button class="chip" data-f="video">Videos</button>
       <input id="fdate" type="date" aria-label="On date">
     </div>
   </div>
@@ -592,7 +705,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   </div>
   <footer id="footer">
     <button id="attach" class="tool" aria-label="Attach photos or audio"><svg class="i" viewBox="0 0 24 24"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7L14 4.5a3.5 3.5 0 0 1 5 5L10.5 18a2 2 0 0 1-3-3L16 6.5"/></svg></button>
-    <input id="file" type="file" accept="image/*" multiple hidden>
+    <input id="file" type="file" accept="image/*,video/*,audio/*" multiple hidden>
     <button id="mic" class="tool" aria-label="Record voice note"><svg class="i" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
     <button id="clock" class="tool" aria-label="Send later"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>
     <textarea id="input" rows="1" placeholder="Write something…" aria-label="Message"></textarea>
@@ -722,7 +835,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const fmtDateTime = (ts) => new Date(ts).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   const fmtDur = (s) => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
-  const previewOf = (m) => m.deleted ? "Deleted" : (m.effect === "doodle" || m.effect === "doodle-glow") ? "Doodle" : m.kind === "image" ? "Photo" : m.kind === "audio" ? "Voice note" : (m.text || "").slice(0, 60);
+  const previewOf = (m) => m.deleted ? "Deleted" : (m.effect === "doodle" || m.effect === "doodle-glow") ? "Doodle" : m.kind === "image" ? "Photo" : m.kind === "audio" ? "Voice note" : m.kind === "video" ? "Video" : (m.text || "").slice(0, 60);
   const hash = (s) => { let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
   const normAnswer = (a) => a.trim().toLowerCase().replace(/\s+/g, " ");
   const firstName = (side) => NAME[side];
@@ -1126,7 +1239,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   /* ================= Archive and visibility ================= */
   function archiveCutoff() { const d = Number(SH().archiveDays) || 0; return d ? Date.now() - d * 86400000 : 0; }
-  const isArchived = (m, cut) => cut && m.ts < cut && !m.noArchive && !m.deleted;
+  const isArchived = (m, cut) => !m.deleted && (m.archived || (cut && m.ts < cut && !m.noArchive));
   function visibleList() {
     const cut = archiveCutoff();
     return thread().filter(m => {
@@ -1136,7 +1249,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       return !isArchived(m, cut);
     });
   }
-  function archivedList() { const cut = archiveCutoff(); return cut ? thread().filter(m => isArchived(m, cut) && !(m.deletedFor || []).includes(me)) : []; }
+  function archivedList() {
+    const cut = archiveCutoff();
+    return thread().filter(m => isArchived(m, cut) && !(m.deletedFor || []).includes(me));
+  }
 
   /* ================= Rendering: chat ================= */
   function hiText(node, text) {
@@ -1222,6 +1338,19 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       if (!u) { fail(); return; }
       if (img.getAttribute("src") !== u) img.src = u;
     }).catch(fail);
+    return frame;
+  }
+
+  function videoNode(m) {
+    const frame = el("div", "phframe");
+    const vid = document.createElement("video");
+    vid.className = "photo";
+    vid.controls = true;
+    vid.playsInline = true;
+    vid.preload = "metadata";
+    vid.setAttribute("aria-label", "Video");
+    frame.appendChild(vid);
+    mediaURL(m.mid).then(u => { if (u) vid.src = u; });
     return frame;
   }
 
@@ -1429,6 +1558,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       card.appendChild(voiceNode(m));
       if (scratchIt) attachScratch(card, "");
       else if (shield) card.classList.add("blurred");
+    } else if (m.kind === "video") {
+      card.appendChild(videoNode(m));
+      if (scratchIt) attachScratch(card, "");
+      else if (shield) card.classList.add("blurred");
     }
     card.addEventListener("pointerup", (e) => {
       if (e.target.closest(".scratch,.heartbtn,.vplay,.vspeed,.bars,.edlabel")) return;
@@ -1487,6 +1620,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function matchesFilter(m) {
     if (filter === "photo" && m.kind !== "image") return false;
     if (filter === "voice" && m.kind !== "audio") return false;
+    if (filter === "video" && m.kind !== "video") return false;
     if (dateFilter) {
       const d = new Date(m.ts), pick = new Date(dateFilter + "T00:00:00");
       if (d.toDateString() !== pick.toDateString()) return false;
@@ -2470,17 +2604,43 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
 
   function openMedia() {
-    openPanel("Media", "Photos and voice notes from your conversation", (body) => {
+    const scopes = [
+      ["image", "Pictures", "Photos shared in the chat"],
+      ["audio", "Audio", "Voice notes and sound files"],
+      ["video", "Videos", "Clips shared in the chat"]
+    ];
+    openPanel("Media", "Choose a kind", (body) => {
+      const all = thread().filter(m => !m.deleted && !m.archived && m.mid && (m.kind === "image" || m.kind === "audio" || m.kind === "video") && !(m.deletedFor || []).includes(me));
+      const menu = el("div", "media-kinds");
+      scopes.forEach(([kind, title, sub]) => {
+        const n = all.filter(m => m.kind === kind).length;
+        const b = el("button", "choice");
+        b.append(el("b", "", title), el("small", "", n ? (n + " · " + sub) : "None yet"));
+        b.addEventListener("click", () => showMediaScope(kind, title));
+        menu.appendChild(b);
+      });
+      body.appendChild(menu);
+    });
+  }
+  function showMediaScope(kind, title) {
+    openPanel(title, "Delete, archive, or send again", (body) => {
+      const back = el("button", "btn ghost sm", "All media");
+      back.addEventListener("click", () => openMedia());
+      body.appendChild(back);
       const items = thread()
-        .filter(m => !m.deleted && (m.kind === "image" || m.kind === "audio") && m.mid && !(m.deletedFor || []).includes(me))
+        .filter(m => !m.deleted && !m.archived && m.kind === kind && m.mid && !(m.deletedFor || []).includes(me))
         .sort((a, b) => b.ts - a.ts);
-      if (!items.length) body.appendChild(el("p", "fp-desc", "Photos and voice notes shared in the chat will be kept here."));
+      if (!items.length) body.appendChild(el("p", "fp-desc", "Nothing in " + title.toLowerCase() + " yet."));
       for (const m of items) {
         const it = el("div", "item");
         if (m.kind === "image") {
           const img = new Image(); img.alt = "Shared photo";
           mediaURL(m.mid).then(u => { if (u) img.src = u; });
           it.appendChild(img);
+        } else if (m.kind === "video") {
+          const vid = document.createElement("video"); vid.controls = true; vid.playsInline = true; vid.preload = "metadata";
+          mediaURL(m.mid).then(u => { if (u) vid.src = u; });
+          it.appendChild(vid);
         } else {
           const au = document.createElement("audio"); au.controls = true;
           mediaURL(m.mid).then(u => { if (u) au.src = u; });
@@ -2488,7 +2648,44 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         }
         const t = el("div", "txt");
         t.textContent = (m.from === me ? "You" : NAME[m.from]) + " · " + fmtTime(m.ts);
-        it.appendChild(t);
+        const acts = el("div", "row-acts");
+        const del = el("button", "btn sm ghost", "Delete");
+        del.addEventListener("click", async () => {
+          const ok = await choicePanel({ title: "Delete this?", desc: "Choose who loses it.", options: [
+            { label: "Delete for me", sub: "The other side still has it.", value: "me" },
+            { label: "Delete for both", sub: "It shows as deleted.", value: "both", danger: true }
+          ]});
+          if (ok === "me") await deleteForMe(m.id);
+          else if (ok === "both") await deleteForEveryone(m.id);
+          if (ok) showMediaScope(kind, title);
+        });
+        const arc = el("button", "btn sm ghost", "Archive");
+        arc.addEventListener("click", async () => {
+          const client = cloudClient();
+          if (!client) return;
+          const upd = await client.rpc("archive_message", { p_id: m.id });
+          if (upd.error) { notice("Couldn't archive that", upd.error.message, { error: true }); return; }
+          await reloadAll();
+          render();
+          notice("Archived", "It's out of the chat and kept in Archive.");
+          showMediaScope(kind, title);
+        });
+        const re = el("button", "btn sm", "Resend");
+        re.addEventListener("click", async () => {
+          const who = await choicePanel({ title: "Send again", desc: "Choose who this is for. It goes into your conversation.", options: [
+            { label: "Mr Lees", sub: "Lewis", value: "Lewis" },
+            { label: "Mrs Lees", sub: "Agnes", value: "Agnes" }
+          ]});
+          if (!who) return;
+          if (who === me) { notice("Pick the other side", "You already have it."); return; }
+          const url = await mediaURL(m.mid);
+          if (!url) { notice("Couldn't open that file", "", { error: true }); return; }
+          const blob = await (await fetch(url)).blob();
+          await addMedia(m.kind, blob, { dur: m.dur || 0 });
+          notice("Sent", "It's on its way to " + NAME[who] + ".");
+        });
+        acts.append(re, arc, del);
+        it.append(t, acts);
         body.appendChild(it);
       }
     });
@@ -3330,8 +3527,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     for (const f of [...files]) {
       try {
         if (f.type.startsWith("image/")) { const blob = await compressImage(f); if (!blob) { notice("Couldn't save that photo", "Try a different image.", { error: true }); continue; } await addMedia("image", blob, {}); }
+        else if (f.type.startsWith("video/")) await addMedia("video", f, { dur: await audioDuration(f), mime: f.type });
         else if (f.type.startsWith("audio/")) await addMedia("audio", f, { dur: await audioDuration(f), mime: f.type });
-        else notice("That file type isn't supported", "Choose a photo or an audio file.", { error: true });
+        else notice("That file type isn't supported", "Choose a picture, a video, or an audio file.", { error: true });
       } catch { notice("Couldn't add " + (f.name || "that file"), "", { error: true }); }
     }
   }
@@ -3625,7 +3823,20 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   });
   ["pointerup", "pointercancel", "pointerleave"].forEach(ev => $("send").addEventListener(ev, () => clearTimeout(sendHold)));
 
-  $("attach").addEventListener("click", () => $("file").click());
+  function openAttachMenu() {
+    sheetOpen((body) => {
+      body.appendChild(el("h3", "fp-title", "Add to the chat"));
+      body.appendChild(el("p", "fp-desc", "Pictures, video, or an audio file. Voice you record stays on the microphone."));
+      [["image/*", "Pictures", "A photo from your library"], ["video/*", "Videos", "A short clip"], ["audio/*", "Audio", "A sound or voice file"]].forEach(([accept, title, sub]) => {
+        const b = el("button", "choice");
+        b.append(el("b", "", title), el("small", "", sub));
+        b.addEventListener("click", () => { sheetClose(); const f = $("file"); f.accept = accept; f.click(); });
+        body.appendChild(b);
+      });
+    });
+    $("sheetScrim").onclick = () => sheetClose();
+  }
+  $("attach").addEventListener("click", () => openAttachMenu());
   $("file").addEventListener("change", (e) => { handleFiles(e.target.files); e.target.value = ""; });
   let homeHold = 0;
   $("home").addEventListener("pointerdown", (e) => {
@@ -3861,7 +4072,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       replyTo: r.reply_to || null, effect: r.effect || "none", hiddenBy: r.hidden_for || [],
       deletedFor: r.deleted_for || [], deleted: !!r.deleted, moment: !!r.moment,
       history: r.history || [], edited: !!r.edited, editedAt: r.edited_at ? new Date(r.edited_at).getTime() : null,
-      late: !!r.late, dur: r.dur || 0, noArchive: !!r.no_archive, pending: false, clientId: r.client_id || null
+      late: !!r.late, dur: r.dur || 0, noArchive: !!r.no_archive, archived: !!r.archived, pending: false, clientId: r.client_id || null
     };
   }
   function noteFromRow(r) {
@@ -4201,7 +4412,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
           }).select().maybeSingle();
           if (ins.error && !/duplicate/i.test(ins.error.message)) throw ins.error;
           cacheThread = cacheThread.filter(m => m.id !== item.localId);
-        } else if (item.kind === "image" || item.kind === "audio") {
+        } else if (item.kind === "image" || item.kind === "audio" || item.kind === "video") {
           const blob = await getBlob(item.blobId);
           if (!blob) throw new Error("missing file");
           const path = pairId + "/" + item.clientId;
@@ -4246,7 +4457,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const path = pairId + "/" + clientId;
     try {
       if (!client || !navigator.onLine) throw new Error("offline");
-      const up = await client.storage.from("media").upload(path, blob, { contentType: blob.type || (kind === "image" ? "image/jpeg" : "audio/webm"), upsert: false });
+      const up = await client.storage.from("media").upload(path, blob, { contentType: blob.type || (kind === "image" ? "image/jpeg" : kind === "video" ? "video/mp4" : "audio/webm"), upsert: false });
       if (up.error) throw up.error;
       const ins = await client.from("messages").insert({
         pair_id: pairId, sender_id: myUserId, kind, media_path: path, dur: (extra && extra.dur) || null, effect: (extra && extra.effect) || "none", client_id: clientId
@@ -5122,6 +5333,6 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   })();
 })();
 </script>
-<script src="/lees-patch.js?v=3" defer></script>
+<script src="/lees-patch.js?v=4" defer></script>
 </body>
 </html>

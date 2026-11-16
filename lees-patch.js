@@ -286,22 +286,36 @@
     }, true);
   }
 
-  /* ---------- 5. Send: long press = schedule; boomerang when the side's last send was 5+ minutes ago ---------- */
+  /* ---------- 5. Send: boomerang when this side's last send was 5+ minutes ago ---------- */
   function lastSentKey() { var side = store.get("pp-last-side", null); return "lp-lastsent-" + (side || "x"); }
   function boomerang() {
     var k = lastSentKey(), last = store.get(k, 0), now = Date.now();
     store.set(k, now);
-    if (last && now - last < 5 * 60 * 1000) return;
+    if (!last || now - last < 5 * 60 * 1000) return;
     var send = $("send"), svg = send && send.querySelector("svg");
-    if (!svg || !svg.animate) return;
-    svg.animate([
-      { transform: "translate(0,0) rotate(0deg)" },
-      { transform: "translate(26px,-34px) rotate(70deg)", offset: 0.28 },
-      { transform: "translate(64px,-18px) rotate(170deg)", offset: 0.5 },
-      { transform: "translate(40px,-52px) rotate(260deg)", offset: 0.7 },
-      { transform: "translate(-6px,-14px) rotate(330deg)", offset: 0.88 },
-      { transform: "translate(0,0) rotate(360deg)" }
-    ], { duration: 1000, easing: "cubic-bezier(.3,.1,.3,1)" });
+    if (!svg) return;
+    if (reduceMq && reduceMq.matches) return;
+    var r = svg.getBoundingClientRect();
+    var fly = svg.cloneNode(true);
+    fly.setAttribute("class", "lp-boom");
+    fly.style.position = "fixed";
+    fly.style.left = r.left + "px";
+    fly.style.top = r.top + "px";
+    fly.style.width = r.width + "px";
+    fly.style.height = r.height + "px";
+    fly.style.zIndex = "80";
+    fly.style.pointerEvents = "none";
+    fly.style.color = "inherit";
+    document.body.appendChild(fly);
+    svg.style.opacity = "0";
+    var anim = fly.animate([
+      { offset: 0, transform: "translate(0,0) rotate(-18deg)" },
+      { offset: 0.32, transform: "translate(78px,-96px) rotate(-8deg)" },
+      { offset: 0.5, transform: "translate(36px,-128px) rotate(168deg)" },
+      { offset: 0.74, transform: "translate(-86px,-36px) rotate(188deg)" },
+      { offset: 1, transform: "translate(0,0) rotate(342deg)" }
+    ], { duration: 1100, easing: "cubic-bezier(.3,.05,.25,1)" });
+    anim.onfinish = function () { fly.remove(); svg.style.opacity = ""; };
   }
   function bindSend() {
     var send = $("send"), input = $("input");
@@ -476,8 +490,8 @@
     banner.querySelector(".lp-bn-name").textContent = name;
     banner.querySelector(".lp-bn-av").textContent = (name.split(" ").pop() || "?").charAt(0).toUpperCase();
     var line = banner.querySelector(".lp-bn-line");
-    if (st.typing) { line.innerHTML = '<span class="lp-mini"><i></i><i></i><i></i></span><span>typing</span>'; }
-    else { line.textContent = receipt(st.unread); }
+    if (st.typing) { line.innerHTML = '<span class="lp-mini"><i></i><i></i><i></i></span><span>' + (name || "They") + ' is typing</span>'; }
+    else { line.textContent = "New message"; }
     banner.querySelector(".lp-bn-view").classList.toggle("lp-gone-el", st.typing);
   }
 
@@ -495,6 +509,10 @@
     nb.insertAdjacentHTML("beforeend", '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>');
     tray.appendChild(trayLabel); tray.appendChild(nb);
     chat.insertBefore(tray, footer);
+    var glow = document.createElement("div");
+    glow.id = "lpGlow";
+    glow.className = "lp-glow";
+    chat.insertBefore(glow, tray);
     tray.addEventListener("click", goLatest);
     tray.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goLatest(); } });
     bindSwipe(tray, function () { st.trayOff = true; syncTray(); });
@@ -520,13 +538,25 @@
   }
   function syncTray() {
     if (!tray) return;
-    var b = latestBtn();
-    var on = !!b && !b.classList.contains("hidden") && st.inChat && !st.trayOff;
+    var showTyping = !!(st.typing && st.inChat && !nearBottom());
+    var showUnread = !!(st.unread > 0 && st.inChat);
+    var on = (showTyping || showUnread) && !st.trayOff;
     tray.classList.toggle("hidden", !on);
+    var glow = document.getElementById("lpGlow");
+    if (glow) glow.classList.toggle("show", !!(showUnread && !st.trayOff));
+    if (chip) chip.classList.toggle("hidden", savedTop === null);
     if (!on) return;
-    trayLabel.textContent = st.unread > 0 ? receipt(st.unread) : "";
+    trayLabel.textContent = "";
+    if (showUnread) trayLabel.textContent = receipt(st.unread);
+    else {
+      var mini = document.createElement("span");
+      mini.className = "lp-mini";
+      mini.innerHTML = "<i></i><i></i><i></i>";
+      trayLabel.appendChild(mini);
+      trayLabel.appendChild(document.createTextNode((st.name || "They") + " is typing"));
+    }
     trayCount.textContent = st.unread;
-    trayCount.classList.toggle("hidden", st.unread === 0);
+    trayCount.classList.toggle("hidden", !showUnread);
   }
 
   function ensureDivider(row) {
@@ -662,7 +692,7 @@
       if (!st.typing) st.bannerOff = false;
     }
     st.typing = !!on;
-    syncBanner();
+    syncBanner(); syncTray();
   };
   hooks.onUnread = function (n, name, inChat) {
     if (name) st.name = name;
@@ -703,9 +733,31 @@
     syncTray(); syncBanner();
   }
 
+  function bindScene() {
+    var art = document.getElementById("lpArt");
+    var menu = document.querySelector(".scene-menu");
+    if (!art || !menu) return;
+    var saved = "watch";
+    try { saved = localStorage.getItem("lp-night-scene") || "watch"; } catch (e) {}
+    if (saved !== "watch" && saved !== "point" && saved !== "sit") saved = "watch";
+    function apply(id) {
+      art.setAttribute("data-scene", id);
+      menu.querySelectorAll("button").forEach(function (b) {
+        b.setAttribute("aria-pressed", b.getAttribute("data-scene") === id ? "true" : "false");
+      });
+      try { localStorage.setItem("lp-night-scene", id); } catch (e) {}
+    }
+    apply(saved);
+    menu.addEventListener("click", function (e) {
+      var b = e.target.closest("button[data-scene]");
+      if (b) apply(b.getAttribute("data-scene"));
+    });
+  }
+
   /* ---------- init ---------- */
   function init() {
     if (store.get("lp-ghost", false)) document.body.classList.add("ghost");
+    bindScene();
     bindShields();
     buildComposer();
     bindSend();

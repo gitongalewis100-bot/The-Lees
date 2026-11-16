@@ -38,7 +38,7 @@ create table public.messages (
   id uuid primary key default gen_random_uuid(),
   pair_id uuid not null references public.pairs(id) on delete cascade,
   sender_id uuid not null default auth.uid() references auth.users(id),
-  kind text not null check (kind in ('text', 'image', 'audio')),
+  kind text not null check (kind in ('text', 'image', 'audio', 'video')),
   text text,
   media_path text,
   reply_to jsonb,
@@ -56,10 +56,11 @@ create table public.messages (
   delivered_at timestamptz,
   late boolean not null default false,
   no_archive boolean not null default false,
+  archived boolean not null default false,
   dur real,
   client_id text unique,
   constraint messages_text_len check (text is null or char_length(text) <= 10000),
-  constraint messages_audio_path check (kind <> 'audio' or media_path is not null)
+  constraint messages_media_path check (kind not in ('audio', 'video') or media_path is not null)
 );
 
 create table public.notes (
@@ -372,6 +373,23 @@ begin
 end;
 $$;
 
+create or replace function public.archive_message(p_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  m public.messages;
+begin
+  if public.my_side() is null then raise exception 'not a member'; end if;
+  select * into m from public.messages
+    where id = p_id and pair_id in (select public.my_pair_ids());
+  if m.id is null then raise exception 'not found'; end if;
+  update public.messages set archived = true where id = p_id;
+end;
+$$;
+
 create or replace function public.cancel_scheduled(p_id uuid)
 returns void
 language plpgsql
@@ -615,6 +633,7 @@ grant execute on function public.set_hidden(uuid, boolean) to authenticated;
 grant execute on function public.set_moment(uuid, boolean) to authenticated;
 grant execute on function public.delete_for_me(uuid) to authenticated;
 grant execute on function public.delete_for_both(uuid) to authenticated;
+grant execute on function public.archive_message(uuid) to authenticated;
 grant execute on function public.cancel_scheduled(uuid) to authenticated;
 
 create or replace function public.send_scheduled_now(p_id uuid)
