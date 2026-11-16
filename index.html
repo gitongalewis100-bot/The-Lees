@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="The Lees">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="icon" href="/icon-192.png">
-<link rel="stylesheet" href="/lees-patch.css">
+<link rel="stylesheet" href="/lees-patch.css?v=3">
 <style>
 :root{
   --bg:#f8f4ee;--surface:#fffdf9;--ink:#2a2420;--muted:#8c8179;--line:#ebe2d7;--line-strong:#dcd0c2;
@@ -56,14 +56,23 @@ button{cursor:pointer;background:none;border:0;padding:0}
 
 /* ---------- Sign-in ---------- */
 #lock{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 24px;gap:10px;overflow-y:auto;animation:rise .5s var(--ease) both}
-.mark{width:58px;height:58px;border-radius:20px;background:var(--surface);box-shadow:var(--shadow);display:grid;place-items:center;color:var(--accent);margin-bottom:4px;animation:float 6s ease-in-out infinite}
-.mark .i{width:26px;height:26px}
+.stringArt{width:min(200px,62vw);height:auto;aspect-ratio:280/250;overflow:visible;transition:filter .35s ease}
+.stringArt.checking{filter:blur(7px);opacity:.75}
+.stringArt .head{fill:#c9ced6}
+.stringArt .body{fill:none;stroke:#c9ced6;stroke-width:4.5;stroke-linecap:round;stroke-linejoin:round}
+.stringArt .figL{--apart:translateX(-34px);animation:closeIn 4s ease-in-out infinite}
+.stringArt .figR{--apart:translateX(34px);animation:closeIn 4s ease-in-out infinite}
+@keyframes closeIn{
+  0%{transform:var(--apart)}
+  40%,60%{transform:translateX(0)}
+  100%{transform:var(--apart)}
+}
+@media (prefers-reduced-motion: reduce){.stringArt .figL,.stringArt .figR{animation:none;transform:translateX(0)}}
 #lock h1{font-family:var(--serif);font-weight:normal;font-size:26px;margin:0}
 #tagline{font-family:var(--serif);font-style:italic;color:var(--accent);font-size:16px;min-height:1.6em;margin:0;text-align:center}
 #tagline::after{content:"▍";margin-left:2px;opacity:.7;animation:blink 1s steps(1) infinite}
 #tagline.done::after{opacity:0}
 #tagline.done{animation:breathe 4.5s ease-in-out infinite}
-.wholine{display:none;color:var(--muted);font-size:14px;margin:6px 0 0}
 #notYou{display:none;color:var(--accent);font-size:13px;text-decoration:underline;text-underline-offset:3px}
 #lock .sub{color:var(--muted);margin:0;font-size:14px}
 .sides{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:min(320px,100%)}
@@ -76,8 +85,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .side small{color:var(--muted);font-size:12px}
 .side[aria-pressed="true"]{border-color:var(--accent);background:var(--mine)}
 #lock.remembered .sides,#lock.remembered .sub{display:none}
-#lock.remembered .wholine{display:block}
-#lock.remembered #notYou{display:inline-block}
+#lock.remembered #lock.remembered #notYou{display:inline-block}
 .form{display:none;flex-direction:column;gap:10px;width:min(320px,100%)}
 .form.on{display:flex}
 .field{position:relative}
@@ -125,9 +133,10 @@ select.in{padding-right:12px}
 .journal-btn{width:48px;height:48px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--accent)}
 .navrow{display:flex;gap:8px;flex-wrap:wrap;padding:4px 0 8px}
 .homegrid{display:grid;grid-template-columns:0.82fr 1.45fr;gap:10px;align-items:stretch}
-.navbtn.settings-box{width:100%;height:100%;min-height:220px;flex-direction:column;align-items:stretch;justify-content:space-between;font-size:18px;padding:16px;gap:12px;border-radius:28px}
-.settings-main{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:10px;flex:1;text-align:left;font-size:22px;color:var(--ink)}
-.settings-out{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px 12px;border-radius:16px;background:color-mix(in srgb,var(--rose) 14%,var(--surface));color:var(--rose);border:1px solid color-mix(in srgb,var(--rose) 40%,var(--line));font-size:16px}
+.navbtn.settings-box{width:100%;height:100%;min-height:0;align-self:stretch;flex-direction:column;align-items:stretch;justify-content:space-between;font-size:18px;padding:16px;gap:12px;border-radius:28px}
+.settings-main{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:10px;flex:1;text-align:center;font-size:22px;color:var(--ink)}
+.signout-wrap{border-radius:16px;overflow:hidden;background:#e0463c;box-shadow:0 6px 16px rgba(224,70,60,.35)}
+.settings-out{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px 12px;border:0;background:transparent;color:#fff;font-size:16px;font-weight:600}
 .fnbox{display:flex;flex-direction:column;gap:8px;min-height:320px;height:100%;padding:12px;border-radius:28px;background:color-mix(in srgb,var(--surface) 90%,transparent);border:1px solid var(--line);box-shadow:var(--shadow)}
 .tools2{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start}
 .tools2 .navbtn{width:100%;white-space:normal;text-align:left}
@@ -234,8 +243,8 @@ mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 
 #list .text{user-select:text;-webkit-user-select:text}
 #list .photo{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .day{align-self:center;color:var(--muted);font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;margin:12px 0 8px;padding:4px 12px;background:var(--surface);border:1px solid var(--line);border-radius:999px;text-transform:uppercase}
-.newline{align-self:stretch;display:flex;align-items:center;gap:10px;color:var(--accent);margin:12px 0 8px}
-.newline::before,.newline::after{content:"";flex:1;height:1px;background:var(--accent);opacity:.35}
+.newline{align-self:stretch;display:flex;align-items:center;gap:12px;color:var(--accent);margin:18px 0 6px;font-size:12px}
+.newline::before,.newline::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent)}
 .row{display:flex;flex-direction:row;align-items:flex-end;gap:6px;width:fit-content;max-width:100%;margin:0;background:transparent;border:0;box-shadow:none}
 .row.fresh{opacity:0}
 .row.arrive{opacity:0;transform:translateY(8px)}
@@ -305,9 +314,6 @@ mark{background:rgba(214,154,132,.45);color:inherit;border-radius:4px;padding:0 
 .bars i.on{background:var(--accent);opacity:1}
 .vt{min-width:34px;text-align:right;color:var(--muted)}
 .vspeed{padding:3px 6px;border-radius:7px;border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:10px}
-#typing{display:block;max-height:0;opacity:0;overflow:hidden;padding:0;transform:scale(.72);transform-origin:left bottom;pointer-events:none;transition:opacity .4s var(--ease),transform .45s var(--ease),max-height .4s var(--ease)}
-#typing.show{max-height:72px;opacity:1;overflow:visible;padding:2px 0 10px;transform:none;animation:typingpop .48s cubic-bezier(.16,1.15,.3,1) both}
-#typing.pop{max-height:72px;overflow:visible;padding:2px 0 10px;opacity:1;animation:typingout .46s cubic-bezier(.2,.8,.2,1) forwards;transition:none}
 .tdots{position:relative;display:inline-flex;gap:5px;align-items:center;padding:12px 16px;border-radius:20px;border-bottom-left-radius:5px;background:var(--theirs);border:1px solid var(--line);box-shadow:var(--shadow)}
 .tdots::after{content:"";position:absolute;left:-4px;bottom:0;width:10px;height:10px;background:var(--theirs);border-left:1px solid var(--line);border-bottom:1px solid var(--line);border-bottom-left-radius:10px;clip-path:polygon(0 0,100% 100%,0 100%)}
 .tdots i{width:7px;height:7px;border-radius:50%;background:var(--muted);opacity:.4}
@@ -470,10 +476,17 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
 <!-- Sign-in -->
 <section id="lock" style="position:absolute;inset:0">
-  <div class="mark"><svg class="i" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg></div>
-  <h1>Notes</h1>
+  <svg id="lpArt" class="stringArt" viewBox="160 170 280 250" role="img" aria-label="Two people, drawn in silver string">
+    <g class="figL">
+      <circle class="head" cx="256" cy="218" r="30"/>
+      <path class="body" d="M200 408V320A50 50 0 0 1 300 320V392A10 10 0 0 1 280 392V320"/>
+    </g>
+    <g class="figR">
+      <circle class="head" cx="344" cy="218" r="30"/>
+      <path class="body" d="M400 408V320A50 50 0 0 0 300 320V392A10 10 0 0 0 320 392V320"/>
+    </g>
+  </svg>
   <p id="tagline" aria-live="polite"></p>
-  <p class="wholine" id="whoLine"></p>
   <button id="notYou" type="button">Not you? Switch side</button>
   <p class="sub">Who are you signing in as?</p>
   <div class="sides" role="group" aria-label="Sign in as">
@@ -563,7 +576,6 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     </div>
   </div>
   <div id="list" aria-live="polite"></div>
-  <div id="typing" aria-hidden="true"><span class="tdots"><i></i><i></i><i></i></span></div>
   <button id="toBottom" class="hidden"><svg class="i latest-bob" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>Latest</button>
   <div id="effectChip" class="effectchip"></div>
   <div id="replyBar" class="hidden" style="display:none;align-items:center;gap:10px;margin:0 12px;padding:8px 12px;border-radius:14px 14px 0 0;background:var(--surface);border:1px solid var(--line);border-bottom:0;font-size:13px">
@@ -695,7 +707,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   const sched = () => cacheSched;
   const SH = () => ({ theme: "warm", archiveDays: 0, ...cacheShared });
   const setSH = (p) => { cacheShared = { ...SH(), ...p }; void pushShared(); };
-  const DEF = () => ({ haptics: true, sound: true, autoBlur: true, status: "", tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", blurWords: [], shake: false });
+  const DEF = () => ({ haptics: true, vibrate: true, sound: true, autoBlur: true, status: "", tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", blurWords: [], shake: false });
   const S = (side) => ({ ...DEF(), ...(cacheMembers[side] || {}) });
   const setS = (side, p) => { cacheMembers[side] = { ...S(side), ...p }; if (side === me) void pushMember(); };
   const other = () => (me === "Lewis" ? "Agnes" : "Lewis");
@@ -764,6 +776,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function haptic(name) {
     if (!S(me || "Lewis").haptics) return;
     try { navigator.vibrate?.(PATTERNS[name] || [10]); } catch {}
+  }
+  function arrivalBuzz() {
+    if (S(me || "Lewis").vibrate === false) return;
+    try { navigator.vibrate?.(PATTERNS.recv); } catch {}
   }
 
   function burst(glyph, n) {
@@ -956,39 +972,6 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     catch { notice("Couldn't save that file", "Storage may be full.", { error: true }); return; }
     const m = addMessage({ kind, mid: id, ...extra });
     if (m) { clearBar(); render(); scrollBottom(); haptic("send"); }
-  }
-
-  function sendText() {
-    const input = $("input");
-    const text = input.value.trim();
-    if (!text) return;
-    if (editingId) {
-      const list = thread();
-      const m = list.find(x => x.id === editingId);
-      if (m) {
-        m.history = m.history || [];
-        m.history.push({ text: m.text, ts: m.editedAt || m.ts });
-        m.text = text; m.edited = true; m.editedAt = Date.now();
-        saveThread(list);
-      }
-      editingId = null;
-      clearBar();
-    } else {
-      const m = addMessage({ kind: "text", text, effect: effectChoice || "none" });
-      if (!m) return;
-      clearBar();
-      haptic("send");
-      if (effectChoice && effectChoice !== "none") pendingFx.add(m.id);
-      effectChoice = "none";
-      const chip = $("effectChip");
-      if (chip) chip.textContent = "";
-    }
-    input.value = "";
-    autosize();
-    store.set(KEY.typing, null);
-    saveDraft(true);
-    render();
-    scrollBottom();
   }
 
   function scheduleText(sendAt, effect) {
@@ -1656,7 +1639,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
           node = el("div", "day", item.day);
           node.dataset.key = item.key;
         } else if (item.key === "new") {
-          node = el("div", "newline mono", "New");
+          node = el("div", "newline mono", "New messages");
           node.dataset.key = item.key;
         } else if (item.key === "empty") {
           node = el("div", "empty");
@@ -1754,23 +1737,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const status = S(other()).status;
     p.textContent = zoneTime ? NAME[other()] + " · " + zoneTime + (status ? " · " + status : "") : "private";
     if (window.LeesHooks && LeesHooks.onTyping) LeesHooks.onTyping(!!typing, partnerEnergy || "mid", NAME[other()]);
-    const node = $("typing");
-    if (typing) {
-      const arriving = !node.classList.contains("show");
-      clearTimeout(node._pop);
-      node.classList.remove("pop");
-      node.classList.add("show");
-      node.dataset.energy = partnerEnergy || "mid";
-      ensureTypingLoop();
-      if (arriving && !reduceMotion()) {
-        const r = node.getBoundingClientRect();
-        burstAt((r.left || 36) + 24, (r.top || 80) + 16, "star", 12);
-      }
-    } else if (node.classList.contains("show")) {
-      const expired = partnerTypingUntil && Date.now() >= partnerTypingUntil;
-      if (expired) hideTypingPop();
-      else node.classList.remove("show");
-    }
+    if (typing) showTypingRow(partnerEnergy || "mid");
+    else hideTypingRow();
   }
 
   let bannerHide = 0;
@@ -1778,9 +1746,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (window.LeesHooks && LeesHooks.onUnread) LeesHooks.onUnread(unreadN, NAME[other()], view === "chat");
     if (!unlocked || view !== "chat") return;
     const n = unreadN;
-    if (n > 0 && !nearBottom()) {
-      notice(n + (n === 1 ? " unread message" : " unread messages"), "From " + NAME[other()] + ". Jump to the first one?", { action: { label: "Jump", run: jumpToUnread } });
-    } else if (prevUnread > 0 && n === 0) {
+    // One unread notice only: the banner and tray. The "All caught up" toast stays.
+    if (prevUnread > 0 && n === 0) {
       notice("All caught up", "You have read everything from " + NAME[other()] + ".");
     }
     prevUnread = n;
@@ -2369,6 +2336,18 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         btnRow("Open archive", "archive", () => openArchive())
       ]));
 
+      const tagBox = el("div", "");
+      const tagIn = el("input", "in plain");
+      tagIn.maxLength = 80;
+      let tagNow = "Do what you love, love what you do.";
+      try { tagNow = localStorage.getItem("pp-tagline") || tagNow; } catch (e) {}
+      tagIn.value = tagNow;
+      const tagBtn = el("button", "btn sm", "Save");
+      tagBtn.type = "button";
+      tagBtn.addEventListener("click", () => saveTagline(tagIn.value));
+      tagBox.append(tagIn, tagBtn);
+      body.appendChild(group("Lock-screen tagline", [tagBox]));
+
       const nameBox = el("div", "pgroup");
       nameBox.appendChild(el("div", "gh", "Names shown to us"));
       const lewisIn = el("input", "in plain");
@@ -2393,6 +2372,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         (() => { const b = el("button", "btn sm", "Choose photo"); b.addEventListener("click", () => { const f = el("input"); f.type = "file"; f.accept = "image/*"; f.addEventListener("change", () => { if (f.files[0]) uploadAvatar(f.files[0]); }); f.click(); }); return prow("Photo", "Shown on your home card", b); })(),
         prow("Time zone", "Shown to her as your local time", selectCtl(ZONES.concat(ZONES.includes(s.tz) ? [] : [s.tz]).map(z => [z, z]), s.tz, (v) => setS(me, { tz: v }))),
         prow("Haptics", "Gentle vibration on actions", toggle(s.haptics, (v) => { setS(me, { haptics: v }); if (v) haptic("press"); })),
+        prow("Vibration", "A short buzz when a message arrives", toggle(s.vibrate !== false, (v) => setS(me, { vibrate: v }))),
         prow("Sounds", "A soft chime on arrival", toggle(s.sound, (v) => setS(me, { sound: v }))),
         prow("Auto-blur sensitive words", "Blurs " + TERMS.length + " built-in words", toggle(s.autoBlur, (v) => { setS(me, { autoBlur: v }); render(); })),
         prow("Shake to lock", "Two firm shakes lock at once", toggle(s.shake, async (v) => {
@@ -2489,6 +2469,30 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     }, "home");
   }
 
+  function openMedia() {
+    openPanel("Media", "Photos and voice notes from your conversation", (body) => {
+      const items = thread()
+        .filter(m => !m.deleted && (m.kind === "image" || m.kind === "audio") && m.mid && !(m.deletedFor || []).includes(me))
+        .sort((a, b) => b.ts - a.ts);
+      if (!items.length) body.appendChild(el("p", "fp-desc", "Photos and voice notes shared in the chat will be kept here."));
+      for (const m of items) {
+        const it = el("div", "item");
+        if (m.kind === "image") {
+          const img = new Image(); img.alt = "Shared photo";
+          mediaURL(m.mid).then(u => { if (u) img.src = u; });
+          it.appendChild(img);
+        } else {
+          const au = document.createElement("audio"); au.controls = true;
+          mediaURL(m.mid).then(u => { if (u) au.src = u; });
+          it.appendChild(au);
+        }
+        const t = el("div", "txt");
+        t.textContent = (m.from === me ? "You" : NAME[m.from]) + " · " + fmtTime(m.ts);
+        it.appendChild(t);
+        body.appendChild(it);
+      }
+    });
+  }
   function openMoments() {
     openPanel("Moments", "Pinned by either of you", (body) => {
       const pins = thread().filter(m => m.moment && !m.deleted && !(m.deletedFor || []).includes(me)).sort((a, b) => a.ts - b.ts);
@@ -2687,7 +2691,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     out.type = "button";
     out.innerHTML = ic("logout", "sm") + "<span>Sign out</span>";
     out.addEventListener("click", () => confirmSignOut("this"));
-    bucket.append(main, out);
+    const outWrap = el("div", "signout-wrap");
+    outWrap.append(out);
+    bucket.append(main, outWrap);
     const tools = el("div", "fnbox");
     const grid = el("div", "tools2");
     const items = [
@@ -2695,6 +2701,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       ["calendar", "Calendar", () => openCalendar(), false],
       ["archive", "Archive", () => openArchive(), false],
       ["shield", shield ? "Shield on" : "Shield", () => { shield = !shield; haptic("press"); render(); }, shield],
+      ["image", "Media", () => openMedia(), false],
       ["book", "Journal", () => openJournal(), false]
     ];
     for (const [icon, label, fn, on] of items) {
@@ -2905,13 +2912,14 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   function applyRemembered() {
     $("lock").classList.toggle("remembered", !!chosen);
-    $("whoLine").textContent = chosen ? "Welcome back, " + NAME[chosen] : "";
     selectSide(chosen || null);
     typeTagline();
   }
 
   function typeTagline() {
-    const target = "Do what you love, what you do.";
+    const DEFAULT_TAGLINE = "Do what you love, love what you do.";
+    let target = DEFAULT_TAGLINE;
+    try { target = localStorage.getItem("pp-tagline") || DEFAULT_TAGLINE; } catch (e) { target = DEFAULT_TAGLINE; }
     const t = $("tagline");
     clearInterval(typeTagline.h);
     t.classList.remove("done");
@@ -3768,11 +3776,14 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (e.key === KEY.thread) {
       const fresh = visibleList().filter(m => !knownIds.has(m.id) && m.from !== me);
       const wasNear = nearBottom();
+      const dotsRect = fresh.length ? consumeTypingRow() : null;
       render();
       if (fresh.length) {
         chime();
-        haptic("recv");
-        for (const m of fresh) playEffect(m);
+        arrivalBuzz();
+        const runFx = () => { for (const m of fresh) playEffect(m); };
+        if (window.LeesHooks && LeesHooks.arrived) LeesHooks.arrived(dotsRect, fresh.map(m => m.id));
+        if (window.LeesHooks && LeesHooks.afterArrival) LeesHooks.afterArrival(runFx); else runFx();
         if (document.hidden) {
           document.title = "(" + unreadN + ") " + baseTitle;
           if ("Notification" in window && Notification.permission === "granted") new Notification(NAME[fresh[fresh.length - 1].from], { body: fresh.length > 1 ? fresh.length + " new messages" : "New message", tag: "notes" });
@@ -3880,6 +3891,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     }
     if (settings.data) {
       cacheShared = { theme: settings.data.theme || "warm", archiveDays: settings.data.archive_days || 0, appIcon: settings.data.app_icon || null, pinnedId: settings.data.pinned_message_id || null };
+      if (settings.data.tagline) { try { localStorage.setItem("pp-tagline", settings.data.tagline); } catch (e) {} }
       applySideLabels(settings.data.label_lewis, settings.data.label_agnes);
       if (cacheShared.appIcon) applyAppIcon(cacheShared.appIcon);
     }
@@ -3902,7 +3914,6 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const name = b.querySelector("b");
       if (name && NAME[b.dataset.side]) name.textContent = NAME[b.dataset.side];
     });
-    if (!unlocked && chosen) $("whoLine").textContent = "Welcome back, " + NAME[chosen];
   }
   async function loadPublicLabels() {
     const client = cloudClient();
@@ -3929,6 +3940,18 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (upd.error) { notice("Couldn't save names", upd.error.message, { error: true }); return; }
     applySideLabels(a, b);
     notice("Names saved");
+    render();
+  }
+  async function saveTagline(value) {
+    const v = String(value || "").trim();
+    if (!v || v.length > 80) { notice("Tagline needs 1 to 80 characters", "", { error: true }); return; }
+    try { localStorage.setItem("pp-tagline", v); } catch (e) {}
+    const client = cloudClient();
+    if (client && pairId) {
+      const upd = await client.from("pair_settings").update({ tagline: v }).eq("pair_id", pairId);
+      if (upd.error) { notice("Saved on this device only", "The shared tagline could not be saved: " + upd.error.message, { error: true }); return; }
+    }
+    notice("Tagline saved");
     render();
   }
   async function refreshUnread() {
@@ -4712,18 +4735,50 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     await addMedia("image", blob, { effect: glow ? "doodle-glow" : "doodle" });
   }
 
-  function hideTypingPop() {
-    const node = $("typing");
-    if (!node || !node.classList.contains("show")) return;
-    if (!reduceMotion()) {
-      const r = node.getBoundingClientRect();
-      burstAt((r.left || 36) + 24, (r.top || 80) + 16, "star", 10);
+  /* ---- Typing bubble, drawn inside the thread on the partner's side ---- */
+  const TYPING_GRACE_MS = 1600;
+  let typingGraceTimer = 0;
+  function typingRowEl() { return document.querySelector("#list .typing-row"); }
+  function showTypingRow(energy) {
+    const box = $("list");
+    clearTimeout(typingGraceTimer); typingGraceTimer = 0;
+    let row = typingRowEl();
+    const arriving = !row;
+    if (!row) {
+      const near = nearBottom();
+      row = el("div", "row theirs typing-row");
+      row.setAttribute("aria-hidden", "true");
+      const av = el("div", "avatar msgav " + String(other() || "").toLowerCase());
+      av.textContent = other() === "Lewis" ? "L" : "A";
+      const col = el("div", "bubblecol");
+      const dots = el("div", "tdots");
+      dots.innerHTML = "<i></i><i></i><i></i>";
+      col.appendChild(dots);
+      row.append(av, col);
+      box.appendChild(row);
+      if (near) box.scrollTop = box.scrollHeight;
     }
-    if (reduceMotion()) { node.classList.remove("show"); return; }
-    node.classList.add("pop");
-    node.classList.remove("show");
-    clearTimeout(node._pop);
-    node._pop = setTimeout(() => node.classList.remove("pop"), 500);
+    row.dataset.energy = energy || "mid";
+    ensureTypingLoop();
+    if (arriving && !reduceMotion()) {
+      const r = row.querySelector(".tdots").getBoundingClientRect();
+      burstAt((r.left || 36) + 24, (r.top || 80) + 16, "star", 12);
+    }
+  }
+  function removeTypingRow() { const row = typingRowEl(); if (row) row.remove(); }
+  function hideTypingRow() {
+    // Keep the row for a short grace period, so a message that arrives just after typing stops can morph out of it.
+    if (!typingRowEl() || typingGraceTimer) return;
+    typingGraceTimer = setTimeout(function () { typingGraceTimer = 0; removeTypingRow(); }, TYPING_GRACE_MS);
+  }
+  // Called when a partner message arrives. Returns the dots' rectangle, which the morph uses for its starting size.
+  function consumeTypingRow() {
+    clearTimeout(typingGraceTimer); typingGraceTimer = 0;
+    const row = typingRowEl();
+    if (!row) return null;
+    const rect = row.querySelector(".tdots").getBoundingClientRect();
+    row.remove();
+    return rect;
   }
   function placeLatest() {
     const foot = $("footer");
@@ -4734,9 +4789,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     btn.style.bottom = (foot.offsetHeight + replyH + 16) + "px";
   }
   function tickTyping(now) {
-    const node = $("typing");
-    if (!node || (!node.classList.contains("show") && !node.classList.contains("pop"))) { typingRAF = 0; return; }
-    if (!reduceMotion() && node.classList.contains("show")) {
+    const node = typingRowEl();
+    if (!node) { typingRAF = 0; return; }
+    if (!reduceMotion()) {
       const active = partnerTypingPulse && (now - partnerTypingPulse) < 900;
       const target = active ? energySeconds(partnerEnergy || "mid") : 2.55;
       typingEase += (target - typingEase) * 0.016;
@@ -5067,6 +5122,6 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   })();
 })();
 </script>
-<script src="/lees-patch.js" defer></script>
+<script src="/lees-patch.js?v=3" defer></script>
 </body>
 </html>

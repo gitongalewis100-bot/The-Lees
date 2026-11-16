@@ -92,6 +92,12 @@
     }
   }
   /* A long press fires fn; the click that follows the release is swallowed so the blur toggle does not also run. */
+  function bindNoSelect(btn) {
+    btn.style.webkitTouchCallout = "none";
+    btn.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+    btn.addEventListener("selectstart", function (e) { e.preventDefault(); });
+    btn.addEventListener("dragstart", function (e) { e.preventDefault(); });
+  }
   function bindLongPress(btn, fn) {
     var timer = null, fired = false;
     btn.addEventListener("pointerdown", function () {
@@ -106,6 +112,7 @@
     if (shield && !shield.dataset.lp) {
       shield.dataset.lp = "1";
       bindLongPress(shield, askGhost);
+      bindNoSelect(shield);
     }
     var top = document.querySelector("#home .topbar");
     if (top && shield && !$("homeShield")) {
@@ -115,6 +122,7 @@
       hs.innerHTML = '<svg class="i" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
       top.appendChild(hs);
       bindLongPress(hs, askGhost);
+      bindNoSelect(hs);
       hs.addEventListener("click", function () { shield.click(); });
       new MutationObserver(function () { hs.classList.toggle("shieldon", shield.classList.contains("shieldon")); })
         .observe(shield, { attributes: true, attributeFilter: ["class"] });
@@ -279,7 +287,7 @@
   }
 
   /* ---------- 5. Send: long press = schedule; boomerang when the side's last send was 5+ minutes ago ---------- */
-  function lastSentKey() { var side = store.get("pp-last", null); return "lp-lastsent-" + (side || "x"); }
+  function lastSentKey() { var side = store.get("pp-last-side", null); return "lp-lastsent-" + (side || "x"); }
   function boomerang() {
     var k = lastSentKey(), last = store.get(k, 0), now = Date.now();
     store.set(k, now);
@@ -296,23 +304,16 @@
     ], { duration: 1000, easing: "cubic-bezier(.3,.1,.3,1)" });
   }
   function bindSend() {
-    var send = $("send");
+    var send = $("send"), input = $("input");
     if (!send || send.dataset.lp) return;
     send.dataset.lp = "1";
-    var timer = null, fired = false;
-    send.addEventListener("pointerdown", function () {
-      fired = false; clearTimeout(timer);
-      timer = setTimeout(function () {
-        fired = true;
-        if (navigator.vibrate) navigator.vibrate(10);
-        var c = $("clock"); if (c) c.click();
-      }, 450);
-    });
-    ["pointerup", "pointerleave", "pointercancel"].forEach(function (t) { send.addEventListener(t, function () { clearTimeout(timer); }); });
-    send.addEventListener("click", function (e) {
-      if (fired) { fired = false; e.stopImmediatePropagation(); e.preventDefault(); return; }
-      var input = $("input");
-      if (input && input.value.trim()) boomerang();
+    send.addEventListener("click", function () {
+      var v = input && input.value.trim();
+      if (v) boomerang();
+    }, true);
+    if (input) input.addEventListener("keydown", function (e) {
+      var coarse = window.matchMedia && matchMedia("(pointer: coarse)").matches;
+      if (e.key === "Enter" && !e.shiftKey && !coarse && input.value.trim()) boomerang();
     }, true);
   }
 
@@ -363,23 +364,60 @@
     n.addEventListener("pointercancel", end);
   }
 
-  /* ---------- 8. Sign-in: processing, then tick and welcome ---------- */
-  hooks.signInStart = function () {
+  /* ---------- 8. Sign-in: wavy-character box for two turns, then the welcome screen ---------- */
+  /* Timing must match the CSS in lees-patch.css: 2 turns of 1500 ms each. */
+  var LOAD_TURN_MS = 1500, LOAD_TURNS = 2, LOAD_TOTAL_MS = LOAD_TURN_MS * LOAD_TURNS;
+  var loadTok = 0, loadDone = true, loadOk = null, loadEl = null;
+  function setArt(on) { var art = document.getElementById("lpArt"); if (art) art.classList.toggle("checking", !!on); }
+  function setBehind(on) { var lk = document.getElementById("lock"); if (lk) lk.classList.toggle("lp-behind", !!on); }
+  function clearLoader() { if (loadEl) { loadEl.remove(); loadEl = null; } }
+  function buildLoader() {
+    var o = document.createElement("div");
+    o.className = "lp-welcome lp-loader"; o.id = "lpWelcome";
+    var word = "Checking", html = "";
+    for (var i = 0; i < word.length; i++) {
+      html += "<span class='lp-ch' style='animation-delay:" + (i * 110) + "ms'>" + word.charAt(i) + "</span>";
+    }
+    o.innerHTML = "<div class='lp-box'><div class='lp-word' role='status' aria-label='Checking passphrase'>" + html + "</div></div>";
+    document.body.appendChild(o);
+    return o;
+  }
+  function showWelcome(name) {
+    clearLoader();
+    setBehind(false);
     var o = document.createElement("div");
     o.className = "lp-welcome"; o.id = "lpWelcome";
-    o.innerHTML = "<div class='lp-stack'><div class='lp-spin' role='status' aria-label='Checking passphrase'></div></div>";
-    document.body.appendChild(o);
-  };
-  hooks.signInOk = function (name) {
-    var o = $("lpWelcome");
-    if (!o) { hooks.signInStart(); o = $("lpWelcome"); }
     o.innerHTML = "<div class='lp-stack'><div class='lp-tick'><svg viewBox='0 0 24 24'><path d='M5 12.5l4.5 4.5L19 7.5'/></svg></div><h2></h2></div>";
     o.querySelector("h2").textContent = "Welcome, " + name;
+    document.body.appendChild(o);
     confetti();
-    setTimeout(function () { o.remove(); }, 1300);
+    setTimeout(function () {
+      o.classList.add("lp-out");
+      setTimeout(function () { o.remove(); }, 420);
+    }, 2000);
+  }
+  hooks.signInStart = function () {
+    loadTok++;
+    var tok = loadTok;
+    loadDone = false; loadOk = null;
+    setArt(true); setBehind(true);
+    clearLoader();
+    loadEl = buildLoader();
+    setTimeout(function () {
+      if (tok !== loadTok) return;
+      loadDone = true;
+      if (loadOk) { var f = loadOk; loadOk = null; f(); }
+    }, LOAD_TOTAL_MS);
+  };
+  hooks.signInOk = function (name) {
+    var tok = loadTok;
+    var run = function () { if (tok !== loadTok) return; setArt(false); showWelcome(name); };
+    if (!loadEl || loadDone) { run(); return; }
+    loadOk = run;
   };
   hooks.signInFail = function (msg) {
-    var o = $("lpWelcome"); if (o) o.remove();
+    loadTok++; loadDone = true; loadOk = null;
+    setArt(false); setBehind(false); clearLoader();
     toast("Couldn't sign in", msg || "Check your passphrase.");
   };
 
@@ -504,28 +542,105 @@
     setTimeout(function () { d.remove(); }, 300);
   }
 
-  /* typing bubble zooms, dots fade, the same shape reshapes into the arrived message, then it settles */
-  function morph(row) {
-    if (reduceMq && reduceMq.matches) return;
-    var box = row.querySelector(".bubble") || row.querySelector(".msg") || row;
-    var from = st.typingRect, to = box.getBoundingClientRect();
-    if (!from || !to.width || !from.width) return;
-    box.classList.add("lp-pending");
-    var c = document.createElement("div");
-    c.className = "lp-morph";
-    c.innerHTML = '<span class="lp-mini"><i></i><i></i><i></i></span>';
-    document.body.appendChild(c);
-    var fr = { left: from.left + "px", top: from.top + "px", width: from.width + "px", height: from.height + "px", transform: "scale(1)", offset: 0 };
-    var zoom = { left: from.left + "px", top: from.top + "px", width: from.width + "px", height: from.height + "px", transform: "scale(1.14)", offset: 0.32 };
-    var land = { left: to.left + "px", top: to.top + "px", width: to.width + "px", height: to.height + "px", transform: "scale(1)", offset: 1 };
-    c.animate([fr, zoom, land], { duration: 760, easing: "cubic-bezier(.2,.9,.25,1)", fill: "forwards" });
-    c.querySelectorAll("i").forEach(function (i) { i.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 260, fill: "forwards" }); });
-    setTimeout(function () {
-      c.remove();
-      box.classList.remove("lp-pending");
-      box.classList.add("lp-settle");
-      setTimeout(function () { box.classList.remove("lp-settle"); }, 620);
-    }, 780);
+  /* ---------- 10. Morph: the typing bubble becomes the arrived message, in its place ----------
+     The message's own bubble starts at the dots' size, zooms, reshapes to its natural size,
+     settles, then its words wave in. Timings follow the approved mock-up. */
+  var morphQueue = [], morphActive = false, afterFx = [];
+  function runAfterFx() { var q = afterFx; afterFx = []; for (var i = 0; i < q.length; i++) q[i](); }
+  function nextMorph() {
+    if (!morphQueue.length) { morphActive = false; runAfterFx(); return; }
+    morphActive = true;
+    var job = morphQueue.shift();
+    morphOne(job, nextMorph);
+  }
+  hooks.arrived = function (dotsRect, ids) {
+    if (!ids || !ids.length || !dotsRect) return;
+    for (var i = 0; i < ids.length; i++) morphQueue.push({ id: ids[i], from: dotsRect });
+    if (!morphActive) nextMorph();
+  };
+  hooks.afterArrival = function (fn) { if (morphActive) afterFx.push(fn); else fn(); };
+
+  function morphOne(job, done) {
+    var card = document.querySelector("#list .msg[data-id='" + job.id + "']");
+    var txt = card && card.querySelector(".txt");
+    var reduced = reduceMq && reduceMq.matches;
+    if (!card || !txt || !st.inChat || reduced || !job.from || !job.from.width) { done(); return; }
+    var wasNear = nearBottom();
+    var W = job.from.width, H = job.from.height;
+    var plain = (txt.childNodes.length === 1 && txt.firstChild.nodeType === 3) ? txt.firstChild.nodeValue : null;
+    var timers = [], ended = false, waved = false, dots = null;
+
+    function cleanup() {
+      card.classList.remove("lp-morphing", "lp-zoom", "lp-reshape", "lp-showing", "lp-msettle");
+      card.style.width = ""; card.style.height = "";
+      if (dots) { dots.remove(); dots = null; }
+      if (waved && plain !== null) txt.textContent = plain;
+      waved = false;
+    }
+    function end() {
+      if (ended) return;
+      ended = true;
+      timers.forEach(clearTimeout); timers = [];
+      cleanup();
+      if (wasNear && st.inChat) { var l = listEl(); if (l) l.scrollTop = l.scrollHeight; }
+      done();
+    }
+    function at(ms, fn) {
+      timers.push(setTimeout(function () {
+        if (ended) return;
+        if (!st.inChat) { end(); return; }   // the chat was closed mid-morph: show the final state
+        fn();
+      }, ms));
+    }
+
+    // 1. the dots' size; the typing bubble zooms to 1.14 and its dots fade (240 ms)
+    card.classList.add("lp-morphing");
+    card.style.width = W + "px"; card.style.height = H + "px";
+    dots = document.createElement("span"); dots.className = "lp-mdots";
+    dots.innerHTML = "<i></i><i></i><i></i>";
+    card.appendChild(dots);
+    card.getBoundingClientRect();
+    card.classList.add("lp-zoom");
+    dots.classList.add("lp-dfade");
+
+    // 2. measure the natural size; reshape from the dots' size to it (470 ms); text fades in
+    at(240, function () {
+      card.style.width = ""; card.style.height = "";
+      var toW = card.offsetWidth, toH = card.offsetHeight;
+      card.classList.remove("lp-zoom");
+      if (toW && toH) {                       // a zero measurement (hidden or not laid out) skips the reshape
+        card.style.width = W + "px"; card.style.height = H + "px";
+        card.getBoundingClientRect();
+        card.classList.add("lp-reshape");
+        card.style.width = toW + "px"; card.style.height = toH + "px";
+      }
+      card.classList.add("lp-showing");
+      timers.push(setTimeout(function () { if (dots && !ended) { dots.remove(); dots = null; } }, 200));
+    });
+
+    // 3. release to natural layout, settle bounce (600 ms)
+    at(710, function () {
+      card.classList.remove("lp-reshape", "lp-morphing", "lp-zoom");
+      card.style.width = ""; card.style.height = "";
+      card.classList.add("lp-msettle");
+    });
+
+    // 4. words wave in one by one (only for plain text; rich text skips the wave)
+    at(1310, function () {
+      card.classList.remove("lp-msettle");
+      if (plain === null || !plain.trim()) { end(); return; }
+      var parts = plain.split(/(\s+)/), i = 0;
+      txt.textContent = "";
+      for (var k = 0; k < parts.length; k++) {
+        var part = parts[k];
+        if (/^\s+$/.test(part)) { txt.appendChild(document.createTextNode(part)); continue; }
+        var s = document.createElement("span");
+        s.className = "lp-mw"; s.style.setProperty("--i", String(i++)); s.textContent = part;
+        txt.appendChild(s);
+      }
+      waved = true;
+      timers.push(setTimeout(end, 80 + i * 70 + 950));
+    });
   }
 
   /* detect partner messages that are new since the last check */
@@ -536,12 +651,7 @@
       var id = c.getAttribute("data-id");
       if (!seenIds[id]) { seenIds[id] = true; if (ready) fresh.push(c); }
     });
-    fresh.forEach(function (c) {
-      var row = c.closest(".row");
-      if (!row || !row.classList.contains("theirs") || !st.inChat) return;
-      if (st.unread > 0) ensureDivider(row);
-      if (Date.now() - st.lastTypingAt < 8000) morph(row);
-    });
+    // The morph is started by hooks.arrived, which the app calls from its arrival handler.
   }
 
   /* called by the app's own typing and unread code (see the three hooks in index.html) */
@@ -549,8 +659,6 @@
     if (name) st.name = name;
     if (on) {
       st.lastTypingAt = Date.now();
-      var t = $("typing");
-      if (t) st.typingRect = t.getBoundingClientRect();
       if (!st.typing) st.bannerOff = false;
     }
     st.typing = !!on;

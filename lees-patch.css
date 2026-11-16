@@ -119,3 +119,42 @@ html body #list .msg,html body #list .msg *{-webkit-user-select:none;user-select
 @media (prefers-reduced-motion:reduce){
   .lp-plus,.lp-conf,.lp-spin{animation:none!important}
 }
+
+/* ---- Part 2.3: sign-in loading box and welcome ---- */
+.lp-loader{background:color-mix(in srgb,var(--bg) 55%,transparent)}
+.lp-box{padding:26px 34px;border-radius:26px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);animation:lpGrow 3s cubic-bezier(.4,0,.2,1) both}
+.lp-word{font:500 24px var(--serif);color:var(--accent);display:flex;gap:1px;letter-spacing:.02em}
+.lp-ch{display:inline-block;animation:lpWave 1.5s ease-in-out 2 both}
+@keyframes lpWave{0%,100%{transform:translateY(0)}35%{transform:translateY(-8px)}65%{transform:translateY(3px)}}
+@keyframes lpGrow{0%{transform:scale(.72);opacity:.2}100%{transform:scale(1.22);opacity:1}}
+#lock{transition:filter .6s ease}
+#lock.lp-behind{filter:blur(9px)}
+.lp-welcome.lp-out{opacity:0;transition:opacity .42s ease}
+.lp-welcome .lp-stack{animation:lpRise .65s cubic-bezier(.2,.9,.25,1) both}
+@keyframes lpRise{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
+.lp-welcome h2{letter-spacing:.01em}
+
+/* ---- Part 2.4: shield does not select text or open the copy menu ---- */
+#shieldBtn,#homeShield{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+
+@media (prefers-reduced-motion: reduce){
+  .lp-box,.lp-ch,.lp-welcome .lp-stack{animation:none!important}
+  #lock{transition:none}
+}
+
+/* ---- Part 1: typing bubble morph, in place ---- */
+.msg.lp-morphing{position:relative;overflow:hidden;transform-origin:left center;will-change:transform,width,height}
+.msg.lp-morphing > :not(.lp-mdots){opacity:0;transition:opacity .3s ease .16s}
+.msg.lp-morphing.lp-showing > :not(.lp-mdots){opacity:1}
+.msg.lp-morphing .lp-mdots{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:5px;transition:opacity .18s ease}
+.msg.lp-morphing .lp-mdots i{width:7px;height:7px;border-radius:50%;background:var(--muted);display:block;animation:bob 1s infinite}
+.msg.lp-morphing .lp-mdots i:nth-child(2){animation-delay:.15s}
+.msg.lp-morphing .lp-mdots i:nth-child(3){animation-delay:.3s}
+.msg.lp-morphing .lp-mdots.lp-dfade{opacity:0}
+.msg.lp-morphing.lp-zoom{transform:scale(1.14);transition:transform .24s cubic-bezier(.3,1.2,.5,1)}
+.msg.lp-morphing.lp-reshape{transition:width .46s cubic-bezier(.2,.9,.25,1),height .46s cubic-bezier(.2,.9,.25,1),transform .46s cubic-bezier(.2,.9,.25,1)}
+.msg.lp-msettle{animation:lpMSettle .6s cubic-bezier(.2,1.4,.4,1)}
+@keyframes lpMSettle{0%{transform:scale(.97)}40%{transform:scale(1.035) translateX(-1.5px)}70%{transform:scale(.99) translateX(1.5px)}100%{transform:none}}
+.lp-mw{display:inline-block;white-space:nowrap;animation:lpMWave .95s ease-in-out both;animation-delay:calc(var(--i) * 70ms + 80ms)}
+@keyframes lpMWave{0%,100%{transform:translateY(0)}35%{transform:translateY(-4px)}65%{transform:translateY(2px)}}
+@media (prefers-reduced-motion: reduce){.msg.lp-morphing,.msg.lp-msettle,.lp-mw{animation:none!important;transition:none!important}}
