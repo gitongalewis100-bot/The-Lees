@@ -12,6 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="The Lees">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="icon" href="/icon-192.png">
+<link rel="stylesheet" href="/lees-patch.css">
 <style>
 :root{
   --bg:#f8f4ee;--surface:#fffdf9;--ink:#2a2420;--muted:#8c8179;--line:#ebe2d7;--line-strong:#dcd0c2;
@@ -821,6 +822,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function chime() {
     try {
       if (!audioCtx || !S(me || "Lewis").sound) return;
+      if (window.LeesHooks && LeesHooks.playArrival) { LeesHooks.playArrival(view === "chat" ? "inChat" : "outChat"); return; }
       const t = audioCtx.currentTime;
       const o = audioCtx.createOscillator(), g = audioCtx.createGain();
       o.type = "sine";
@@ -858,7 +860,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const c = ensureAudio(), s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
       s.buffer = noiseBuffer();
       f.type = "bandpass"; f.frequency.value = 2200 + Math.random() * 1200; f.Q.value = 1.2;
-      g.gain.value = Math.min(0.035, Math.max(0.008, speed * 0.0015));
+      g.gain.value = Math.min(0.012, Math.max(0.003, speed * 0.0006));
       s.connect(f).connect(g).connect(c.destination);
       s.start();
       s.stop(c.currentTime + 0.075);
@@ -1084,6 +1086,21 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     haptic("error");
     notice("Deleted for both", "The message now shows as deleted on both sides.");
   }
+
+  /* Clear conversation: called by the sheet in lees-patch.js. Scope "me" hides for this side; "both" uses deleteForEveryone. */
+  window.LeesHooks = window.LeesHooks || {};
+  LeesHooks.openChat = function () { openChat(false); };
+  LeesHooks.clearConversation = function (o) {
+    const day = (ts) => { const d = new Date(ts || 0); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+    const ids = thread().filter(m => !m.deleted && (o.all || (day(m.ts) >= o.from && day(m.ts) <= o.to))).map(m => m.id);
+    if (!ids.length) { notice("Nothing to clear", "No messages in that range."); return; }
+    if (o.scope === "both") { ids.forEach(id => deleteForEveryone(id)); return; }
+    const fresh = thread();
+    fresh.forEach(m => { if (ids.includes(m.id)) { m.deletedFor = (m.deletedFor || []).filter(s => s !== me); m.deletedFor.push(me); } });
+    saveThread(fresh);
+    render();
+    notice("Cleared from your view", ids.length + (ids.length === 1 ? " message" : " messages") + " hidden. The other side still has them.");
+  };
 
   /* ================= Notes (shared journal) ================= */
   function notesFrom(side) { return notesAll().filter(n => n.from === side).sort((a, b) => b.ts - a.ts); }
@@ -1347,7 +1364,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.strokeStyle = "rgba(0,0,0,1)";
-      ctx.lineWidth = 16 * dpr;
+      ctx.lineWidth = 40 * dpr;
       ctx.beginPath();
       ctx.moveTo(a.x * dpr, a.y * dpr);
       ctx.lineTo(b.x * dpr, b.y * dpr);
@@ -1736,6 +1753,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     try { zoneTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZone: S(other()).tz }); } catch {}
     const status = S(other()).status;
     p.textContent = zoneTime ? NAME[other()] + " · " + zoneTime + (status ? " · " + status : "") : "private";
+    if (window.LeesHooks && LeesHooks.onTyping) LeesHooks.onTyping(!!typing, partnerEnergy || "mid", NAME[other()]);
     const node = $("typing");
     if (typing) {
       const arriving = !node.classList.contains("show");
@@ -1757,6 +1775,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   let bannerHide = 0;
   function renderBanner() {
+    if (window.LeesHooks && LeesHooks.onUnread) LeesHooks.onUnread(unreadN, NAME[other()], view === "chat");
     if (!unlocked || view !== "chat") return;
     const n = unreadN;
     if (n > 0 && !nearBottom()) {
@@ -4776,8 +4795,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const client = cloudClient();
     if (!client) return;
     const password = $("pass").value;
+    if (window.LeesHooks && LeesHooks.signInStart) LeesHooks.signInStart();
     const res = await client.auth.signInWithPassword({ email: SIDE_EMAIL[chosen], password });
     if (res.error) {
+      if (window.LeesHooks && LeesHooks.signInFail) LeesHooks.signInFail("That isn't right. Check your passphrase.");
       const fails = (store.get(KEY.fail, {})[chosen] || 0) + 1;
       const all = store.get(KEY.fail, {});
       all[chosen] = fails;
@@ -4792,6 +4813,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const all = store.get(KEY.fail, {});
     all[chosen] = 0;
     store.set(KEY.fail, all);
+    if (window.LeesHooks && LeesHooks.signInOk) LeesHooks.signInOk(NAME[chosen]);
     $("lockErr").textContent = "";
     $("pass").value = "";
     rememberSide(chosen);
@@ -5045,5 +5067,6 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   })();
 })();
 </script>
+<script src="/lees-patch.js" defer></script>
 </body>
 </html>
