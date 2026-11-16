@@ -174,11 +174,30 @@
     blip:    { name: "Soft blip",      type: "square",   f0: 740,  f1: 740,  d: 0.07, v: 0.35 }
   };
   var actx = null;
-  function playPreset(key, vol) {
+  function unlockAudio() {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === "suspended") actx.resume();
+      var buf = actx.createBuffer(1, 1, 22050);
+      var src = actx.createBufferSource();
+      src.buffer = buf;
+      src.connect(actx.destination);
+      src.start(0);
+      if (actx.state === "running") document.removeEventListener("pointerdown", unlockAudio, true);
+    } catch (e) {}
+  }
+  document.addEventListener("pointerdown", unlockAudio, true);
+  function playPreset(key, vol, tried) {
     var P = PRESETS[key];
     if (!P) return;
     try {
       actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === "suspended") {
+        var resume = actx.resume();
+        if (!tried && resume && resume.then) resume.then(function () { playPreset(key, vol, true); });
+        else if (!tried) setTimeout(function () { playPreset(key, vol, true); }, 40);
+        return;
+      }
       var t = actx.currentTime;
       var g = actx.createGain();
       g.connect(actx.destination);
@@ -272,7 +291,7 @@
     plus.type = "button"; plus.className = "lp-plus"; plus.setAttribute("aria-label", "More options"); plus.setAttribute("aria-expanded", "false");
     plus.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>';
     var pop = document.createElement("div"); pop.className = "lp-pop lp-closed";
-    ["attach", "mic", "clock"].forEach(function (id) { var b = $(id); if (b) pop.appendChild(b); });
+    ["attach", "mic"].forEach(function (id) { var b = $(id); if (b) pop.appendChild(b); });
     footer.insertBefore(plus, footer.firstChild);
     footer.appendChild(pop);
     plus.addEventListener("click", function () {
@@ -293,41 +312,50 @@
     store.set(k, now);
     if (!last || now - last < 5 * 60 * 1000) return;
     var send = $("send"), svg = send && send.querySelector("svg");
-    if (!svg) return;
-    if (reduceMq && reduceMq.matches) return;
+    if (!svg || (reduceMq && reduceMq.matches)) return;
     var r = svg.getBoundingClientRect();
     var fly = svg.cloneNode(true);
-    fly.setAttribute("class", "lp-boom");
+    fly.setAttribute("class", "i lp-boom");
+    var w = Math.max(r.width, 26), h = Math.max(r.height, 26);
     fly.style.position = "fixed";
-    fly.style.left = r.left + "px";
-    fly.style.top = r.top + "px";
-    fly.style.width = r.width + "px";
-    fly.style.height = r.height + "px";
-    fly.style.zIndex = "80";
+    fly.style.left = (r.left + r.width / 2 - w / 2) + "px";
+    fly.style.top = (r.top + r.height / 2 - h / 2) + "px";
+    fly.style.width = w + "px";
+    fly.style.height = h + "px";
+    fly.style.zIndex = "90";
     fly.style.pointerEvents = "none";
-    fly.style.color = "inherit";
+    fly.style.color = getComputedStyle(send).color || "currentColor";
+    fly.style.transformOrigin = "50% 50%";
     document.body.appendChild(fly);
     svg.style.opacity = "0";
-    var anim = fly.animate([
-      { offset: 0, transform: "translate(0,0) rotate(-18deg)" },
-      { offset: 0.32, transform: "translate(78px,-96px) rotate(-8deg)" },
-      { offset: 0.5, transform: "translate(36px,-128px) rotate(168deg)" },
-      { offset: 0.74, transform: "translate(-86px,-36px) rotate(188deg)" },
-      { offset: 1, transform: "translate(0,0) rotate(342deg)" }
-    ], { duration: 1100, easing: "cubic-bezier(.3,.05,.25,1)" });
+    var rx = 108, ry = 132, frames = [], n = 36, i;
+    for (i = 0; i <= n; i++) {
+      var t = i / n;
+      var theta = Math.PI / 2 - t * Math.PI * 2;
+      var x = rx * Math.cos(theta);
+      var y = ry * (Math.sin(theta) - 1);
+      var theta2 = Math.PI / 2 - Math.min(1, t + 0.03) * Math.PI * 2;
+      var x2 = rx * Math.cos(theta2);
+      var y2 = ry * (Math.sin(theta2) - 1);
+      var ang = Math.atan2(y2 - y, x2 - x) * 180 / Math.PI;
+      frames.push({ offset: t, transform: "translate(" + x.toFixed(1) + "px," + y.toFixed(1) + "px) rotate(" + (ang + 45).toFixed(1) + "deg)" });
+    }
+    var anim = fly.animate(frames, { duration: 1200, easing: "linear" });
     anim.onfinish = function () { fly.remove(); svg.style.opacity = ""; };
+  }
+  function sendingNow() {
+    var input = $("input");
+    var held = document.getElementById("heldVoice");
+    return !!((input && input.value.trim()) || (held && !held.classList.contains("hidden")));
   }
   function bindSend() {
     var send = $("send"), input = $("input");
     if (!send || send.dataset.lp) return;
     send.dataset.lp = "1";
-    send.addEventListener("click", function () {
-      var v = input && input.value.trim();
-      if (v) boomerang();
-    }, true);
+    send.addEventListener("click", function () { if (sendingNow()) boomerang(); }, true);
     if (input) input.addEventListener("keydown", function (e) {
       var coarse = window.matchMedia && matchMedia("(pointer: coarse)").matches;
-      if (e.key === "Enter" && !e.shiftKey && !coarse && input.value.trim()) boomerang();
+      if (e.key === "Enter" && !e.shiftKey && !coarse && sendingNow()) boomerang();
     }, true);
   }
 
@@ -385,14 +413,21 @@
   function setArt(on) { var art = document.getElementById("lpArt"); if (art) art.classList.toggle("checking", !!on); }
   function setBehind(on) { var lk = document.getElementById("lock"); if (lk) lk.classList.toggle("lp-behind", !!on); }
   function clearLoader() { if (loadEl) { loadEl.remove(); loadEl = null; } }
+  function escCh(s) {
+    return String(s).replace(/[&<>]/g, function (c) { return c === "&" ? "&" : c === "<" ? "<" : ">"; });
+  }
   function buildLoader() {
     var o = document.createElement("div");
     o.className = "lp-welcome lp-loader"; o.id = "lpWelcome";
-    var word = "Checking", html = "";
-    for (var i = 0; i < word.length; i++) {
-      html += "<span class='lp-ch' style='animation-delay:" + (i * 110) + "ms'>" + word.charAt(i) + "</span>";
+    var raw = "";
+    var pass = document.getElementById("pass");
+    if (pass && pass.value) raw = pass.value.slice(0, 32);
+    if (!raw) raw = "Open";
+    var html = "";
+    for (var i = 0; i < raw.length; i++) {
+      html += "<span class='lp-ch' style='--i:" + i + ";animation-delay:" + (i * 28) + "ms'>" + escCh(raw.charAt(i)) + "</span>";
     }
-    o.innerHTML = "<div class='lp-box'><div class='lp-word' role='status' aria-label='Checking passphrase'>" + html + "</div></div>";
+    o.innerHTML = "<div class='lp-box'><div class='lp-word lp-zoom' role='status' aria-label='Checking passphrase'>" + html + "</div></div>";
     document.body.appendChild(o);
     return o;
   }
@@ -410,18 +445,23 @@
       setTimeout(function () { o.remove(); }, 420);
     }, 2000);
   }
+  var loadStarted = 0;
   hooks.signInStart = function () {
     loadTok++;
     var tok = loadTok;
-    loadDone = false; loadOk = null;
+    loadDone = false; loadOk = null; loadStarted = Date.now();
     setArt(true); setBehind(true);
     clearLoader();
     loadEl = buildLoader();
+    var word = loadEl.querySelector(".lp-word");
+    setTimeout(function () { if (tok === loadTok && word) word.classList.add("lp-wave"); }, 180);
+    setTimeout(function () { if (tok === loadTok && word) word.classList.add("lp-join"); }, 460);
     setTimeout(function () {
       if (tok !== loadTok) return;
+      if (word) word.classList.add("lp-jerk");
       loadDone = true;
       if (loadOk) { var f = loadOk; loadOk = null; f(); }
-    }, LOAD_TOTAL_MS);
+    }, 700);
   };
   hooks.signInOk = function (name) {
     var tok = loadTok;
@@ -482,9 +522,13 @@
     banner.addEventListener("click", function () { if (window.LeesHooks && LeesHooks.openChat) LeesHooks.openChat(); });
     bindSwipe(banner, function () { st.bannerOff = true; syncBanner(); });
   }
+  function signedIn() {
+    var lock = document.getElementById("lock");
+    return !(lock && !lock.classList.contains("hidden"));
+  }
   function syncBanner() {
     if (!banner) return;
-    var show = !st.bannerOff && (st.typing || st.unread > 0) && !st.inChat;
+    var show = signedIn() && !st.bannerOff && (st.typing || st.unread > 0) && !st.inChat;
     banner.classList.toggle("lp-show", show);
     var name = st.name || "";
     banner.querySelector(".lp-bn-name").textContent = name;
@@ -534,13 +578,20 @@
       }, true);
       new MutationObserver(syncTray).observe(b, { attributes: true, attributeFilter: ["class"] });
     }
+    var l = listEl();
+    if (l && !l.dataset.lpScroll) {
+      l.dataset.lpScroll = "1";
+      l.addEventListener("scroll", function () { if (nearBottom()) st.trayOff = false; syncTray(); }, { passive: true });
+    }
     syncTray();
   }
   function syncTray() {
     if (!tray) return;
-    var showTyping = !!(st.typing && st.inChat && !nearBottom());
-    var showUnread = !!(st.unread > 0 && st.inChat);
-    var on = (showTyping || showUnread) && !st.trayOff;
+    var away = !!(st.inChat && signedIn() && !nearBottom());
+    var showTyping = !!(st.typing && away);
+    var showUnread = !!(st.unread > 0 && st.inChat && signedIn());
+    var reading = away && !showTyping && !showUnread;
+    var on = (showTyping || showUnread || reading) && !st.trayOff;
     tray.classList.toggle("hidden", !on);
     var glow = document.getElementById("lpGlow");
     if (glow) glow.classList.toggle("show", !!(showUnread && !st.trayOff));
@@ -548,13 +599,13 @@
     if (!on) return;
     trayLabel.textContent = "";
     if (showUnread) trayLabel.textContent = receipt(st.unread);
-    else {
+    else if (showTyping) {
       var mini = document.createElement("span");
       mini.className = "lp-mini";
       mini.innerHTML = "<i></i><i></i><i></i>";
       trayLabel.appendChild(mini);
       trayLabel.appendChild(document.createTextNode((st.name || "They") + " is typing"));
-    }
+    } else trayLabel.textContent = "Earlier in the conversation";
     trayCount.textContent = st.unread;
     trayCount.classList.toggle("hidden", !showUnread);
   }
@@ -733,31 +784,29 @@
     syncTray(); syncBanner();
   }
 
-  function bindScene() {
+  function bindMotion() {
     var art = document.getElementById("lpArt");
-    var menu = document.querySelector(".scene-menu");
-    if (!art || !menu) return;
-    var saved = "watch";
-    try { saved = localStorage.getItem("lp-night-scene") || "watch"; } catch (e) {}
-    if (saved !== "watch" && saved !== "point" && saved !== "sit") saved = "watch";
-    function apply(id) {
-      art.setAttribute("data-scene", id);
-      menu.querySelectorAll("button").forEach(function (b) {
-        b.setAttribute("aria-pressed", b.getAttribute("data-scene") === id ? "true" : "false");
-      });
-      try { localStorage.setItem("lp-night-scene", id); } catch (e) {}
-    }
-    apply(saved);
-    menu.addEventListener("click", function (e) {
-      var b = e.target.closest("button[data-scene]");
-      if (b) apply(b.getAttribute("data-scene"));
+    if (!art) return;
+    var moves = ["lean", "point", "nod", "sway", "reach", "close", "hands"];
+    var i = 0;
+    art.querySelectorAll(".star").forEach(function (star, n) {
+      star.style.animationDelay = (Math.random() * 2.4) + "s";
+      star.style.animationDuration = (1.8 + (n % 5) * 0.45) + "s";
     });
+    function step() {
+      if (reduceMq && reduceMq.matches) { art.setAttribute("data-move", "lean"); return; }
+      i = (i + 1 + Math.floor(Math.random() * (moves.length - 1))) % moves.length;
+      art.setAttribute("data-move", moves[i]);
+      art.style.setProperty("--move-ms", (2200 + Math.random() * 1800).toFixed(0) + "ms");
+    }
+    step();
+    setInterval(step, 3200);
   }
 
   /* ---------- init ---------- */
   function init() {
     if (store.get("lp-ghost", false)) document.body.classList.add("ghost");
-    bindScene();
+    bindMotion();
     bindShields();
     buildComposer();
     bindSend();

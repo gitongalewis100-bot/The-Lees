@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="The Lees">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="icon" href="/icon-192.png">
-<link rel="stylesheet" href="/lees-patch.css?v=4">
+<link rel="stylesheet" href="/lees-patch.css?v=5">
 <style>
 :root{
   --bg:#f8f4ee;--surface:#fffdf9;--ink:#2a2420;--muted:#8c8179;--line:#ebe2d7;--line-strong:#dcd0c2;
@@ -56,34 +56,50 @@ button{cursor:pointer;background:none;border:0;padding:0}
 
 /* ---------- Sign-in ---------- */
 #lock{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 24px;gap:10px;overflow-y:auto;animation:rise .5s var(--ease) both}
-.stringArt{width:min(300px,86vw);height:auto;aspect-ratio:360/250;overflow:hidden;border-radius:28px;transition:filter .35s ease}
-.nightScene .cam{transform-box:view-box;transform-origin:180px 125px;animation:skyPan 18s ease-in-out infinite}
-.nightScene .stars circle{transform-box:fill-box;transform-origin:center;animation:twinkle 3.4s ease-in-out infinite}
-.nightScene .stars circle:nth-child(3n){animation-delay:.6s}
-.nightScene .stars circle:nth-child(3n+1){animation-delay:1.3s}
-.nightScene .pose{display:none}
-.nightScene[data-scene="watch"] .pose-watch,
-.nightScene[data-scene="point"] .pose-point,
-.nightScene[data-scene="sit"] .pose-sit{display:block}
-.nightScene .armR{transform-box:fill-box;transform-origin:0 80%;animation:pointSky 5.5s ease-in-out infinite}
-.nightScene .armL{transform-box:fill-box;transform-origin:100% 80%;animation:leanSky 7s ease-in-out infinite}
-.nightScene .sway{transform-box:fill-box;transform-origin:center bottom;animation:swayBody 8s ease-in-out infinite}
-@keyframes skyPan{0%,100%{transform:translate(0,0) scale(1)}32%{transform:translate(-42px,-16px) scale(1.08)}68%{transform:translate(16px,-4px) scale(1.04)}}
-@keyframes twinkle{0%,100%{opacity:.35}50%{opacity:1}}
-@keyframes pointSky{0%,100%{transform:rotate(0)}28%{transform:rotate(-16deg)}58%{transform:rotate(10deg)}82%{transform:rotate(-6deg)}}
-@keyframes leanSky{0%,100%{transform:rotate(0)}40%{transform:rotate(12deg)}72%{transform:rotate(-9deg)}}
-@keyframes swayBody{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
-@media (prefers-reduced-motion: reduce){.nightScene .cam,.nightScene .armR,.nightScene .armL,.nightScene .sway,.nightScene .stars circle{animation:none}}
-.stringArt.checking{filter:blur(10px);opacity:.35}
-.scene-menu{display:flex;gap:6px;margin:2px 0 6px}
-.scene-menu button{padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-family:var(--serif);font-size:14px;color:var(--muted)}
-.scene-menu button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-@keyframes closeIn{
-  0%{transform:var(--apart)}
-  40%,60%{transform:translateX(0)}
-  100%{transform:var(--apart)}
-}
-@media (prefers-reduced-motion: reduce){.stringArt .figL,.stringArt .figR{animation:none;transform:translateX(0)}}
+.monoArt{width:min(280px,82vw);height:auto;color:var(--ink);overflow:visible}
+.monoArt *{vector-effect:non-scaling-stroke}
+.monoArt .star{transform-box:fill-box;transform-origin:center;animation:twinkle 2.6s ease-in-out infinite}
+.monoArt .figs,.monoArt .handL,.monoArt .handR,.monoArt .headL,.monoArt .headR{transform-box:fill-box}
+.monoArt[data-move="lean"] .figs{transform-origin:174px 150px;animation:monoLean var(--move-ms,3.4s) ease-in-out infinite}
+.monoArt[data-move="point"] .handR{transform-origin:236px 168px;animation:monoPoint var(--move-ms,2.8s) ease-in-out infinite}
+.monoArt[data-move="nod"] .headL,.monoArt[data-move="nod"] .headR{transform-origin:center;animation:monoNod var(--move-ms,2.4s) ease-in-out infinite}
+.monoArt[data-move="sway"] .figs{transform-origin:174px 200px;animation:monoSway var(--move-ms,3.6s) ease-in-out infinite}
+.monoArt[data-move="reach"] .handL{transform-origin:112px 168px;animation:monoReach var(--move-ms,2.7s) ease-in-out infinite}
+.monoArt[data-move="close"] .headL{animation:monoCloseL var(--move-ms,3s) ease-in-out infinite}
+.monoArt[data-move="close"] .headR{animation:monoCloseR var(--move-ms,3s) ease-in-out infinite}
+.monoArt[data-move="hands"] .handL,.monoArt[data-move="hands"] .handR{transform-origin:center;animation:monoHands var(--move-ms,2.5s) ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:.25}45%{opacity:1}70%{opacity:.4}}
+@keyframes monoLean{0%,100%{transform:rotate(0)}40%{transform:rotate(-4deg) translateX(-3px)}70%{transform:rotate(3deg)}}
+@keyframes monoPoint{0%,100%{transform:rotate(0)}35%{transform:rotate(-48deg)}60%{transform:rotate(-18deg)}80%{transform:rotate(-36deg)}}
+@keyframes monoNod{0%,100%{transform:translateY(0)}40%{transform:translateY(5px)}70%{transform:translateY(-2px)}}
+@keyframes monoSway{0%,100%{transform:rotate(0)}50%{transform:rotate(2.5deg)}}
+@keyframes monoReach{0%,100%{transform:rotate(0)}45%{transform:rotate(26deg) translateY(-8px)}}
+@keyframes monoCloseL{0%,100%{transform:translateX(0)}50%{transform:translateX(4px)}}
+@keyframes monoCloseR{0%,100%{transform:translateX(0)}50%{transform:translateX(-4px)}}
+@keyframes monoHands{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@media (prefers-reduced-motion: reduce){.monoArt .star,.monoArt .figs,.monoArt .handL,.monoArt .handR,.monoArt .headL,.monoArt .headR{animation:none!important}}
+.monoArt.checking{filter:blur(10px);opacity:.35}
+.acct-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:16px;background:color-mix(in srgb,var(--bg) 70%,var(--surface));border:1px solid var(--line)}
+.acct-switch button{padding:11px 8px;border-radius:12px;font-family:var(--serif);font-size:16px;color:var(--muted)}
+.acct-switch button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+#lockForm #pass{font-size:18px;padding-top:16px;padding-bottom:16px;min-height:56px}
+.media-grid{display:grid;grid-template-columns:1fr;gap:12px}
+.media-kind{display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:100%;padding:18px 16px;border-radius:22px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);text-align:left}
+.media-kind b{font-family:var(--serif);font-weight:normal;font-size:22px}
+.media-kind small{color:var(--muted);font-size:13px}
+.media-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.media-card{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:22px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);min-width:0}
+.media-card img,.media-card video{width:100%;height:128px;object-fit:cover;border-radius:16px;background:#141210}
+.media-card audio{width:100%}
+.media-card .cap{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.media-card .acts{display:flex;flex-wrap:wrap;gap:6px}
+.who-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.who-card{display:flex;flex-direction:column;align-items:flex-start;gap:6px;width:100%;padding:16px;border-radius:22px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);text-align:left}
+.who-card b{font-family:var(--serif);font-weight:normal;font-size:18px}
+.who-card small{color:var(--muted);font-size:12.5px}
+.who-card.me{opacity:.4}
+.heldvoice{display:flex;align-items:center;gap:10px;margin:0 12px 8px;padding:8px 10px;border-radius:16px;background:var(--surface);border:1px solid var(--line)}
+.heldvoice .heldlabel{flex:1;min-width:0;font-size:13.5px;color:var(--ink)}
 #lock h1{font-family:var(--serif);font-weight:normal;font-size:26px;margin:0}
 #tagline{font-family:var(--serif);font-style:italic;color:var(--accent);font-size:16px;min-height:1.6em;margin:0;text-align:center}
 #tagline::after{content:"▍";margin-left:2px;opacity:.7;animation:blink 1s steps(1) infinite}
@@ -493,113 +509,54 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
 <!-- Sign-in -->
 <section id="lock" style="position:absolute;inset:0">
-  <svg id="lpArt" class="stringArt nightScene" data-scene="watch" viewBox="0 0 360 250" role="img" aria-label="Two people, seen from behind, watching the stars">
-    <defs>
-      <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#0e1426"/>
-        <stop offset="0.55" stop-color="#243044"/>
-        <stop offset="1" stop-color="#5a3a32"/>
-      </linearGradient>
-      <linearGradient id="woodG" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#e0c49a"/>
-        <stop offset="1" stop-color="#6d4528"/>
-      </linearGradient>
-      <radialGradient id="starG" cx="50%" cy="50%" r="50%">
-        <stop offset="0" stop-color="#fff6d8"/>
-        <stop offset="1" stop-color="#fff6d8" stop-opacity="0"/>
-      </radialGradient>
-    </defs>
-    <g class="cam">
-      <rect x="-80" y="-30" width="520" height="310" fill="url(#skyG)"/>
-      <g class="stars" fill="#f7f1e4">
-        <circle cx="24" cy="30" r="1.3"/><circle cx="62" cy="52" r=".8"/><circle cx="98" cy="18" r="1.5"/>
-        <circle cx="146" cy="42" r=".7"/><circle cx="188" cy="16" r="1.2"/><circle cx="236" cy="34" r=".9"/>
-        <circle cx="278" cy="14" r="1.4"/><circle cx="318" cy="46" r=".8"/><circle cx="352" cy="22" r="1.1"/>
-        <circle cx="40" cy="78" r=".6"/><circle cx="128" cy="70" r=".9"/><circle cx="300" cy="74" r=".7"/>
-        <circle cx="210" cy="58" r=".5"/><circle cx="84" cy="96" r=".6"/><circle cx="260" cy="88" r=".8"/>
+  <svg id="lpArt" class="monoArt" data-move="lean" viewBox="0 0 360 280" role="img" aria-label="Two people, seen from behind, sitting close and watching the stars">
+    <g class="sky" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+      <circle class="star" cx="46" cy="28" r="1.4" fill="currentColor" stroke="none"/>
+      <circle class="star" cx="92" cy="48" r="1" fill="currentColor" stroke="none"/>
+      <circle class="star" cx="138" cy="22" r="1.6" fill="currentColor" stroke="none"/>
+      <path class="star" d="M168 36 l1.2 3.2 3.2 1.2 -3.2 1.2 -1.2 3.2 -1.2 -3.2 -3.2 -1.2 3.2 -1.2z"/>
+      <circle class="star" cx="210" cy="18" r="1.1" fill="currentColor" stroke="none"/>
+      <circle class="star" cx="246" cy="40" r="1.5" fill="currentColor" stroke="none"/>
+      <path class="star" d="M286 24 l1 2.6 2.6 1 -2.6 1 -1 2.6 -1 -2.6 -2.6 -1 2.6 -1z"/>
+      <circle class="star" cx="318" cy="52" r="1" fill="currentColor" stroke="none"/>
+      <circle class="star" cx="70" cy="70" r=".8" fill="currentColor" stroke="none"/>
+      <circle class="star" cx="300" cy="74" r="1.2" fill="currentColor" stroke="none"/>
+    </g>
+    <g class="chair" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M118 150 v86"/>
+      <path d="M242 150 v86"/>
+      <path d="M112 150 h136"/>
+      <path d="M122 176 h116"/>
+      <path d="M128 206 h104"/>
+      <path d="M136 206 v48"/>
+      <path d="M224 206 v48"/>
+      <path d="M136 254 h18"/>
+      <path d="M206 254 h18"/>
+    </g>
+    <g class="figs" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+      <circle class="headL" cx="156" cy="96" r="16"/>
+      <circle class="headR" cx="196" cy="94" r="16"/>
+      <path d="M138 112 C116 124 110 150 114 188"/>
+      <path d="M214 110 C236 122 242 148 236 186"/>
+      <path d="M170 112 C162 136 160 160 168 188"/>
+      <path d="M182 110 C190 134 192 158 184 188"/>
+      <g class="handL" stroke-width="3.4">
+        <path d="M112 186 l-16 8"/>
+        <path d="M114 184 l-12 16"/>
+        <path d="M116 184 l-2 18"/>
+        <path d="M118 186 l8 16"/>
+        <path d="M120 188 l14 10"/>
       </g>
-      <circle cx="214" cy="28" r="16" fill="url(#starG)"/>
-      <circle cx="214" cy="28" r="1.8" fill="#fff8e8"/>
-      <path d="M-60 198 C 40 168, 120 188, 210 164 C 280 148, 330 172, 440 150 L 440 280 L -60 280 Z" fill="#1a1412"/>
-      <path d="M-60 214 C 70 196, 160 208, 260 188 C 330 176, 390 198, 440 186 L 440 280 L -60 280 Z" fill="#120e0c" opacity=".85"/>
-      <g class="pose pose-watch">
-        <g class="sway" transform="translate(168,132)">
-          <rect x="8" y="0" width="7" height="58" rx="2" fill="url(#woodG)"/>
-          <rect x="48" y="0" width="7" height="58" rx="2" fill="url(#woodG)"/>
-          <rect x="6" y="6" width="51" height="6" rx="2" fill="#b88958"/>
-          <rect x="10" y="30" width="43" height="5" rx="2" fill="#8d623c"/>
-          <rect x="12" y="54" width="8" height="18" rx="2" fill="#6a4328"/>
-          <rect x="42" y="54" width="8" height="18" rx="2" fill="#6a4328"/>
-        </g>
-        <g class="sway" transform="translate(78,108)">
-          <ellipse cx="26" cy="14" rx="13" ry="14" fill="#1c2430"/>
-          <path d="M14 8 Q26 0 38 8 Q34 16 26 16 Q18 16 14 8Z" fill="#2c3544"/>
-          <path d="M8 30 Q26 24 44 30 L50 96 Q26 104 2 96 Z" fill="#c9d3df"/>
-          <path class="armL" d="M14 42 Q2 28 10 16" fill="none" stroke="#c9d3df" stroke-width="6" stroke-linecap="round"/>
-          <path class="armR" d="M38 42 Q52 26 44 14" fill="none" stroke="#c9d3df" stroke-width="6" stroke-linecap="round"/>
-        </g>
-        <g class="sway" transform="translate(118,100)" style="animation-delay:-2s">
-          <ellipse cx="28" cy="14" rx="13" ry="14" fill="#3a2a28"/>
-          <path d="M16 8 Q28 -1 40 8 Q36 17 28 17 Q20 17 16 8Z" fill="#5c4038"/>
-          <path d="M8 32 Q28 24 48 32 L54 100 Q28 110 2 100 Z" fill="#e7b4ad"/>
-          <path class="armL" d="M12 44 Q0 30 8 16" fill="none" stroke="#e7b4ad" stroke-width="6" stroke-linecap="round"/>
-          <path class="armR" d="M42 44 Q58 22 46 10" fill="none" stroke="#e7b4ad" stroke-width="6" stroke-linecap="round"/>
-        </g>
-      </g>
-      <g class="pose pose-point">
-        <g transform="translate(46,128)">
-          <rect x="6" y="0" width="7" height="56" rx="2" fill="url(#woodG)"/>
-          <rect x="44" y="0" width="7" height="56" rx="2" fill="url(#woodG)"/>
-          <rect x="4" y="6" width="49" height="6" rx="2" fill="#b88958"/>
-          <rect x="8" y="28" width="41" height="5" rx="2" fill="#8d623c"/>
-        </g>
-        <g class="sway" transform="translate(70,118)">
-          <ellipse cx="24" cy="12" rx="12" ry="13" fill="#1c2430"/>
-          <path d="M13 6 Q24 -1 35 6 Q31 14 24 14 Q17 14 13 6Z" fill="#2c3544"/>
-          <path d="M8 28 Q24 22 40 28 L44 78 Q24 86 4 78 Z" fill="#b7c3d1"/>
-          <path class="armL" d="M12 40 Q4 30 14 22" fill="none" stroke="#b7c3d1" stroke-width="6" stroke-linecap="round"/>
-        </g>
-        <g class="sway" transform="translate(150,104)">
-          <ellipse cx="28" cy="14" rx="13" ry="14" fill="#3a2a28"/>
-          <path d="M16 8 Q28 0 40 8 Q36 16 28 16 Q20 16 16 8Z" fill="#5c4038"/>
-          <path d="M8 32 Q28 24 48 32 L54 102 Q28 112 2 102 Z" fill="#e7b4ad"/>
-          <path class="armL" d="M12 46 Q4 34 12 22" fill="none" stroke="#e7b4ad" stroke-width="6" stroke-linecap="round"/>
-          <path class="armR" d="M40 40 Q78 8 96 2" fill="none" stroke="#e7b4ad" stroke-width="6" stroke-linecap="round"/>
-          <circle cx="98" cy="1" r="3.4" fill="#f0d2c8"/>
-        </g>
-      </g>
-      <g class="pose pose-sit">
-        <g transform="translate(118,126)">
-          <rect x="4" y="0" width="8" height="70" rx="2" fill="url(#woodG)"/>
-          <rect x="52" y="0" width="8" height="70" rx="2" fill="url(#woodG)"/>
-          <rect x="2" y="8" width="60" height="8" rx="2" fill="#c49664"/>
-          <rect x="8" y="36" width="48" height="6" rx="2" fill="#8d623c"/>
-          <rect x="10" y="64" width="10" height="22" rx="2" fill="#6a4328"/>
-          <rect x="44" y="64" width="10" height="22" rx="2" fill="#6a4328"/>
-        </g>
-        <g class="sway" transform="translate(132,108)">
-          <ellipse cx="26" cy="13" rx="12" ry="13" fill="#3a2a28"/>
-          <path d="M15 7 Q26 0 37 7 Q33 15 26 15 Q19 15 15 7Z" fill="#5c4038"/>
-          <path d="M10 28 Q26 22 42 28 L46 70 Q26 78 6 70 Z" fill="#e7b4ad"/>
-        </g>
-        <g class="sway" transform="translate(196,100)" style="animation-delay:-3s">
-          <ellipse cx="26" cy="14" rx="13" ry="14" fill="#1c2430"/>
-          <path d="M14 8 Q26 0 38 8 Q34 16 26 16 Q18 16 14 8Z" fill="#2c3544"/>
-          <path d="M8 32 Q26 24 44 32 L50 104 Q26 114 2 104 Z" fill="#c9d3df"/>
-          <path class="armL" d="M14 48 Q2 30 16 18" fill="none" stroke="#c9d3df" stroke-width="6" stroke-linecap="round"/>
-          <path class="armR" d="M36 46 Q62 16 54 4" fill="none" stroke="#c9d3df" stroke-width="6" stroke-linecap="round"/>
-          <circle cx="54" cy="3" r="3.2" fill="#d5deea"/>
-        </g>
+      <g class="handR" stroke-width="3.4">
+        <path d="M238 184 l16 6"/>
+        <path d="M236 182 l14 14"/>
+        <path d="M234 182 l4 18"/>
+        <path d="M232 184 l-8 16"/>
+        <path d="M230 186 l-14 8"/>
       </g>
     </g>
   </svg>
-  <div class="scene-menu" role="group" aria-label="Lock scene">
-    <button type="button" data-scene="watch" aria-pressed="true">Watch</button>
-    <button type="button" data-scene="point" aria-pressed="false">Point</button>
-    <button type="button" data-scene="sit" aria-pressed="false">Sit</button>
-  </div>
-  <p id="tagline" aria-live="polite"></p>
-  <button id="notYou" type="button">Not you? Switch side</button>
+    <p id="tagline" aria-live="polite"></p>
   <p class="sub">Who are you signing in as?</p>
   <div class="sides" role="group" aria-label="Sign in as">
     <button class="side" data-side="Lewis" aria-pressed="false"><span class="av avatar lewis">L</span><b>Mr Lees</b></button>
@@ -607,6 +564,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   </div>
 
   <form id="lockForm" class="form" autocomplete="off">
+    <div class="acct-switch" id="acctSwitch" role="group" aria-label="Switch account">
+      <button type="button" data-side="Lewis" aria-pressed="false">Mr Lees</button>
+      <button type="button" data-side="Agnes" aria-pressed="false">Mrs Lees</button>
+    </div>
     <div class="field">
       <input id="pass" class="in" type="password" placeholder="Your passphrase" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Passphrase">
       <button id="peek" type="button" aria-label="Show passphrase"><svg class="i sm" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
@@ -701,13 +662,12 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     <span id="rectime" class="mono">0:00</span>
     <canvas id="wave"></canvas>
     <button id="recCancel" class="btn ghost sm">Cancel</button>
-    <button id="recSend" class="btn sm">Send</button>
+    <button id="recSend" class="btn sm">Done</button>
   </div>
   <footer id="footer">
     <button id="attach" class="tool" aria-label="Attach photos or audio"><svg class="i" viewBox="0 0 24 24"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7L14 4.5a3.5 3.5 0 0 1 5 5L10.5 18a2 2 0 0 1-3-3L16 6.5"/></svg></button>
     <input id="file" type="file" accept="image/*,video/*,audio/*" multiple hidden>
     <button id="mic" class="tool" aria-label="Record voice note"><svg class="i" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
-    <button id="clock" class="tool" aria-label="Send later"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>
     <textarea id="input" rows="1" placeholder="Write something…" aria-label="Message"></textarea>
     <button id="send" type="button" aria-label="Send"><svg class="i" viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
   </footer>
@@ -835,7 +795,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const fmtDateTime = (ts) => new Date(ts).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   const fmtDur = (s) => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
-  const previewOf = (m) => m.deleted ? "Deleted" : (m.effect === "doodle" || m.effect === "doodle-glow") ? "Doodle" : m.kind === "image" ? "Photo" : m.kind === "audio" ? "Voice note" : m.kind === "video" ? "Video" : (m.text || "").slice(0, 60);
+  const previewOf = (m) => m.deleted ? "Deleted" : (m.effect === "doodle" || m.effect === "doodle-glow") ? "Doodle" : m.kind === "image" ? "Photo" : m.kind === "video" ? "Video" : m.kind === "audio" ? ((m.text || "").trim() || "Voice note") : (m.text || "").slice(0, 60);
   const hash = (s) => { let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
   const normAnswer = (a) => a.trim().toLowerCase().replace(/\s+/g, " ");
   const firstName = (side) => NAME[side];
@@ -950,7 +910,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   function chime() {
     try {
-      if (!audioCtx || !S(me || "Lewis").sound) return;
+      if (S(me || "Lewis").sound === false) return;
+      ensureAudio();
       if (window.LeesHooks && LeesHooks.playArrival) { LeesHooks.playArrival(view === "chat" ? "inChat" : "outChat"); return; }
       const t = audioCtx.currentTime;
       const o = audioCtx.createOscillator(), g = audioCtx.createGain();
@@ -1185,7 +1146,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   /* Clear conversation: called by the sheet in lees-patch.js. Scope "me" hides for this side; "both" uses deleteForEveryone. */
   window.LeesHooks = window.LeesHooks || {};
-  LeesHooks.openChat = function () { openChat(false); };
+  LeesHooks.openChat = function () { if (!unlocked) return; openChat(false); };
   LeesHooks.clearConversation = function (o) {
     const day = (ts) => { const d = new Date(ts || 0); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
     const ids = thread().filter(m => !m.deleted && (o.all || (day(m.ts) >= o.from && day(m.ts) <= o.to))).map(m => m.id);
@@ -1555,6 +1516,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       if (scratchIt) attachScratch(card, "");
       else if (shield && m.effect !== "doodle-glow") card.classList.add("blurred");
     } else if (m.kind === "audio") {
+      if (m.text && !scratchIt && !shield) { const t = el("div", "text"); hiText(t, m.text); card.appendChild(t); }
+      else if (m.text && shield) { card.classList.add("blurred"); card.appendChild(el("div", "text", "Hidden message")); }
       card.appendChild(voiceNode(m));
       if (scratchIt) attachScratch(card, "");
       else if (shield) card.classList.add("blurred");
@@ -1862,7 +1825,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function renderPresence() {
     if (!me) return;
     const remote = (typeof presenceState !== "undefined" && presenceState[other()]) || null;
-    const remoteTyping = !dropPresenceTyping && !!(remote && remote.typing && Date.now() - (remote.ts || 0) < 8000);
+    const remoteTyping = !dropPresenceTyping && !!(remote && remote.typing && Date.now() - (remote.ts || 0) < 1400);
     const typing = Date.now() > (typingMuteUntil || 0) && (Date.now() < (partnerTypingUntil || 0) || remoteTyping);
     const p = $("presence");
     p.classList.remove("live");
@@ -2611,15 +2574,36 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     ];
     openPanel("Media", "Choose a kind", (body) => {
       const all = thread().filter(m => !m.deleted && !m.archived && m.mid && (m.kind === "image" || m.kind === "audio" || m.kind === "video") && !(m.deletedFor || []).includes(me));
-      const menu = el("div", "media-kinds");
+      const menu = el("div", "media-grid");
       scopes.forEach(([kind, title, sub]) => {
         const n = all.filter(m => m.kind === kind).length;
-        const b = el("button", "choice");
+        const b = el("button", "media-kind lift");
+        b.type = "button";
         b.append(el("b", "", title), el("small", "", n ? (n + " · " + sub) : "None yet"));
         b.addEventListener("click", () => showMediaScope(kind, title));
         menu.appendChild(b);
       });
       body.appendChild(menu);
+    });
+  }
+  function resendCard(m) {
+    return new Promise((resolve) => {
+      sheetOpen((body) => {
+        body.appendChild(el("h3", "fp-title", "Send again"));
+        body.appendChild(el("p", "fp-desc", "It goes to the other person in this conversation."));
+        const grid = el("div", "who-grid");
+        [["Lewis", "Mr Lees"], ["Agnes", "Mrs Lees"]].forEach(([side, label]) => {
+          const b = el("button", "who-card lift" + (side === me ? " me" : ""));
+          b.type = "button";
+          const av = el("span", "av avatar " + side.toLowerCase(), side === "Lewis" ? "L" : "A");
+          b.append(av, el("b", "", label), el("small", "", side === me ? "This is you" : "Send to " + label));
+          b.addEventListener("click", () => { sheetClose(); resolve(side); });
+          grid.appendChild(b);
+        });
+        body.appendChild(grid);
+      });
+      const scrim = $("sheetScrim");
+      if (scrim) scrim.onclick = () => { sheetClose(); resolve(null); };
     });
   }
   function showMediaScope(kind, title) {
@@ -2631,8 +2615,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         .filter(m => !m.deleted && !m.archived && m.kind === kind && m.mid && !(m.deletedFor || []).includes(me))
         .sort((a, b) => b.ts - a.ts);
       if (!items.length) body.appendChild(el("p", "fp-desc", "Nothing in " + title.toLowerCase() + " yet."));
+      const grid = el("div", "media-cards");
       for (const m of items) {
-        const it = el("div", "item");
+        const it = el("div", "media-card lift");
         if (m.kind === "image") {
           const img = new Image(); img.alt = "Shared photo";
           mediaURL(m.mid).then(u => { if (u) img.src = u; });
@@ -2646,21 +2631,23 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
           mediaURL(m.mid).then(u => { if (u) au.src = u; });
           it.appendChild(au);
         }
-        const t = el("div", "txt");
-        t.textContent = (m.from === me ? "You" : NAME[m.from]) + " · " + fmtTime(m.ts);
-        const acts = el("div", "row-acts");
-        const del = el("button", "btn sm ghost", "Delete");
-        del.addEventListener("click", async () => {
-          const ok = await choicePanel({ title: "Delete this?", desc: "Choose who loses it.", options: [
-            { label: "Delete for me", sub: "The other side still has it.", value: "me" },
-            { label: "Delete for both", sub: "It shows as deleted.", value: "both", danger: true }
-          ]});
-          if (ok === "me") await deleteForMe(m.id);
-          else if (ok === "both") await deleteForEveryone(m.id);
-          if (ok) showMediaScope(kind, title);
+        it.appendChild(el("div", "cap", (m.from === me ? "You" : NAME[m.from]) + " · " + fmtTime(m.ts)));
+        const acts = el("div", "acts");
+        const re = el("button", "btn sm", "Resend");
+        re.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const who = await resendCard(m);
+          if (!who) return;
+          if (who === me) { notice("Pick the other side", "You already have it."); return; }
+          const url = await mediaURL(m.mid);
+          if (!url) { notice("Couldn't open that file", "", { error: true }); return; }
+          const blob = await (await fetch(url)).blob();
+          await addMedia(m.kind, blob, { dur: m.dur || 0, text: m.text || null });
+          notice("Sent", "It's on its way to " + NAME[who] + ".");
         });
         const arc = el("button", "btn sm ghost", "Archive");
-        arc.addEventListener("click", async () => {
+        arc.addEventListener("click", async (e) => {
+          e.stopPropagation();
           const client = cloudClient();
           if (!client) return;
           const upd = await client.rpc("archive_message", { p_id: m.id });
@@ -2670,24 +2657,22 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
           notice("Archived", "It's out of the chat and kept in Archive.");
           showMediaScope(kind, title);
         });
-        const re = el("button", "btn sm", "Resend");
-        re.addEventListener("click", async () => {
-          const who = await choicePanel({ title: "Send again", desc: "Choose who this is for. It goes into your conversation.", options: [
-            { label: "Mr Lees", sub: "Lewis", value: "Lewis" },
-            { label: "Mrs Lees", sub: "Agnes", value: "Agnes" }
+        const del = el("button", "btn sm ghost", "Delete");
+        del.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const ok = await choicePanel({ title: "Delete this?", desc: "Choose who loses it.", options: [
+            { label: "Delete for me", sub: "The other side still has it.", value: "me" },
+            { label: "Delete for both", sub: "It shows as deleted.", value: "both", danger: true }
           ]});
-          if (!who) return;
-          if (who === me) { notice("Pick the other side", "You already have it."); return; }
-          const url = await mediaURL(m.mid);
-          if (!url) { notice("Couldn't open that file", "", { error: true }); return; }
-          const blob = await (await fetch(url)).blob();
-          await addMedia(m.kind, blob, { dur: m.dur || 0 });
-          notice("Sent", "It's on its way to " + NAME[who] + ".");
+          if (ok === "me") await deleteForMe(m.id);
+          else if (ok === "both") await deleteForEveryone(m.id);
+          if (ok) showMediaScope(kind, title);
         });
         acts.append(re, arc, del);
-        it.append(t, acts);
-        body.appendChild(it);
+        it.appendChild(acts);
+        grid.appendChild(it);
       }
+      if (items.length) body.appendChild(grid);
     });
   }
   function openMoments() {
@@ -3057,7 +3042,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     $("chatAvatar").textContent = other() === "Lewis" ? "L" : "A";
     $("chatTitle").textContent = NAME[other()];
     $("shieldBtn").classList.toggle("shieldon", shield);
-    showView("chat", "push");
+    showView("chat", view === "panel" ? null : "push");
     fillAvatars();
     const pos = store.get(KEY.pos, {})[me];
     if (fromDay) focusDay = opts.day;
@@ -3095,7 +3080,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   async function selectSide(side) {
     chosen = side;
     if (side) store.set(KEY.last, side);
-    document.querySelectorAll(".side").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.side === side)));
+    document.querySelectorAll(".side, #acctSwitch button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.side === side)));
     if (!side) { showLockMode(null); return; }
     showLockMode("signin");
     const client = cloudClient();
@@ -3177,6 +3162,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     $("people").textContent = "";
     $("navrow").textContent = "";
     if (me) store.set(KEY.typing, null);
+    dropHeld();
     me = null;
     prevUnread = 0;
     hideNotice();
@@ -3277,7 +3263,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     $("peek").setAttribute("aria-label", show ? "Hide passphrase" : "Show passphrase");
   });
   document.querySelectorAll(".side").forEach(b => b.addEventListener("click", () => selectSide(b.dataset.side)));
-  $("notYou").addEventListener("click", () => { chosen = null; store.set(KEY.last, null); applyRemembered(); });
+  document.querySelectorAll("#acctSwitch button").forEach(b => b.addEventListener("click", () => selectSide(b.dataset.side)));
 
   /* ================= Passphrase, sessions, backups, exports ================= */
   async function changePassphrase() {
@@ -3492,11 +3478,33 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
 
   /* ================= Composer and media ================= */
+  let heldClip = null;
   function autosize() {
     const t = $("input");
     t.style.height = "auto";
     t.style.height = Math.min(t.scrollHeight, 128) + "px";
-    $("send").disabled = !t.value.trim();
+    $("send").disabled = !t.value.trim() && !heldClip;
+  }
+  function dropHeld() {
+    if (heldClip && heldClip.url) URL.revokeObjectURL(heldClip.url);
+    heldClip = null;
+    const n = $("heldVoice");
+    if (n) n.classList.add("hidden");
+    if ($("input")) autosize();
+  }
+  function showHeld(blob, dur) {
+    dropHeld();
+    heldClip = { blob, dur, mime: blob.type || "audio/webm", url: URL.createObjectURL(blob) };
+    let n = $("heldVoice");
+    if (!n) {
+      n = el("div", "heldvoice hidden");
+      n.id = "heldVoice";
+      n.append(el("span", "dot"), el("span", "heldlabel", "Voice note held. It sends with your words."), el("button", "btn ghost sm", "Remove"));
+      n.querySelector("button").addEventListener("click", dropHeld);
+      $("footer").before(n);
+    }
+    n.classList.remove("hidden");
+    autosize();
   }
 
   async function compressImage(file) {
@@ -3614,7 +3622,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       recChunks = [];
       if (sendIt && chunks.length) {
         const blob = new Blob(chunks, { type: r.mimeType || "audio/webm" });
-        await addMedia("audio", blob, { dur, mime: blob.type });
+        showHeld(blob, dur);
       }
     };
     try { if (r.state === "recording") r.requestData(); } catch {}
@@ -3656,10 +3664,6 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   /* ================= Wiring ================= */
   $("send").addEventListener("click", () => { if (sendSuppress) { sendSuppress = false; return; } sendText(); });
-  $("clock").addEventListener("click", () => {
-    if (!$("input").value.trim()) { notice("Write the message first", "Then choose when it should arrive."); return; }
-    openSchedulePicker();
-  });
   $("input").addEventListener("input", () => {
     autosize();
     saveDraft();
@@ -3668,16 +3672,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     lastKeyAt = now;
     if (gap > 40 && gap < 2500) { typeGaps.push(gap); if (typeGaps.length > 8) typeGaps.shift(); }
     if ($("input").value.trim()) {
-      if (now - lastTypingSent > 1500) {
-        lastTypingSent = now;
-        trackTyping(true, typingEnergy());
-      }
+      trackTyping(true, typingEnergy());
       clearTimeout(typingTail);
-      typingTail = setTimeout(() => {
-        if (!$("input").value.trim()) return;
-        lastTypingSent = Date.now();
-        trackTyping(true, typingEnergy());
-      }, 400);
+      typingTail = setTimeout(() => trackTyping(false), 480);
     } else trackTyping(false);
   });
   $("input").addEventListener("keydown", (e) => {
@@ -3819,7 +3816,11 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   let sendHold = 0, sendSuppress = false;
   $("send").addEventListener("pointerdown", () => {
     sendSuppress = false;
-    sendHold = setTimeout(() => { sendHold = 0; sendSuppress = true; haptic("press"); openEffects(); }, 500);
+    sendHold = setTimeout(() => {
+      sendHold = 0; sendSuppress = true; haptic("press");
+      if (!$("input").value.trim()) { notice("Write the message first", "Then choose when it should arrive."); return; }
+      openSchedulePicker();
+    }, 500);
   });
   ["pointerup", "pointercancel", "pointerleave"].forEach(ev => $("send").addEventListener(ev, () => clearTimeout(sendHold)));
 
@@ -4012,7 +4013,6 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     idleSignOut.busy = true;
     try { const client = cloudClient(); if (client) await client.auth.signOut(); } catch {}
     lock();
-    $("lockErr").textContent = "Signed out after 5 minutes of inactivity.";
     idleSignOut.busy = false;
   }
 
@@ -4179,20 +4179,38 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (!client || !pairId) return;
     if (cloudChannel) client.removeChannel(cloudChannel);
     cloudChannel = client.channel("pair-" + pairId)
-      .on("postgres_changes", { event: "*", schema: "public", table: "messages", filter: "pair_id=eq." + pairId }, () => {
-        const prev = new Set(cacheThread.map(m => m.id));
-        const prevSched = cacheSched.map(s => s.id);
-        reloadAll().then(() => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages", filter: "pair_id=eq." + pairId }, (payload) => {
+        const row = payload && payload.new;
+        if (row && row.id && unlocked) {
+          const m = msgFromRow(row);
+          const i = cacheThread.findIndex(x => x.id === m.id || (m.clientId && x.clientId === m.clientId));
+          const known = i >= 0 && cacheThread[i].id === m.id;
+          if (i >= 0) cacheThread[i] = Object.assign({}, cacheThread[i], m, { pending: false });
+          else cacheThread = cacheThread.concat([m]).sort((a, b) => a.ts - b.ts);
+          const fresh = !known && m.from && m.from !== me && !m.deleted && !(m.deletedFor || []).includes(me);
+          if (fresh) {
+            partnerTypingUntil = 0;
+            dropPresenceTyping = true;
+            if (m.effect && m.effect !== "none") pendingFx.add(m.id);
+            const dotsRect = consumeTypingRow();
+            if (view !== "chat") unreadN += 1;
+            render();
+            if (window.LeesHooks && LeesHooks.arrived && dotsRect) LeesHooks.arrived(dotsRect, [m.id]);
+            const runFx = () => { if (m.effect && m.effect !== "none") playEffect(m); };
+            if (window.LeesHooks && LeesHooks.afterArrival) LeesHooks.afterArrival(runFx); else runFx();
+            chime();
+            arrivalBuzz();
+            if (view === "chat" && !document.hidden) markRead();
+            else if (document.hidden) document.title = "(" + unreadN + ") " + baseTitle;
+            else notice("New message", "From " + NAME[other()] + ".", { action: { label: "Open chat", run: () => openChat() } });
+          } else render();
+        }
+        clearTimeout(subscribePair._t);
+        subscribePair._t = setTimeout(() => {
           if (!unlocked) return;
-          const fresh = cameIn(prev);
-          if (fresh.length) { partnerTypingUntil = 0; dropPresenceTyping = true; }
-          fresh.forEach(m => { if (m.effect && m.effect !== "none") pendingFx.add(m.id); });
-          render();
-          noteDelivered(prevSched);
-          if (fresh.length && view === "chat" && !document.hidden) markRead();
-          else if (fresh.length && document.hidden) document.title = "(" + unreadN + ") " + baseTitle;
-          else if (fresh.length && view === "home") notice("New message", "From " + NAME[other()] + ".", { action: { label: "Open chat", run: () => openChat() } });
-        });
+          const prevSched = cacheSched.map(s => s.id);
+          reloadAll().then(() => { if (!unlocked) return; render(); noteDelivered(prevSched); refreshUnread(); });
+        }, 280);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "notes", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
       .on("postgres_changes", { event: "*", schema: "public", table: "scheduled_messages", filter: "sender_id=eq." + myUserId }, () => {
@@ -4222,13 +4240,20 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     typeChannel.on("broadcast", { event: "typing" }, (msg) => {
       const payload = (msg && msg.payload) || {};
       if (!payload.side || payload.side === me) return;
+      if (!unlocked) return;
+      if (payload.on === false) {
+        partnerTypingUntil = 0;
+        dropPresenceTyping = true;
+        renderPresence();
+        return;
+      }
       dropPresenceTyping = false;
       partnerTypingPulse = Date.now();
-      partnerTypingUntil = Date.now() + 8000;
+      partnerTypingUntil = Date.now() + 1300;
       partnerEnergy = payload.energy || "mid";
-      if (unlocked) renderPresence();
+      renderPresence();
       clearTimeout(typeChannel._hide);
-      typeChannel._hide = setTimeout(() => { if (unlocked) renderPresence(); }, 8100);
+      typeChannel._hide = setTimeout(() => { if (unlocked) renderPresence(); }, 1400);
     });
     typeChannel.subscribe();
   }
@@ -4419,7 +4444,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
           const up = await client.storage.from("media").upload(path, blob, { contentType: blob.type || "application/octet-stream", upsert: true });
           if (up.error) throw up.error;
           const ins = await client.from("messages").insert({
-            pair_id: pairId, sender_id: myUserId, kind: item.kind, media_path: path, dur: item.dur || null, effect: item.effect || "none", client_id: item.clientId
+            pair_id: pairId, sender_id: myUserId, kind: item.kind, text: item.text || null, media_path: path, dur: item.dur || null, effect: item.effect || "none", client_id: item.clientId
           }).select().maybeSingle();
           if (ins.error) {
             await client.storage.from("media").remove([path]);
@@ -4450,7 +4475,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const localId = "local-" + clientId;
     try { await putBlob(localId, blob); }
     catch { notice("Couldn't save that file", "Storage may be full.", { error: true }); return; }
-    const m = { id: localId, from: me, ts: Date.now(), hearts: [], kind, mid: localId, pending: true, dur: (extra && extra.dur) || 0, effect: (extra && extra.effect) || "none", clientId };
+    const m = { id: localId, from: me, ts: Date.now(), hearts: [], kind, mid: localId, pending: true, dur: (extra && extra.dur) || 0, text: (extra && extra.text) || "", effect: (extra && extra.effect) || "none", clientId };
     cacheThread = thread().concat([m]);
     clearBar(); render({ stick: true });
     const client = cloudClient();
@@ -4460,7 +4485,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const up = await client.storage.from("media").upload(path, blob, { contentType: blob.type || (kind === "image" ? "image/jpeg" : kind === "video" ? "video/mp4" : "audio/webm"), upsert: false });
       if (up.error) throw up.error;
       const ins = await client.from("messages").insert({
-        pair_id: pairId, sender_id: myUserId, kind, media_path: path, dur: (extra && extra.dur) || null, effect: (extra && extra.effect) || "none", client_id: clientId
+        pair_id: pairId, sender_id: myUserId, kind, text: (extra && extra.text) || null, media_path: path, dur: (extra && extra.dur) || null, effect: (extra && extra.effect) || "none", client_id: clientId
       }).select().maybeSingle();
       if (ins.error) {
         await client.storage.from("media").remove([path]);
@@ -4474,7 +4499,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     } catch {
       markWaiting(localId);
       const box = outbox();
-      box.push({ kind, clientId, blobId: localId, dur: (extra && extra.dur) || null, effect: (extra && extra.effect) || "none", localId });
+      box.push({ kind, clientId, blobId: localId, dur: (extra && extra.dur) || null, text: (extra && extra.text) || null, effect: (extra && extra.effect) || "none", localId });
       saveOutbox(box);
       render();
       notice("Waiting to send", "It will send when you are back online.");
@@ -4483,6 +4508,18 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   async function sendText() {
     const input = $("input");
     const text = input.value.trim();
+    const clip = heldClip;
+    if (!text && !clip) return;
+    if (clip && !editingId) {
+      const blob = clip.blob, dur = clip.dur;
+      dropHeld();
+      input.value = "";
+      autosize();
+      trackTyping(false);
+      saveDraft(true);
+      await addMedia("audio", blob, { dur, text: text || null });
+      return;
+    }
     if (!text) return;
     const client = cloudClient();
     if (editingId) {
@@ -5018,10 +5055,23 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function ensureTypingLoop() {
     if (!typingRAF) typingRAF = requestAnimationFrame(tickTyping);
   }
+  let typingLive = false;
   async function trackTyping(on, energy) {
-    if (!on) { clearTimeout(typingTail); typingTail = 0; return; }
-    if (typeChannel) {
-      try { await typeChannel.send({ type: "broadcast", event: "typing", payload: { side: me, energy: energy || "mid" } }); } catch {}
+    if (!on) {
+      clearTimeout(typingTail);
+      typingTail = 0;
+      if (!typingLive) return;
+      typingLive = false;
+      if (typeChannel) {
+        try { typeChannel.send({ type: "broadcast", event: "typing", payload: { side: me, on: false } }); } catch {}
+      }
+      return;
+    }
+    const first = !typingLive;
+    typingLive = true;
+    if (typeChannel && (first || Date.now() - lastTypingSent > 900)) {
+      lastTypingSent = Date.now();
+      try { typeChannel.send({ type: "broadcast", event: "typing", payload: { side: me, on: true, energy: energy || "mid" } }); } catch {}
     }
   }
   setInterval(() => {
@@ -5308,31 +5358,16 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   if (document.hidden) document.body.classList.add("private");
   bindAvatar($("homeAvatar"));
   bindAvatar($("chatAvatar"));
-  primeMic(false);
-  const askMicOnGesture = () => { if (!micPrimed && !micGestureTried) primeMic(true); };
-  document.addEventListener("pointerdown", askMicOnGesture, true);
-  document.addEventListener("keydown", askMicOnGesture, true);
   (async () => {
     rebindAuthForms();
     const client = cloudClient();
     if (client) await loadPublicLabels();
-    if (client) {
-      const { data } = await client.auth.getSession();
-      if (data.session) {
-        const side = Object.keys(SIDE_EMAIL).find(k => SIDE_EMAIL[k] === data.session.user.email);
-        if (side) {
-          me = side; chosen = side; lastActivity = Date.now();
-          const ok = await openCloud(side);
-          if (ok) { unlocked = true; showView("home"); renderHome(); return; }
-        }
-      }
-    }
     applyRemembered();
     autosize();
     $("pass").focus();
   })();
 })();
 </script>
-<script src="/lees-patch.js?v=4" defer></script>
+<script src="/lees-patch.js?v=5" defer></script>
 </body>
 </html>
