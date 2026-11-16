@@ -187,6 +187,8 @@
     } catch (e) {}
   }
   document.addEventListener("pointerdown", unlockAudio, true);
+  document.addEventListener("keydown", unlockAudio, true);
+  hooks.primeAudio = unlockAudio;
   function playPreset(key, vol, tried) {
     var P = PRESETS[key];
     if (!P) return;
@@ -201,7 +203,7 @@
       var t = actx.currentTime;
       var g = actx.createGain();
       g.connect(actx.destination);
-      var peak = Math.max(0, Math.min(1, vol)) * (P.v || 0.5) * 0.6;
+      var peak = Math.max(0, Math.min(1, vol)) * (P.v || 0.5);
       g.gain.setValueAtTime(0.0001, t);
       g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t + 0.012);
       g.gain.exponentialRampToValueAtTime(0.0001, t + P.d);
@@ -311,37 +313,37 @@
     var k = lastSentKey(), last = store.get(k, 0), now = Date.now();
     store.set(k, now);
     if (!last || now - last < 5 * 60 * 1000) return;
-    var send = $("send"), svg = send && send.querySelector("svg");
-    if (!svg || (reduceMq && reduceMq.matches)) return;
-    var r = svg.getBoundingClientRect();
-    var fly = svg.cloneNode(true);
-    fly.setAttribute("class", "i lp-boom");
-    var w = Math.max(r.width, 26), h = Math.max(r.height, 26);
+    var send = $("send");
+    if (!send || (reduceMq && reduceMq.matches)) return;
+    var r = send.getBoundingClientRect();
+    var fly = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    fly.setAttribute("viewBox", "0 0 24 24");
+    fly.setAttribute("class", "lp-boom");
+    fly.setAttribute("aria-hidden", "true");
+    fly.innerHTML = '<path d="M22 2L11 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2l-7 20-4-9-9-4 20-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
+    var size = 28;
     fly.style.position = "fixed";
-    fly.style.left = (r.left + r.width / 2 - w / 2) + "px";
-    fly.style.top = (r.top + r.height / 2 - h / 2) + "px";
-    fly.style.width = w + "px";
-    fly.style.height = h + "px";
+    fly.style.left = (r.left + r.width / 2 - size / 2) + "px";
+    fly.style.top = (r.top + r.height / 2 - size / 2) + "px";
+    fly.style.width = size + "px";
+    fly.style.height = size + "px";
     fly.style.zIndex = "90";
     fly.style.pointerEvents = "none";
     fly.style.color = getComputedStyle(send).color || "currentColor";
-    fly.style.transformOrigin = "50% 50%";
+    fly.style.overflow = "visible";
+    fly.style.offsetPath = 'path("M 0 0 C 70 -8 120 -36 108 -96 C 96 -156 20 -188 -28 -168 C -92 -142 -132 -78 -96 -28 C -64 14 -22 18 0 0")';
+    fly.style.offsetRotate = "auto -45deg";
+    fly.style.offsetAnchor = "center";
     document.body.appendChild(fly);
-    svg.style.opacity = "0";
-    var rx = 108, ry = 132, frames = [], n = 36, i;
-    for (i = 0; i <= n; i++) {
-      var t = i / n;
-      var theta = Math.PI / 2 - t * Math.PI * 2;
-      var x = rx * Math.cos(theta);
-      var y = ry * (Math.sin(theta) - 1);
-      var theta2 = Math.PI / 2 - Math.min(1, t + 0.03) * Math.PI * 2;
-      var x2 = rx * Math.cos(theta2);
-      var y2 = ry * (Math.sin(theta2) - 1);
-      var ang = Math.atan2(y2 - y, x2 - x) * 180 / Math.PI;
-      frames.push({ offset: t, transform: "translate(" + x.toFixed(1) + "px," + y.toFixed(1) + "px) rotate(" + (ang + 45).toFixed(1) + "deg)" });
-    }
-    var anim = fly.animate(frames, { duration: 1200, easing: "linear" });
-    anim.onfinish = function () { fly.remove(); svg.style.opacity = ""; };
+    var icon = send.querySelector("svg");
+    if (icon) icon.style.opacity = "0";
+    var anim = fly.animate(
+      [{ offsetDistance: "0%" }, { offsetDistance: "100%" }],
+      { duration: 1280, easing: "cubic-bezier(.33,.04,.2,1)", fill: "forwards" }
+    );
+    var done = function () { fly.remove(); if (icon) icon.style.opacity = ""; };
+    anim.onfinish = done;
+    anim.oncancel = done;
   }
   function sendingNow() {
     var input = $("input");
@@ -414,7 +416,11 @@
   function setBehind(on) { var lk = document.getElementById("lock"); if (lk) lk.classList.toggle("lp-behind", !!on); }
   function clearLoader() { if (loadEl) { loadEl.remove(); loadEl = null; } }
   function escCh(s) {
-    return String(s).replace(/[&<>]/g, function (c) { return c === "&" ? "&" : c === "<" ? "<" : ">"; });
+    return String(s).replace(/[&<>]/g, function (c) {
+      if (c === "&") return "&";
+      if (c === "<") return "<";
+      return ">";
+    });
   }
   function buildLoader() {
     var o = document.createElement("div");
@@ -454,8 +460,15 @@
     clearLoader();
     loadEl = buildLoader();
     var word = loadEl.querySelector(".lp-word");
-    setTimeout(function () { if (tok === loadTok && word) word.classList.add("lp-wave"); }, 180);
-    setTimeout(function () { if (tok === loadTok && word) word.classList.add("lp-join"); }, 460);
+    setTimeout(function () { if (tok === loadTok && word) word.classList.add("lp-wave"); }, 160);
+    setTimeout(function () {
+      if (tok !== loadTok || !word) return;
+      word.classList.remove("lp-zoom", "lp-wave");
+      var check = "Checking", html = "", i;
+      for (i = 0; i < check.length; i++) html += "<span class='lp-ch' style='--i:" + i + "'>" + check.charAt(i) + "</span>";
+      word.innerHTML = html;
+      word.classList.add("lp-join", "lp-jerk");
+    }, 520);
     setTimeout(function () {
       if (tok !== loadTok) return;
       if (word) word.classList.add("lp-jerk");
@@ -491,7 +504,16 @@
   function listEl() { return $("list"); }
   function latestBtn() { return $("toBottom"); }
   function nearBottom() { var b = listEl(); return b ? b.scrollHeight - b.scrollTop - b.clientHeight <= 80 : true; }
-  function goLatest() { var b = latestBtn(); if (b && !b.classList.contains("hidden")) b.click(); }
+  function goLatest() {
+    var l = listEl();
+    if (l && !nearBottom()) {
+      savedTop = l.scrollTop;
+      if (chip) chip.classList.remove("hidden");
+    }
+    var b = latestBtn();
+    if (b) b.click();
+    else if (l) l.scrollTop = l.scrollHeight;
+  }
 
   /* swipe up to ignore: removes only the current event; the next one shows again */
   function bindSwipe(el, onUp) {
@@ -780,33 +802,81 @@
       if (e.key !== "End" || !st.inChat || /INPUT|TEXTAREA/.test(e.target.tagName)) return;
       e.preventDefault(); goLatest();
     });
+    var lock = document.getElementById("lock");
+    if (lock) new MutationObserver(function () {
+      if (!signedIn()) { st.typing = false; st.unread = 0; st.bannerOff = false; st.trayOff = false; }
+      syncBanner(); syncTray();
+    }).observe(lock, { attributes: true, attributeFilter: ["class"] });
     setTimeout(function () { ready = true; }, 1500);
     syncTray(); syncBanner();
   }
 
   function bindMotion() {
     var art = document.getElementById("lpArt");
-    if (!art) return;
-    var moves = ["lean", "point", "nod", "sway", "reach", "close", "hands"];
-    var i = 0;
+    if (!art || (reduceMq && reduceMq.matches)) return;
+    var bits = {
+      figs: art.querySelector(".figs"),
+      headL: art.querySelector(".headL"),
+      headR: art.querySelector(".headR"),
+      handL: art.querySelector(".handL"),
+      handR: art.querySelector(".handR")
+    };
     art.querySelectorAll(".star").forEach(function (star, n) {
-      star.style.animationDelay = (Math.random() * 2.4) + "s";
-      star.style.animationDuration = (1.8 + (n % 5) * 0.45) + "s";
+      star.style.animationDelay = (Math.random() * 2.2) + "s";
+      star.style.animationDuration = (1.6 + (n % 5) * 0.35) + "s";
     });
-    function step() {
-      if (reduceMq && reduceMq.matches) { art.setAttribute("data-move", "lean"); return; }
-      i = (i + 1 + Math.floor(Math.random() * (moves.length - 1))) % moves.length;
-      art.setAttribute("data-move", moves[i]);
-      art.style.setProperty("--move-ms", (2200 + Math.random() * 1800).toFixed(0) + "ms");
+    var poses = [
+      { figs: "none", headL: "none", headR: "none", handL: "none", handR: "none" },
+      { figs: "translate(-8px,2px) rotate(-4deg)", headL: "rotate(-10deg)", headR: "rotate(6deg)", handL: "rotate(8deg)", handR: "rotate(-6deg)" },
+      { figs: "translate(10px,1px) rotate(4deg)", headL: "rotate(7deg)", headR: "rotate(-12deg)", handL: "rotate(-10deg)", handR: "rotate(16deg)" },
+      { figs: "translate(0,-6px)", headL: "translateY(-7px) rotate(-8deg)", headR: "translateY(-9px) rotate(8deg)", handL: "rotate(12deg)", handR: "rotate(-46deg)" },
+      { figs: "translate(-3px,0) rotate(-1deg)", headL: "rotate(-4deg)", headR: "rotate(3deg)", handL: "rotate(-40deg)", handR: "rotate(14deg)" },
+      { figs: "translate(0,4px)", headL: "translate(4px,-2px) rotate(2deg)", headR: "translate(-4px,-2px) rotate(-2deg)", handL: "rotate(18deg)", handR: "rotate(-16deg)" },
+      { figs: "translate(2px,-3px) rotate(1deg)", headL: "rotate(-16deg) translateY(-4px)", headR: "rotate(3deg)", handL: "rotate(6deg)", handR: "rotate(-10deg)" },
+      { figs: "translate(-2px,-2px)", headL: "rotate(4deg)", headR: "rotate(-18deg) translateY(-5px)", handL: "rotate(22deg)", handR: "rotate(-52deg)" },
+      { figs: "translate(0,2px) rotate(-2deg)", headL: "translate(2px,3px)", headR: "translate(-2px,2px)", handL: "rotate(-8deg)", handR: "rotate(8deg)" },
+      { figs: "translate(6px,-4px) rotate(2deg)", headL: "rotate(-6deg) translateY(-3px)", headR: "rotate(-6deg) translateY(-5px)", handL: "rotate(-28deg)", handR: "rotate(-24deg)" }
+    ];
+    var running = [], i = 0;
+    function go() {
+      running.forEach(function (a) { try { a.cancel(); } catch (e) {} });
+      running = [];
+      var pose = poses[i];
+      var ms = 820 + Math.random() * 980;
+      Object.keys(bits).forEach(function (k) {
+        var el = bits[k];
+        if (!el || !el.animate) return;
+        running.push(el.animate(
+          [{ transform: getComputedStyle(el).transform }, { transform: pose[k] || "none" }],
+          { duration: ms, easing: "cubic-bezier(.37,.02,.2,1)", fill: "forwards" }
+        ));
+      });
+      i = (i + 1 + Math.floor(Math.random() * (poses.length - 1))) % poses.length;
+      setTimeout(go, ms + 180 + Math.random() * 640);
     }
-    step();
-    setInterval(step, 3200);
+    go();
+  }
+  function bindLift() {
+    if (reduceMq && reduceMq.matches) return;
+    document.addEventListener("pointermove", function (e) {
+      var card = e.target.closest ? e.target.closest(".media-card, .media-kind, .who-card") : null;
+      document.querySelectorAll(".lp-tilted").forEach(function (n) {
+        if (n !== card) { n.style.transform = ""; n.classList.remove("lp-tilted"); }
+      });
+      if (!card) return;
+      var r = card.getBoundingClientRect();
+      var px = (e.clientX - r.left) / Math.max(1, r.width) - 0.5;
+      var py = (e.clientY - r.top) / Math.max(1, r.height) - 0.5;
+      card.classList.add("lp-tilted");
+      card.style.transform = "perspective(720px) rotateY(" + (px * 9).toFixed(2) + "deg) rotateX(" + (-py * 8).toFixed(2) + "deg) translateY(-8px)";
+    }, { passive: true });
   }
 
   /* ---------- init ---------- */
   function init() {
     if (store.get("lp-ghost", false)) document.body.classList.add("ghost");
     bindMotion();
+    bindLift();
     bindShields();
     buildComposer();
     bindSend();

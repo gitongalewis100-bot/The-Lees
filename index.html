@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="The Lees">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="icon" href="/icon-192.png">
-<link rel="stylesheet" href="/lees-patch.css?v=5">
+<link rel="stylesheet" href="/lees-patch.css?v=6">
 <style>
 :root{
   --bg:#f8f4ee;--surface:#fffdf9;--ink:#2a2420;--muted:#8c8179;--line:#ebe2d7;--line-strong:#dcd0c2;
@@ -56,28 +56,12 @@ button{cursor:pointer;background:none;border:0;padding:0}
 
 /* ---------- Sign-in ---------- */
 #lock{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 24px;gap:10px;overflow-y:auto;animation:rise .5s var(--ease) both}
-.monoArt{width:min(280px,82vw);height:auto;color:var(--ink);overflow:visible}
+.monoArt{width:min(300px,86vw);height:auto;color:var(--ink);overflow:visible}
 .monoArt *{vector-effect:non-scaling-stroke}
-.monoArt .star{transform-box:fill-box;transform-origin:center;animation:twinkle 2.6s ease-in-out infinite}
-.monoArt .figs,.monoArt .handL,.monoArt .handR,.monoArt .headL,.monoArt .headR{transform-box:fill-box}
-.monoArt[data-move="lean"] .figs{transform-origin:174px 150px;animation:monoLean var(--move-ms,3.4s) ease-in-out infinite}
-.monoArt[data-move="point"] .handR{transform-origin:236px 168px;animation:monoPoint var(--move-ms,2.8s) ease-in-out infinite}
-.monoArt[data-move="nod"] .headL,.monoArt[data-move="nod"] .headR{transform-origin:center;animation:monoNod var(--move-ms,2.4s) ease-in-out infinite}
-.monoArt[data-move="sway"] .figs{transform-origin:174px 200px;animation:monoSway var(--move-ms,3.6s) ease-in-out infinite}
-.monoArt[data-move="reach"] .handL{transform-origin:112px 168px;animation:monoReach var(--move-ms,2.7s) ease-in-out infinite}
-.monoArt[data-move="close"] .headL{animation:monoCloseL var(--move-ms,3s) ease-in-out infinite}
-.monoArt[data-move="close"] .headR{animation:monoCloseR var(--move-ms,3s) ease-in-out infinite}
-.monoArt[data-move="hands"] .handL,.monoArt[data-move="hands"] .handR{transform-origin:center;animation:monoHands var(--move-ms,2.5s) ease-in-out infinite}
-@keyframes twinkle{0%,100%{opacity:.25}45%{opacity:1}70%{opacity:.4}}
-@keyframes monoLean{0%,100%{transform:rotate(0)}40%{transform:rotate(-4deg) translateX(-3px)}70%{transform:rotate(3deg)}}
-@keyframes monoPoint{0%,100%{transform:rotate(0)}35%{transform:rotate(-48deg)}60%{transform:rotate(-18deg)}80%{transform:rotate(-36deg)}}
-@keyframes monoNod{0%,100%{transform:translateY(0)}40%{transform:translateY(5px)}70%{transform:translateY(-2px)}}
-@keyframes monoSway{0%,100%{transform:rotate(0)}50%{transform:rotate(2.5deg)}}
-@keyframes monoReach{0%,100%{transform:rotate(0)}45%{transform:rotate(26deg) translateY(-8px)}}
-@keyframes monoCloseL{0%,100%{transform:translateX(0)}50%{transform:translateX(4px)}}
-@keyframes monoCloseR{0%,100%{transform:translateX(0)}50%{transform:translateX(-4px)}}
-@keyframes monoHands{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-@media (prefers-reduced-motion: reduce){.monoArt .star,.monoArt .figs,.monoArt .handL,.monoArt .handR,.monoArt .headL,.monoArt .headR{animation:none!important}}
+.monoArt .star{transform-box:fill-box;transform-origin:center;animation:twinkle 2.8s ease-in-out infinite}
+.monoArt .figs,.monoArt .headL,.monoArt .headR,.monoArt .handL,.monoArt .handR{transform-box:fill-box;transform-origin:center}
+@keyframes twinkle{0%,100%{opacity:.2}40%{opacity:1}70%{opacity:.35}}
+@media (prefers-reduced-motion: reduce){.monoArt .star{animation:none!important}}
 .monoArt.checking{filter:blur(10px);opacity:.35}
 .acct-switch{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:16px;background:color-mix(in srgb,var(--bg) 70%,var(--surface));border:1px solid var(--line)}
 .acct-switch button{padding:11px 8px;border-radius:12px;font-family:var(--serif);font-size:16px;color:var(--muted)}
@@ -509,50 +493,59 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
 <!-- Sign-in -->
 <section id="lock" style="position:absolute;inset:0">
-  <svg id="lpArt" class="monoArt" data-move="lean" viewBox="0 0 360 280" role="img" aria-label="Two people, seen from behind, sitting close and watching the stars">
-    <g class="sky" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
-      <circle class="star" cx="46" cy="28" r="1.4" fill="currentColor" stroke="none"/>
-      <circle class="star" cx="92" cy="48" r="1" fill="currentColor" stroke="none"/>
-      <circle class="star" cx="138" cy="22" r="1.6" fill="currentColor" stroke="none"/>
-      <path class="star" d="M168 36 l1.2 3.2 3.2 1.2 -3.2 1.2 -1.2 3.2 -1.2 -3.2 -3.2 -1.2 3.2 -1.2z"/>
-      <circle class="star" cx="210" cy="18" r="1.1" fill="currentColor" stroke="none"/>
-      <circle class="star" cx="246" cy="40" r="1.5" fill="currentColor" stroke="none"/>
-      <path class="star" d="M286 24 l1 2.6 2.6 1 -2.6 1 -1 2.6 -1 -2.6 -2.6 -1 2.6 -1z"/>
-      <circle class="star" cx="318" cy="52" r="1" fill="currentColor" stroke="none"/>
-      <circle class="star" cx="70" cy="70" r=".8" fill="currentColor" stroke="none"/>
-      <circle class="star" cx="300" cy="74" r="1.2" fill="currentColor" stroke="none"/>
+  <svg id="lpArt" class="monoArt" viewBox="0 0 360 250" role="img" aria-label="Two people, seen from behind, sitting close on a wooden chair and watching the stars">
+    <g class="sky" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <circle class="star" cx="42" cy="28" r="1.5" fill="currentColor" stroke="none"/>
+      <circle class="star" cx="78" cy="52" r="1" fill="currentColor" stroke="none"/>
+      <path class="star" d="M118 22 l1.4 3.4 3.4 1.4 -3.4 1.4 -1.4 3.4 -1.4 -3.4 -3.4 -1.4 3.4 -1.4z" stroke-width="1.2"/>
+      <circle class="star" cx="156" cy="40" r="1.2" fill="currentColor" stroke="none"/>
+      <circle class="star" cx="198" cy="18" r="1.6" fill="currentColor" stroke="none"/>
+      <path class="star" d="M236 34 l1.2 3 3 1.2 -3 1.2 -1.2 3 -1.2 -3 -3 -1.2 3 -1.2z" stroke-width="1.2"/>
+      <circle class="star" cx="274" cy="20" r="1" fill="currentColor" stroke="none"/>
+      <circle class="star" cx="308" cy="46" r="1.4" fill="currentColor" stroke="none"/>
+      <circle class="star" cx="332" cy="24" r=".9" fill="currentColor" stroke="none"/>
+      <circle class="star" cx="96" cy="74" r=".8" fill="currentColor" stroke="none"/>
+      <path class="star" d="M286 68 l1 2.4 2.4 1 -2.4 1 -1 2.4 -1 -2.4 -2.4 -1 2.4 -1z" stroke-width="1.1"/>
     </g>
-    <g class="chair" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M118 150 v86"/>
-      <path d="M242 150 v86"/>
-      <path d="M112 150 h136"/>
-      <path d="M122 176 h116"/>
-      <path d="M128 206 h104"/>
-      <path d="M136 206 v48"/>
-      <path d="M224 206 v48"/>
-      <path d="M136 254 h18"/>
-      <path d="M206 254 h18"/>
+    <g class="chair" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M96 132 h168"/>
+      <path d="M108 132 v78"/>
+      <path d="M252 132 v78"/>
+      <path d="M108 168 h144"/>
+      <path d="M116 210 h128"/>
+      <path d="M132 210 v32"/>
+      <path d="M228 210 v32"/>
+      <path d="M118 242 h28"/>
+      <path d="M214 242 h28"/>
     </g>
-    <g class="figs" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
-      <circle class="headL" cx="156" cy="96" r="16"/>
-      <circle class="headR" cx="196" cy="94" r="16"/>
-      <path d="M138 112 C116 124 110 150 114 188"/>
-      <path d="M214 110 C236 122 242 148 236 186"/>
-      <path d="M170 112 C162 136 160 160 168 188"/>
-      <path d="M182 110 C190 134 192 158 184 188"/>
-      <g class="handL" stroke-width="3.4">
-        <path d="M112 186 l-16 8"/>
-        <path d="M114 184 l-12 16"/>
-        <path d="M116 184 l-2 18"/>
-        <path d="M118 186 l8 16"/>
-        <path d="M120 188 l14 10"/>
+    <g class="figs" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <g class="headL" stroke-width="6">
+        <circle cx="158" cy="78" r="18"/>
+        <path d="M144 70 q14 -16 28 0" stroke-width="4"/>
       </g>
-      <g class="handR" stroke-width="3.4">
-        <path d="M238 184 l16 6"/>
-        <path d="M236 182 l14 14"/>
-        <path d="M234 182 l4 18"/>
-        <path d="M232 184 l-8 16"/>
-        <path d="M230 186 l-14 8"/>
+      <g class="headR" stroke-width="6">
+        <circle cx="202" cy="76" r="18"/>
+        <path d="M188 68 q14 -16 28 0" stroke-width="4"/>
+      </g>
+      <path d="M150 96 v14" stroke-width="5"/>
+      <path d="M210 94 v14" stroke-width="5"/>
+      <path d="M132 118 C108 132 104 162 118 198" stroke-width="7"/>
+      <path d="M176 116 C166 142 164 170 176 202" stroke-width="7"/>
+      <path d="M184 114 C194 140 196 168 186 202" stroke-width="7"/>
+      <path d="M228 116 C252 130 256 160 242 196" stroke-width="7"/>
+      <g class="handL" stroke-width="2.6">
+        <path d="M116 196 l-18 6"/>
+        <path d="M116 198 l-16 14"/>
+        <path d="M118 198 l-6 18"/>
+        <path d="M120 200 l6 16"/>
+        <path d="M122 200 l14 10"/>
+      </g>
+      <g class="handR" stroke-width="2.6">
+        <path d="M244 194 l18 4"/>
+        <path d="M244 196 l16 12"/>
+        <path d="M242 198 l6 18"/>
+        <path d="M240 200 l-6 16"/>
+        <path d="M238 200 l-14 10"/>
       </g>
     </g>
   </svg>
@@ -910,6 +903,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   function chime() {
     try {
+      if (!unlocked) return;
       if (S(me || "Lewis").sound === false) return;
       ensureAudio();
       if (window.LeesHooks && LeesHooks.playArrival) { LeesHooks.playArrival(view === "chat" ? "inChat" : "outChat"); return; }
@@ -1825,7 +1819,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function renderPresence() {
     if (!me) return;
     const remote = (typeof presenceState !== "undefined" && presenceState[other()]) || null;
-    const remoteTyping = !dropPresenceTyping && !!(remote && remote.typing && Date.now() - (remote.ts || 0) < 1400);
+    const remoteTyping = !dropPresenceTyping && !!(remote && remote.typing && Date.now() - (remote.ts || 0) < 800);
     const typing = Date.now() > (typingMuteUntil || 0) && (Date.now() < (partnerTypingUntil || 0) || remoteTyping);
     const p = $("presence");
     p.classList.remove("live");
@@ -2698,7 +2692,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function openScheduled() {
     openPanel("Scheduled", "Waiting to arrive", (body) => {
       const items = sched().filter(s => s.from === me).sort((a, b) => a.sendAt - b.sendAt);
-      if (!items.length) body.appendChild(el("p", "fp-desc", "Nothing is scheduled. Use the clock beside the message box to choose when a message should arrive."));
+      if (!items.length) body.appendChild(el("p", "fp-desc", "Nothing is scheduled. Hold Send to choose when a message should arrive."));
       const rows = [];
       for (const s of items) {
         const it = el("div", "item");
@@ -3674,9 +3668,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if ($("input").value.trim()) {
       trackTyping(true, typingEnergy());
       clearTimeout(typingTail);
-      typingTail = setTimeout(() => trackTyping(false), 480);
+      typingTail = setTimeout(() => trackTyping(false), 140);
     } else trackTyping(false);
   });
+  $("input").addEventListener("blur", () => trackTyping(false));
   $("input").addEventListener("keydown", (e) => {
     if (e.isComposing || e.keyCode === 229) return;
     const coarse = window.matchMedia("(pointer: coarse)").matches;
@@ -3822,7 +3817,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       openSchedulePicker();
     }, 500);
   });
-  ["pointerup", "pointercancel", "pointerleave"].forEach(ev => $("send").addEventListener(ev, () => clearTimeout(sendHold)));
+  ["pointerup", "pointercancel"].forEach(ev => $("send").addEventListener(ev, () => clearTimeout(sendHold)));
 
   function openAttachMenu() {
     sheetOpen((body) => {
@@ -4249,11 +4244,11 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       }
       dropPresenceTyping = false;
       partnerTypingPulse = Date.now();
-      partnerTypingUntil = Date.now() + 1300;
+      partnerTypingUntil = Date.now() + 700;
       partnerEnergy = payload.energy || "mid";
       renderPresence();
       clearTimeout(typeChannel._hide);
-      typeChannel._hide = setTimeout(() => { if (unlocked) renderPresence(); }, 1400);
+      typeChannel._hide = setTimeout(() => { if (unlocked) renderPresence(); }, 720);
     });
     typeChannel.subscribe();
   }
@@ -5107,6 +5102,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
   async function cloudSignIn(e) {
     e.preventDefault();
+    ensureAudio();
+    if (window.LeesHooks && LeesHooks.primeAudio) LeesHooks.primeAudio();
     if (!chosen) return;
     const client = cloudClient();
     if (!client) return;
@@ -5203,6 +5200,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       return copy;
     };
     swap("lockForm").addEventListener("submit", cloudSignIn);
+    document.querySelectorAll("#acctSwitch button").forEach(b => b.addEventListener("click", () => selectSide(b.dataset.side)));
     swap("setupForm").addEventListener("submit", cloudSetup);
     swap("recoverForm").addEventListener("submit", cloudRecover);
     $("forgot").addEventListener("click", () => { showLockMode("recover"); void loadPrompts(); });
@@ -5368,6 +5366,6 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   })();
 })();
 </script>
-<script src="/lees-patch.js?v=5" defer></script>
+<script src="/lees-patch.js?v=6" defer></script>
 </body>
 </html>
