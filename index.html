@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="The Lees">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="icon" href="/icon-192.png">
-<link rel="stylesheet" href="/lees-patch.css?v=10">
+<link rel="stylesheet" href="/lees-patch.css?v=20">
 <style>
 :root{
   --bg:#f8f4ee;--surface:#fffdf9;--ink:#2a2420;--muted:#8c8179;--line:#ebe2d7;--line-strong:#dcd0c2;
@@ -70,10 +70,12 @@ button{cursor:pointer;background:none;border:0;padding:0}
 @keyframes twinkle{0%,100%{opacity:.2}40%{opacity:1}70%{opacity:.35}}
 @media (prefers-reduced-motion: reduce){.monoArt .star,.monoArt .armL,.monoArt .armR,.monoArt .headL,.monoArt .headR{animation:none!important}}
 .monoArt.checking{filter:blur(10px);opacity:.35}
-.acct-switch{width:min(340px,100%);display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:18px;background:color-mix(in srgb,var(--bg) 70%,var(--surface));border:1px solid var(--line)}
-.acct-switch button{display:flex;align-items:center;justify-content:center;gap:10px;padding:16px 10px;border-radius:14px;font-family:var(--serif);font-size:25px;color:var(--muted);transition:background .35s ease,color .35s ease}
-.acct-switch button .av{width:28px;height:28px;font-size:13px}
-.acct-switch button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.acct-switch{position:relative;width:min(260px,100%);height:46px;display:grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:23px;background:color-mix(in srgb,var(--bg) 70%,var(--surface));border:1px solid var(--line);overflow:hidden}
+.acct-switch::before{content:"";position:absolute;top:3px;left:3px;width:calc(50% - 3px);height:calc(100% - 6px);border-radius:20px;background:var(--ink);transition:transform .6s cubic-bezier(.4,0,.2,1);z-index:0}
+.acct-switch.is-right::before{transform:translateX(100%)}
+.acct-switch button{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 8px;border-radius:20px;background:transparent;font-family:var(--serif);font-size:17px;color:var(--muted);transition:color .6s ease}
+.acct-switch button .av{width:22px;height:22px;font-size:11px}
+.acct-switch button[aria-pressed="true"]{color:var(--bg)}
 #lockForm #pass{font-size:30px;padding-top:22px;padding-bottom:22px;min-height:84px}
 #lockForm .btn{font-size:22px;min-height:60px;padding:16px 22px}
 #lock .sub{font-size:19px}
@@ -1226,8 +1228,12 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     }
     const time = el("span", "vt mono", fmtDur(m.dur || 0));
     const speed = el("button", "vspeed", "1×");
-    let rate = 1;
+    // The speed a listener chose for this voice note is remembered on this device.
+    let rate = Number(((store.get("pp-speed", {}) || {})[m.id])) || 1;
+    if (![1, 1.5, 2].includes(rate)) rate = 1;
+    speed.textContent = rate + "×";
     wrap.append(btn, bars, time, speed);
+    audio.playbackRate = rate;
     wrap._audio = audio;
     const dur = () => (isFinite(audio.duration) && audio.duration > 0 ? audio.duration : (m.dur || 0));
     const update = () => {
@@ -1252,7 +1258,15 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     audio.addEventListener("ended", () => { btn.innerHTML = ic("play"); audio.currentTime = 0; update(); });
     audio.addEventListener("timeupdate", update);
     audio.addEventListener("loadedmetadata", update);
-    speed.addEventListener("click", (e) => { e.stopPropagation(); rate = rate === 1 ? 1.5 : rate === 1.5 ? 2 : 1; audio.playbackRate = rate; speed.textContent = rate + "×"; });
+    speed.addEventListener("click", (e) => {
+      e.stopPropagation();
+      rate = rate === 1 ? 1.5 : rate === 1.5 ? 2 : 1;
+      audio.playbackRate = rate;
+      speed.textContent = rate + "×";
+      const sp = store.get("pp-speed", {}) || {};
+      sp[m.id] = rate;
+      store.set("pp-speed", sp);
+    });
     bars.addEventListener("click", (e) => {
       e.stopPropagation();
       const r = bars.getBoundingClientRect(), d = dur();
@@ -1456,6 +1470,91 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     card._reblur = reblur;
   }
 
+  let chatGate = false;
+  const openedOnce = new Set();
+  async function verifyLock(s, value) {
+    if (s.chat_lock_mode === "password") return (await hashWith(s.chat_lock_salt, value)) === s.chat_lock_hash;
+    const acc = accountOf(me);
+    return !!acc && (await hashWith(acc.salt, value)) === acc.h;
+  }
+  async function gateChat(next) {
+    const client = cloudClient();
+    if (!client || !pairId) { notice("Couldn't check the chat lock", "Try again when you are online.", { error: true }); return; }
+    const r = await client.from("pair_settings").select("chat_lock_mode,chat_lock_salt,chat_lock_hash").eq("pair_id", pairId).maybeSingle();
+    if (r.error) { notice("Couldn't check the chat lock", "Try again when you are online.", { error: true }); return; }
+    const s = r.data;
+    if (!s || !s.chat_lock_mode || s.chat_lock_mode === "off") { chatGate = true; next(); return; }
+    openPanel("Locked chat", "Enter your passphrase to open it.", (body) => {
+      body.textContent = "";
+      const inp = el("input");
+      inp.type = "password"; inp.autocomplete = "off";
+      inp.placeholder = s.chat_lock_mode === "password" ? "Chat password" : "Your passphrase";
+      const err = el("p", "fp-desc", "");
+      const go = el("button", "btn", "Unlock");
+      go.type = "button";
+      go.addEventListener("click", async () => {
+        const client2 = cloudClient();
+        if (!client2) { err.textContent = "Try again when you are online."; return; }
+        const h = await hashWith(s.chat_lock_salt, inp.value);
+        const res = await client2.rpc("unlock_chat", { p_pair: pairId, p_hash: h });
+        if (res.error) { err.textContent = /too many/i.test(res.error.message || "") ? "Too many attempts. Wait ten minutes." : "That is not right. Nothing was opened."; haptic("error"); return; }
+        if (res.data !== true) { err.textContent = "That is not right. Nothing was opened."; haptic("error"); return; }
+        chatGate = true;
+        await reloadAll();
+        next();
+      });
+      body.append(inp, err, go);
+    });
+  }
+  function inputPanel(title, desc, labels, onOk) {
+    openPanel(title, desc, (body) => {
+      body.textContent = "";
+      const inputs = labels.map((l) => { const i = el("input"); i.type = "password"; i.placeholder = l; i.autocomplete = "off"; body.appendChild(i); return i; });
+      const err = el("p", "fp-desc", "");
+      const go = el("button", "btn", "Continue");
+      go.type = "button";
+      go.addEventListener("click", () => onOk(inputs.map((i) => i.value), (msg) => { err.textContent = msg; }));
+      body.append(err, go);
+    });
+  }
+  async function saveLock(mode, salt, hash) {
+    const client = cloudClient();
+    const r = client ? await client.from("pair_settings").update({ chat_lock_mode: mode, chat_lock_salt: salt, chat_lock_hash: hash }).eq("pair_id", pairId) : { error: true };
+    if (r.error) { notice("Couldn't save the lock", "Nothing was changed.", { error: true }); return false; }
+    chatGate = false;
+    notice(mode === "off" ? "Lock removed" : "Chat locked", mode === "off" ? "Anyone can open this chat again." : "Your passphrase opens it, or the new password.");
+    return true;
+  }
+  function openLockSetup() {
+    openPanel("Lock this chat", "Choose how to lock your chat with " + NAME[other()] + ".", (body) => {
+      body.textContent = "";
+      const opt = (title, sub, fn) => { const b = el("button", "choice"); b.type = "button"; b.append(el("b", "", title), el("small", "", sub)); b.addEventListener("click", fn); body.appendChild(b); };
+      opt("Lock with a new password", "A different password just for this chat", () => inputPanel("New chat password", "At least 4 characters. Type it twice.", ["New password", "Repeat password"], async ([a, c], fail) => {
+        if (a.length < 4) { fail("Use at least 4 characters."); return; }
+        if (a !== c) { fail("Those do not match."); return; }
+        const salt = uid();
+        await saveLock("password", salt, await hashWith(salt, a));
+      }));
+      opt("Remove the lock", "Needs the chat password", () => inputPanel("Remove the lock", "Enter the chat password to remove the lock.", ["Chat password"], async ([v], fail) => {
+        const client3 = cloudClient();
+        const r = client3 ? await client3.from("pair_settings").select("chat_lock_mode,chat_lock_salt,chat_lock_hash").eq("pair_id", pairId).maybeSingle() : { error: true };
+        if (r.error) { fail("Try again when you are online."); return; }
+        const cur = r.data;
+        if (!cur || cur.chat_lock_mode === "off") { await saveLock("off", null, null); return; }
+        const res = await client3.rpc("unlock_chat", { p_pair: pairId, p_hash: await hashWith(cur.chat_lock_salt, v) });
+        if (res.error || res.data !== true) { fail("That is not right. Nothing was changed."); return; }
+        await saveLock("off", null, null);
+      }));
+    });
+  }
+  async function openOnceMedia(m) {
+    openedOnce.add(m.id);
+    render();
+    const client = cloudClient();
+    if (!client) return;
+    const r = await client.rpc("mark_opened_once", { p_id: m.id });
+    if (r.error) notice("Couldn't record that it was opened", "It may show again after a refresh.", { error: true });
+  }
   function buildRow(m, seen, isLastMine) {
     const mine = m.from === me;
     const row = el("div", "row " + (mine ? "mine" : "theirs"));
@@ -1474,6 +1573,15 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const q = el("div", "quote");
       q.append(el("b", "", NAME[m.replyTo.from]), el("span", "", m.replyTo.preview));
       card.appendChild(q);
+    }
+    if (m.once && m.from !== me && m.kind !== "text" && !openedOnce.has(m.id)) {
+      const opened = (m.openedBy || []).includes(me);
+      const gate = el("button", "oncegate" + (opened ? " done" : ""), opened ? "One-time media, already opened" : "One-time " + (m.kind === "video" ? "video" : m.kind === "audio" ? "audio" : "photo") + " · tap to open");
+      gate.type = "button";
+      if (!opened) gate.addEventListener("click", (e) => { e.stopPropagation(); openOnceMedia(m); });
+      card.appendChild(gate);
+      col.appendChild(card);
+      return row;
     }
     const scratchIt = privatelyHidden(m);
     if (m.kind === "text") {
@@ -1550,11 +1658,42 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
     if (isLastMine) {
       const s = seen[other()] || 0;
-      col.appendChild(el("div", "receipt", s >= m.ts ? "SEEN " + fmtTime(s) : "DELIVERED"));
+      { const r = receiptInfo(m, seen); col.appendChild(el("div", "receipt " + r.cls, r.label)); }
     }
     return row;
   }
 
+  function receiptInfo(m, seen) {
+    if (m.failed) return { cls: "rc-failed", label: "NOT SENT" };
+    if (m.pending) return { cls: "rc-sent", label: "SENT" };
+    const s = seen[other()] || 0;
+    if (s >= m.ts && otherReadReceipts) return { cls: "rc-seen", label: "SEEN " + fmtTime(s) };
+    return { cls: "rc-delivered", label: "DELIVERED" };
+  }
+  // Unread messages from the other person count down as they pass an invisible line 40% down the chat.
+  // Messages not yet passed stay in the glass blur. Read messages never blur again.
+  function passUnread(allowPass) {
+    if (!unlocked || view !== "chat") return;
+    const box = $("list");
+    const line = box.getBoundingClientRect().top + box.clientHeight * 0.4;
+    let cut = cacheSeen[me] || 0;
+    const rows = [...box.querySelectorAll(".row.theirs[data-ts]")];
+    if (allowPass) {
+      let moved = false;
+      for (const row of rows) {
+        const ts = Number(row.dataset.ts);
+        if (ts <= cut) continue;
+        if (row.getBoundingClientRect().top >= line) break;
+        cut = ts; moved = true;
+      }
+      if (moved) {
+        cacheSeen[me] = cut;
+        unreadN = visibleList().filter(m => m.from !== me && !m.deleted && m.ts > cut).length;
+        renderBanner();
+      }
+    }
+    for (const row of rows) row.classList.toggle("unread-glass", Number(row.dataset.ts) > cut);
+  }
   function firstUnread() {
     const cut = cacheSeen[me] || 0;
     return visibleList().find(m => m.from !== me && !m.deleted && m.ts > cut) || null;
@@ -1573,7 +1712,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   function render(opts) {
     if (!unlocked) return;
-    if (view === "chat") renderChat(opts || {});
+    if (view === "chat") { renderChat(opts || {}); passUnread(false); }
     else if (view === "home") renderHome();
     else if (view === "panel") renderPanel();
     renderBanner();
@@ -1615,9 +1754,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     let receipt = row.querySelector(".receipt");
     if (isLastMine) {
       const s = seen[other()] || 0;
-      const text = s >= m.ts ? "SEEN " + fmtTime(s) : "DELIVERED";
-      if (!receipt) (row.querySelector(".bubblecol") || row).appendChild(el("div", "receipt", text));
-      else receipt.textContent = text;
+      const r = receiptInfo(m, seen);
+      if (!receipt) (row.querySelector(".bubblecol") || row).appendChild(el("div", "receipt " + r.cls, r.label));
+      else { receipt.className = "receipt " + r.cls; receipt.textContent = r.label; }
     } else if (receipt) receipt.remove();
   }
 
@@ -2408,9 +2547,47 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const r = await client.from("journal_entries").select("*").eq("pair_id", pairId).order("created_at", { ascending: false });
     cacheJournal = (r.data || []).map(e => ({ id: e.id, from: e.side, kind: e.kind, text: e.text, ts: new Date(e.created_at).getTime() }));
   }
+  // Regroups the Settings panel into Account, Privacy, Notifications, Data and Features.
+  // It only moves existing rows and groups. It never changes what a control does.
+  function groupSettings(body) {
+    const plan = [
+      { name: "Account", groups: ["Your side", "Names shown to us", "Lock-screen tagline"], rows: ["Status", "Choose photo", "Time zone"] },
+      { name: "Privacy", groups: ["Words you want blurred"], rows: ["Auto-blur", "Shake to lock", "Sign-in object"] },
+      { name: "Notifications", groups: [], rows: ["Haptics", "Vibration", "Sounds"] },
+      { name: "Data", groups: ["Shared · both of you"], rows: ["Theme", "Archive old messages", "Open archive"] },
+      { name: "Features", groups: [], rows: [] }
+    ];
+    const secs = plan.map((sec) => { const w = el("div", "settings-section"); w.appendChild(el("div", "settings-head", sec.name)); return w; });
+    const sectionForRow = (lab) => { for (let i = 0; i < plan.length; i++) if (plan[i].rows.some((l) => lab.startsWith(l))) return i; return 3; };
+    [...body.querySelectorAll(".prow")].forEach((r) => {
+      const lab = ((r.querySelector(".lab span") || r).textContent || "").trim();
+      secs[sectionForRow(lab)].appendChild(r);
+    });
+    [...body.querySelectorAll(":scope > .pgroup")].forEach((g) => {
+      const title = ((g.querySelector(".gh") || {}).textContent || "").trim();
+      const idx = plan.findIndex((sec) => sec.groups.includes(title));
+      if (idx >= 0 && !g.querySelector(".prow")) secs[idx].appendChild(g);
+    });
+    [...body.querySelectorAll(".pgroup")].forEach((g) => {
+      if (!g.querySelector(".prow, input, button, .wchips")) g.remove();
+    });
+    secs.forEach((w) => { if (w.children.length > 1) body.appendChild(w); });
+  }
   function openSettings() {
     openPanel("Settings", NAME[me], (body) => {
       const sh = SH(), s = S(me);
+      const search = el("input", "in plain");
+      search.type = "search";
+      search.placeholder = "Search settings";
+      search.setAttribute("aria-label", "Search settings");
+      search.addEventListener("input", () => {
+        const q = search.value.trim().toLowerCase();
+        [...body.children].forEach((c) => {
+          if (c === search) return;
+          c.style.display = !q || c.textContent.toLowerCase().includes(q) ? "" : "none";
+        });
+      });
+      body.appendChild(search);
       body.appendChild(group("Shared · both of you", [
         btnRow("Theme · " + (THEMES.find(t => t.id === sh.theme) || THEMES[0]).name, "palette", () => openThemeBar("app")),
         prow("Archive old messages", "Moved to Archive, never deleted", selectCtl(ARCHIVE, sh.archiveDays, (v) => { setSH({ archiveDays: Number(v) }); render(); notice("Archive updated"); })),
@@ -2452,10 +2629,12 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         (() => { const b = el("button", "btn sm", "Choose"); b.addEventListener("click", () => { const f = el("input"); f.type = "file"; f.accept = "image/*"; f.addEventListener("change", () => { if (f.files[0]) setAppIcon(f.files[0]); }); f.click(); }); return prow("App icon", "Shown on both devices", b); })(),
         (() => { const b = el("button", "btn sm", "Choose photo"); b.addEventListener("click", () => { const f = el("input"); f.type = "file"; f.accept = "image/*"; f.addEventListener("change", () => { if (f.files[0]) uploadAvatar(f.files[0]); }); f.click(); }); return prow("Photo", "Shown on your home card", b); })(),
         prow("Time zone", "Shown to her as your local time", selectCtl(ZONES.concat(ZONES.includes(s.tz) ? [] : [s.tz]).map(z => [z, z]), s.tz, (v) => setS(me, { tz: v }))),
+        prow("Mute notifications", "Silences sound and buzz for you", selectCtl([["off", "Not muted"], ["8h", "8 hours"], ["1w", "1 week"]], ppMuteChoice(), (v) => ppSetMute(v))),
         prow("Haptics", "Gentle vibration on actions", toggle(s.haptics, (v) => { setS(me, { haptics: v }); if (v) haptic("press"); })),
         prow("Vibration", "A short buzz when a message arrives", toggle(s.vibrate !== false, (v) => setS(me, { vibrate: v }))),
         prow("Sounds", "A soft chime on arrival", toggle(s.sound, (v) => setS(me, { sound: v }))),
         prow("Sign-in object", "What moves over the passphrase marks", selectCtl([["scan", "Scan line (recommended)"], ["round", "Round lens"], ["small", "Small lens"], ["square", "Square lens"], ["drop", "Drop"], ["star", "Star"]], s.lens || "scan", (v) => { try { localStorage.setItem("pp-lens", v); } catch (e) {} setS(me, { lens: v }); })),
+        prow("Let her see when I've read", "Turn off to hide your read receipts", toggle(myReadReceipts, (v) => ppSetReadReceipts(v))),
         prow("Auto-blur sensitive words", "Blurs " + TERMS.length + " built-in words", toggle(s.autoBlur, (v) => { setS(me, { autoBlur: v }); render(); })),
         prow("Shake to lock", "Two firm shakes lock at once", toggle(s.shake, async (v) => {
           if (v && typeof DeviceMotionEvent !== "undefined" && DeviceMotionEvent.requestPermission) {
@@ -2508,6 +2687,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         btnRow("Sign out on other devices", "logout", () => confirmSignOut("other"), true),
         btnRow("Sign out", "logout", () => confirmSignOut("this"), true)
       ]));
+      groupSettings(body);
     }, "home");
   }
 
@@ -2836,8 +3016,129 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     box.appendChild(open);
   }
 
+  const TILE_SIZES = ["s", "w", "t", "l"];
+  function applyTileSize(tile, size) {
+    tile.classList.remove("sz-w", "sz-t", "sz-l");
+    if (size && size !== "s") tile.classList.add("sz-" + size);
+  }
+  function attachHomeEdit(grid) {
+    let timer = null, drag = null, moved = false;
+    const ptrs = new Map(), base = { d: 0, tile: null };
+    const tiles = () => [...grid.querySelectorAll(".navbtn[data-key]")];
+    const setEdit = (on) => {
+      grid.classList.toggle("editing", on);
+      tiles().forEach((t) => t.classList.toggle("jig", on));
+    };
+    const saveSizes = () => {
+      const sizes = {};
+      tiles().forEach((t) => { const m = [...t.classList].find((c) => c.startsWith("sz-")); sizes[t.dataset.key] = m ? m.slice(3) : "s"; });
+      store.set("pp-home-sizes", sizes);
+    };
+    const stepSize = (tile, dir) => {
+      const cur = [...tile.classList].find((c) => c.startsWith("sz-"));
+      const i = TILE_SIZES.indexOf(cur ? cur.slice(3) : "s");
+      const j = Math.min(TILE_SIZES.length - 1, Math.max(0, i + dir));
+      if (j === i) return;
+      applyTileSize(tile, TILE_SIZES[j]);
+      saveSizes();
+    };
+    const dist = () => { const [a, b] = [...ptrs.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+    grid.addEventListener("pointerdown", (e) => {
+      const t = e.target.closest(".navbtn[data-key]");
+      if (!t) return;
+      if (grid.classList.contains("editing")) {
+        ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, tile: t });
+        if (ptrs.size === 1) drag = t;
+        if (ptrs.size === 2) { drag = null; base.d = dist(); base.tile = t; }
+        return;
+      }
+      moved = false;
+      clearTimeout(timer);
+      timer = setTimeout(() => { timer = null; moved = true; setEdit(true); }, 500);
+    });
+    grid.addEventListener("pointermove", (e) => {
+      if (grid.classList.contains("editing") && ptrs.has(e.pointerId)) {
+        ptrs.get(e.pointerId).x = e.clientX; ptrs.get(e.pointerId).y = e.clientY;
+        if (ptrs.size === 2 && base.d > 0 && base.tile) {
+          const r = dist() / base.d;
+          if (r > 1.35) { stepSize(base.tile, 1); base.d = dist(); }
+          else if (r < 0.75) { stepSize(base.tile, -1); base.d = dist(); }
+        }
+      }
+      if (!drag) return;
+      const under = document.elementFromPoint(e.clientX, e.clientY)?.closest(".navbtn[data-key]");
+      if (!under || under === drag || !grid.contains(under)) return;
+      const kids = [...grid.children];
+      grid.insertBefore(drag, kids.indexOf(drag) < kids.indexOf(under) ? under.nextSibling : under);
+    });
+    const end = (e) => {
+      clearTimeout(timer); timer = null;
+      if (e && e.pointerId !== undefined) ptrs.delete(e.pointerId);
+      if (ptrs.size < 2) { base.d = 0; base.tile = null; }
+      if (drag && (!e || ptrs.size === 0)) { drag = null; store.set("pp-home-order", tiles().map((t) => t.dataset.key)); }
+    };
+    grid.addEventListener("pointerup", end);
+    grid.addEventListener("pointercancel", end);
+    grid.addEventListener("pointerleave", () => { if (!drag) { clearTimeout(timer); timer = null; } });
+    let wheelAcc = 0;
+    grid.addEventListener("wheel", (e) => {
+      if (!grid.classList.contains("editing") || !e.ctrlKey) return;
+      const t = e.target.closest(".navbtn[data-key]");
+      if (!t) return;
+      e.preventDefault();
+      wheelAcc += e.deltaY;
+      if (Math.abs(wheelAcc) >= 30) { stepSize(t, wheelAcc < 0 ? 1 : -1); wheelAcc = 0; }
+    }, { passive: false });
+    grid.addEventListener("click", (e) => {
+      if (grid.classList.contains("editing") || moved) { e.stopPropagation(); e.preventDefault(); moved = false; }
+    }, true);
+    if (!window.__homeEditOutside) {
+      window.__homeEditOutside = true;
+      document.addEventListener("pointerdown", (e) => {
+        const g = document.querySelector(".tools2.editing");
+        if (g && !g.contains(e.target)) { g.classList.remove("editing"); g.querySelectorAll(".navbtn.jig").forEach((t) => t.classList.remove("jig")); }
+      });
+    }
+  }
+  function openNotifications() {
+    openPanel("Notifications", "Messages from " + NAME[other()], (body) => {
+      body.textContent = "";
+      let tab = "all";
+      const tabs = el("div", "notif-tabs");
+      const list = el("div", "notif-list");
+      const tabBtns = {};
+      const draw = () => {
+        const cut = cacheSeen[me] || 0;
+        let items = thread().filter(m => m.from !== me && !m.deleted && !m.archived);
+        if (tab === "unread") items = items.filter(m => m.ts > cut);
+        if (tab === "msg") items = items.filter(m => m.kind === "text" || m.kind === "image" || m.kind === "video" || m.kind === "audio");
+        items = items.slice(-40).reverse();
+        Object.entries(tabBtns).forEach(([k, btn]) => btn.classList.toggle("on", k === tab));
+        list.textContent = "";
+        if (!items.length) { list.appendChild(el("p", "fp-desc", tab === "unread" ? "Nothing unread." : "Nothing here yet.")); return; }
+        items.forEach(m => {
+          const what = m.kind === "text" ? (m.text || "") : m.kind === "image" ? "Photo" : m.kind === "video" ? "Video" : m.kind === "audio" ? "Voice note" : "Message";
+          const row = el("button", "choice");
+          row.type = "button";
+          row.append(el("b", "", NAME[m.from] + (m.ts > cut ? " · new" : "")), el("small", "", what));
+          row.addEventListener("click", () => openChat());
+          list.appendChild(row);
+        });
+      };
+      [["all", "All"], ["unread", "Unread"], ["msg", "Messages"]].forEach(([k, label]) => {
+        const btn = el("button", "notif-tab", label);
+        btn.type = "button";
+        btn.addEventListener("click", () => { tab = k; draw(); });
+        tabBtns[k] = btn;
+        tabs.appendChild(btn);
+      });
+      body.append(tabs, list);
+      draw();
+    });
+  }
   function renderHome() {
     if (!unlocked) return;
+    chatGate = false;
     try { localStorage.setItem("pp-lens", S(me).lens || "scan"); } catch (e) {}
     const h = new Date().getHours();
     $("greet").textContent = (h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening") + ", " + NAME[me];
@@ -2872,15 +3173,22 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       ["archive", "Archive", () => openArchive(), false],
       ["shield", shield ? "Shield on" : "Shield", () => { shield = !shield; haptic("press"); render(); }, shield],
       ["image", "Media", () => openMedia(), false],
-      ["book", "Journal", () => openJournal(), false]
+      ["book", "Journal", () => openJournal(), false],
+      ["bell", "Notifications", () => openNotifications(), false]
     ];
+    const savedOrder = store.get("pp-home-order", null);
+    if (Array.isArray(savedOrder)) items.sort((x, y) => { const a = savedOrder.indexOf(x[0]), c = savedOrder.indexOf(y[0]); return (a < 0 ? 99 : a) - (c < 0 ? 99 : c); });
     for (const [icon, label, fn, on] of items) {
       const b = el("button", "navbtn lift" + (icon === "book" ? " journal-tool" : "") + (on === true ? " on" : "") + (icon === "logout" ? " danger" : ""));
       b.type = "button";
+      b.dataset.key = icon;
+      applyTileSize(b, store.get("pp-home-sizes", {})[icon] || "s");
       b.innerHTML = ic(icon, "sm") + `<span>${label}</span>`;
+      if (icon === "bell" && unreadN) b.insertAdjacentHTML("beforeend", `<span class="notif-count">${unreadN}</span>`);
       b.addEventListener("click", fn);
       grid.appendChild(b);
     }
+    attachHomeEdit(grid);
     const live = el("div", "live-slot");
     live.id = "live";
     tools.append(grid, live);
@@ -2892,14 +3200,23 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const otherBtn = el("button", "person hero lift");
     const unreadChat = unreadN;
     otherBtn.innerHTML = `<div class="avatar ${other2.toLowerCase()}">${other2 === "Lewis" ? "L" : "A"}</div><div class="grow"><div class="n">${NAME[other2]}</div><div class="s">${htmlEsc(S(other2).status || "Open the conversation")}</div></div>${unreadChat ? `<span class="badge">${unreadChat}</span>` : ic("chat", "sm")}`;
+    let lockT = 0, lockFired = false;
+    otherBtn.addEventListener("pointerdown", () => { lockFired = false; clearTimeout(lockT); lockT = setTimeout(() => { lockFired = true; openLockSetup(); }, 600); });
+    ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => otherBtn.addEventListener(ev, () => clearTimeout(lockT)));
     otherBtn.addEventListener("click", (e) => {
+      if (lockFired) { lockFired = false; e.preventDefault(); return; }
       const av = e.target.closest(".avatar");
       if (av) { openAvatar(av); return; }
       openChat();
     });
+    if ((store.get(KEY.drafts, {})[me] || "").trim()) {
+      const g = otherBtn.querySelector(".grow");
+      if (g) g.insertAdjacentHTML("beforeend", '<span class="draft-tag">Draft</span>');
+    }
     people.appendChild(otherBtn);
     fillAvatars();
     renderPlay();
+    loadCloudDraft();
   }
 
   function playEvents() {
@@ -2970,12 +3287,6 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const box = $("live");
     if (!box || !me) return;
     box.textContent = "";
-    const openBtn = el("button", "play-go", "Coming soon");
-    openBtn.type = "button";
-    openBtn.disabled = true;
-    openBtn.style.opacity = ".6";
-    openBtn.style.cursor = "default";
-    box.appendChild(openBtn);
     return;
     if (!playOpen) return;
     const g = activePlay() || playGames().slice(-1)[0];
@@ -3022,6 +3333,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
 
   function openChat(withSearch, opts) {
+    if (!chatGate) { gateChat(() => openChat(withSearch, opts)); return; }
     const fromDay = !!(opts && opts.day);
     if (!fromDay) chatDay = null;
     else chatDay = opts.day;
@@ -3074,6 +3386,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     chosen = side;
     if (side) store.set(KEY.last, side);
     document.querySelectorAll("#acctSwitch button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.side === side)));
+    const swEl = document.getElementById("acctSwitch");
+    if (swEl) swEl.classList.toggle("is-right", side === "Agnes");
     if (!side) { showLockMode(null); return; }
     showLockMode("signin");
     const client = cloudClient();
@@ -3166,10 +3480,27 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     setTimeout(() => $("pass").focus(), 60);
   }
 
+  // Drafts are also kept in the drafts table so they survive a device change. The local copy is the fast path.
+  function cloudDraftSync(text) {
+    try {
+      const client = cloudClient();
+      if (!client || !pairId || !myUserId) return;
+      client.from("drafts").upsert({ pair_id: pairId, user_id: myUserId, body: String(text || "").slice(0, 10000), updated_at: new Date().toISOString() }, { onConflict: "pair_id,user_id" }).then(() => {}, () => {});
+    } catch {}
+  }
+  async function loadCloudDraft() {
+    try {
+      const client = cloudClient();
+      if (!client || !pairId || !myUserId || !me) return;
+      const { data } = await client.from("drafts").select("body").eq("pair_id", pairId).eq("user_id", myUserId).maybeSingle();
+      const d = store.get(KEY.drafts, {});
+      if (data && data.body && !d[me]) { d[me] = data.body; store.set(KEY.drafts, d); if (unlocked && view === "home") renderHome(); }
+    } catch {}
+  }
   function saveDraft(immediate) {
     if (!me) return;
     const side = me;
-    const run = () => { if (!side) return; const d = store.get(KEY.drafts, {}); d[side] = $("input").value; store.set(KEY.drafts, d); };
+    const run = () => { if (!side) return; const d = store.get(KEY.drafts, {}); d[side] = $("input").value; store.set(KEY.drafts, d); cloudDraftSync(d[side]); };
     if (immediate) run(); else { clearTimeout(saveDraft.h); saveDraft.h = setTimeout(run, 400); }
   }
 
@@ -3284,16 +3615,40 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
 
 
+  // One centred banner with exactly one Cancel and one Sign out. Escape or a tap outside cancels.
+  function centredBanner({ title, desc, okLabel }) {
+    return new Promise((resolve) => {
+      const scrim = el("div", "cb-scrim");
+      const box = el("div", "cb-box");
+      box.setAttribute("role", "dialog");
+      box.setAttribute("aria-modal", "true");
+      const h = el("h3", "cb-title", title);
+      const p = el("p", "cb-desc", desc);
+      const row = el("div", "cb-row");
+      const no = el("button", "cb-btn cb-ghost", "Cancel");
+      no.type = "button";
+      const yes = el("button", "cb-btn cb-danger", okLabel);
+      yes.type = "button";
+      row.append(no, yes);
+      box.append(h, p, row);
+      scrim.appendChild(box);
+      document.body.appendChild(scrim);
+      const close = (v) => { document.removeEventListener("keydown", onKey); scrim.remove(); resolve(v); };
+      const onKey = (e) => { if (e.key === "Escape") close(false); };
+      document.addEventListener("keydown", onKey);
+      no.addEventListener("click", () => close(false));
+      yes.addEventListener("click", () => close(true));
+      scrim.addEventListener("click", (e) => { if (e.target === scrim) close(false); });
+      no.focus();
+    });
+  }
   async function confirmSignOut(which) {
-    const ok = await choicePanel({
+    const ok = await centredBanner({
       title: "Sign out of The Lees?",
       desc: which === "other" ? "You will be signed out on other devices. This device stays signed in." : "You will need your passphrase to open The Lees again.",
-      options: [
-        { label: "Cancel", value: "no" },
-        { label: "Sign out", value: "yes", danger: true }
-      ]
+      okLabel: "Sign out"
     });
-    if (ok !== "yes") return;
+    if (!ok) return;
     if (which === "other") signOutEverywhere();
     else {
       try { const client = cloudClient(); if (client) await client.auth.signOut(); } catch {}
@@ -3472,32 +3827,72 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   /* ================= Composer and media ================= */
   let heldClip = null;
+  let stagedMedia = null;
+  let myMutedUntil = 0, myReadReceipts = true, otherReadReceipts = true;
+  function ppShouldAlert(m) {
+    if (m && m.quiet) return false;
+    return !(myMutedUntil && Date.now() < myMutedUntil);
+  }
+  function ppMuteChoice() {
+    if (!myMutedUntil || Date.now() >= myMutedUntil) return "off";
+    return myMutedUntil - Date.now() > 8 * 3600e3 + 60e3 ? "1w" : "8h";
+  }
+  async function ppSetMute(v) {
+    const until = v === "off" ? null : new Date(Date.now() + (v === "8h" ? 8 * 3600e3 : 7 * 864e5)).toISOString();
+    const client = cloudClient();
+    const r = client && pairId ? await client.from("pair_members").update({ muted_until: until }).eq("pair_id", pairId).eq("user_id", myUserId) : { error: true };
+    if (r.error) { notice("Couldn't save mute", "Nothing was changed.", { error: true }); return; }
+    myMutedUntil = until ? Date.parse(until) : 0;
+    notice(until ? "Muted" : "Mute off", until ? "No sound or buzz until the timer ends." : "Sound and buzz are back.");
+  }
+  async function ppSetReadReceipts(v) {
+    const client = cloudClient();
+    const r = client && pairId ? await client.from("pair_members").update({ read_receipts: v }).eq("pair_id", pairId).eq("user_id", myUserId) : { error: true };
+    if (r.error) { notice("Couldn't save that", "Nothing was changed.", { error: true }); return; }
+    myReadReceipts = v;
+    notice(v ? "Read receipts on" : "Read receipts off", v ? "She can see when you have read her messages." : "She will only see that your messages arrived.");
+  }
+  let sendOpts = { once: false, quiet: false };
   function autosize() {
     const t = $("input");
     t.style.height = "auto";
     t.style.height = Math.min(t.scrollHeight, 128) + "px";
-    $("send").disabled = !t.value.trim() && !heldClip;
+    $("send").disabled = !t.value.trim() && !heldClip && !stagedMedia;
   }
   function dropHeld() {
     if (heldClip && heldClip.url) URL.revokeObjectURL(heldClip.url);
     heldClip = null;
-    const n = $("heldVoice");
-    if (n) n.classList.add("hidden");
+    renderHoldBar();
     if ($("input")) autosize();
   }
   function showHeld(blob, dur) {
     dropHeld();
     heldClip = { blob, dur, mime: blob.type || "audio/webm", url: URL.createObjectURL(blob) };
-    let n = $("heldVoice");
-    if (!n) {
-      n = el("div", "heldvoice hidden");
-      n.id = "heldVoice";
-      n.append(el("span", "dot"), el("span", "heldlabel", "Voice note held. It sends with your words."), el("button", "btn ghost sm", "Remove"));
-      n.querySelector("button").addEventListener("click", dropHeld);
-      $("footer").before(n);
-    }
-    n.classList.remove("hidden");
+    renderHoldBar();
     autosize();
+  }
+  function stageMedia(kind, blob, extra, label) {
+    dropHeld();
+    stagedMedia = { kind, blob, extra: extra || {}, label };
+    renderHoldBar();
+    autosize();
+  }
+  // One bar above the composer for a held voice note or a staged photo, video or audio file.
+  // It lets you choose View once and Quiet before Send. Nothing sends until you tap Send.
+  function renderHoldBar() {
+    const old = $("heldVoice");
+    if (!heldClip && !stagedMedia) { if (old) old.classList.add("hidden"); return; }
+    const b = el("div", "heldvoice");
+    b.id = "heldVoice";
+    const label = stagedMedia ? stagedMedia.label : "Voice note held. It sends with your words.";
+    b.append(el("span", "dot"), el("span", "heldlabel", label));
+    const mk = (text, on, fn) => { const x = el("button", "btn ghost sm", text); x.type = "button"; if (on) x.classList.add("on"); x.setAttribute("aria-pressed", String(!!on)); x.addEventListener("click", fn); return x; };
+    b.append(
+      mk(sendOpts.once ? "View once: on" : "View once: off", sendOpts.once, () => { sendOpts.once = !sendOpts.once; renderHoldBar(); }),
+      mk(sendOpts.quiet ? "Quiet: on" : "Quiet: off", sendOpts.quiet, () => { sendOpts.quiet = !sendOpts.quiet; renderHoldBar(); }),
+      mk("Remove", false, () => { if (stagedMedia) stagedMedia = null; else dropHeld(); renderHoldBar(); autosize(); })
+    );
+    if (old) old.replaceWith(b); else $("footer").before(b);
   }
 
   async function compressImage(file) {
@@ -3527,9 +3922,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   async function handleFiles(files) {
     for (const f of [...files]) {
       try {
-        if (f.type.startsWith("image/")) { const blob = await compressImage(f); if (!blob) { notice("Couldn't save that photo", "Try a different image.", { error: true }); continue; } await addMedia("image", blob, {}); }
-        else if (f.type.startsWith("video/")) await addMedia("video", f, { dur: await audioDuration(f), mime: f.type });
-        else if (f.type.startsWith("audio/")) await addMedia("audio", f, { dur: await audioDuration(f), mime: f.type });
+        if (f.type.startsWith("image/")) { const blob = await compressImage(f); if (!blob) { notice("Couldn't save that photo", "Try a different image.", { error: true }); continue; } stageMedia("image", blob, {}, "Photo ready to send"); }
+        else if (f.type.startsWith("video/")) stageMedia("video", f, { dur: await audioDuration(f), mime: f.type }, "Video ready to send");
+        else if (f.type.startsWith("audio/")) stageMedia("audio", f, { dur: await audioDuration(f), mime: f.type }, "Audio ready to send");
         else notice("That file type isn't supported", "Choose a picture, a video, or an audio file.", { error: true });
       } catch { notice("Couldn't add " + (f.name || "that file"), "", { error: true }); }
     }
@@ -3869,6 +4264,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   $("list").addEventListener("touchstart", () => { if (document.activeElement && document.activeElement.tagName === "TEXTAREA") dismissKeyboard(); }, { passive: true });
   $("list").addEventListener("scroll", () => {
     if (!unlocked || view !== "chat") return;
+    passUnread(true);
     if (nearBottom()) markRead();
     clearTimeout(posTimer);
     posTimer = setTimeout(savePosition, 400);
@@ -3992,8 +4388,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const dotsRect = fresh.length ? consumeTypingRow() : null;
       render();
       if (fresh.length) {
-        chime();
-        arrivalBuzz();
+        if (fresh.some((x) => ppShouldAlert(x))) { chime(); arrivalBuzz(); }
         const runFx = () => { for (const m of fresh) playEffect(m); };
         if (window.LeesHooks && LeesHooks.arrived) LeesHooks.arrived(dotsRect, fresh.map(m => m.id));
         if (window.LeesHooks && LeesHooks.afterArrival) LeesHooks.afterArrival(runFx); else runFx();
@@ -4073,7 +4468,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       replyTo: r.reply_to || null, effect: r.effect || "none", hiddenBy: r.hidden_for || [],
       deletedFor: r.deleted_for || [], deleted: !!r.deleted, moment: !!r.moment,
       history: r.history || [], edited: !!r.edited, editedAt: r.edited_at ? new Date(r.edited_at).getTime() : null,
-      late: !!r.late, dur: r.dur || 0, noArchive: !!r.no_archive, archived: !!r.archived, pending: false, clientId: r.client_id || null
+      late: !!r.late, dur: r.dur || 0, noArchive: !!r.no_archive, archived: !!r.archived, pending: false, clientId: r.client_id || null, once: !!r.once, openedBy: r.opened_by || [], quiet: !!r.quiet
     };
   }
   function noteFromRow(r) {
@@ -4100,6 +4495,13 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       sideOfUser[row.user_id] = row.side;
       userOfSide[row.side] = row.user_id;
       cacheMembers[row.side] = memberView(row);
+    }
+    {
+      const mineRow = (members.data || []).find((r) => r.user_id === myUserId);
+      myMutedUntil = mineRow && mineRow.muted_until ? Date.parse(mineRow.muted_until) || 0 : 0;
+      myReadReceipts = !mineRow || mineRow.read_receipts !== false;
+      const otherRow = (members.data || []).find((r) => r.user_id !== myUserId);
+      otherReadReceipts = !otherRow || otherRow.read_receipts !== false;
     }
     if (settings.data) {
       cacheShared = { theme: settings.data.theme || "warm", archiveDays: settings.data.archive_days || 0, appIcon: settings.data.app_icon || null, pinnedId: settings.data.pinned_message_id || null };
@@ -4199,8 +4601,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
             if (window.LeesHooks && LeesHooks.arrived && dotsRect) LeesHooks.arrived(dotsRect, [m.id]);
             const runFx = () => { if (m.effect && m.effect !== "none") playEffect(m); };
             if (window.LeesHooks && LeesHooks.afterArrival) LeesHooks.afterArrival(runFx); else runFx();
-            chime();
-            arrivalBuzz();
+            if (ppShouldAlert(m)) { chime(); arrivalBuzz(); }
             if (view === "chat" && !document.hidden) markRead();
             else if (document.hidden) document.title = "(" + unreadN + ") " + baseTitle;
             else notice("New message", "From " + NAME[other()] + ".", { action: { label: "Open chat", run: () => openChat() } });
@@ -4429,6 +4830,11 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const m = cacheThread.find(x => x.id === localId);
     if (m) m.pending = true;
   }
+  // A send that failed on the server and went to the outbox shows NOT SENT in red until it is retried.
+  function markFailed(localId) {
+    const m = cacheThread.find(x => x.id === localId);
+    if (m) { m.failed = true; m.pending = false; }
+  }
   async function flushOutbox() {
     const client = cloudClient();
     if (!client || !pairId || !navigator.onLine) return;
@@ -4449,7 +4855,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
           const up = await client.storage.from("media").upload(path, blob, { contentType: blob.type || "application/octet-stream", upsert: true });
           if (up.error) throw up.error;
           const ins = await client.from("messages").insert({
-            pair_id: pairId, sender_id: myUserId, kind: item.kind, text: item.text || null, media_path: path, dur: item.dur || null, effect: item.effect || "none", client_id: item.clientId
+            pair_id: pairId, sender_id: myUserId, kind: item.kind, text: item.text || null, media_path: path, dur: item.dur || null, effect: item.effect || "none", once: !!item.once, quiet: !!item.quiet, client_id: item.clientId
           }).select().maybeSingle();
           if (ins.error) {
             await client.storage.from("media").remove([path]);
@@ -4465,6 +4871,11 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (unlocked) render();
   }
   window.addEventListener("online", () => { if (unlocked) flushOutbox(); });
+  // Tapping a red NOT SENT label retries everything waiting in the outbox.
+  document.addEventListener("click", (e) => {
+    const f = e.target.closest && e.target.closest(".receipt.rc-failed");
+    if (f && unlocked) { e.stopPropagation(); flushOutbox(); }
+  }, true);
 
   function saveThread(list) { cacheThread = list; return true; }
   function addMessage(partial) {
@@ -4480,7 +4891,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const localId = "local-" + clientId;
     try { await putBlob(localId, blob); }
     catch { notice("Couldn't save that file", "Storage may be full.", { error: true }); return; }
-    const m = { id: localId, from: me, ts: Date.now(), hearts: [], kind, mid: localId, pending: true, dur: (extra && extra.dur) || 0, text: (extra && extra.text) || "", effect: (extra && extra.effect) || "none", clientId };
+    const m = { id: localId, from: me, ts: Date.now(), hearts: [], kind, mid: localId, pending: true, dur: (extra && extra.dur) || 0, text: (extra && extra.text) || "", effect: (extra && extra.effect) || "none", clientId, once: !!(extra && extra.once), openedBy: [] };
     cacheThread = thread().concat([m]);
     clearBar(); render({ stick: true });
     const client = cloudClient();
@@ -4490,7 +4901,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const up = await client.storage.from("media").upload(path, blob, { contentType: blob.type || (kind === "image" ? "image/jpeg" : kind === "video" ? "video/mp4" : "audio/webm"), upsert: false });
       if (up.error) throw up.error;
       const ins = await client.from("messages").insert({
-        pair_id: pairId, sender_id: myUserId, kind, text: (extra && extra.text) || null, media_path: path, dur: (extra && extra.dur) || null, effect: (extra && extra.effect) || "none", client_id: clientId
+        pair_id: pairId, sender_id: myUserId, kind, text: (extra && extra.text) || null, media_path: path, dur: (extra && extra.dur) || null, effect: (extra && extra.effect) || "none", client_id: clientId, once: !!(extra && extra.once), quiet: !!(extra && extra.quiet)
       }).select().maybeSingle();
       if (ins.error) {
         await client.storage.from("media").remove([path]);
@@ -4502,9 +4913,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       render();
       haptic("send");
     } catch {
-      markWaiting(localId);
+      markFailed(localId);
       const box = outbox();
-      box.push({ kind, clientId, blobId: localId, dur: (extra && extra.dur) || null, text: (extra && extra.text) || null, effect: (extra && extra.effect) || "none", localId });
+      box.push({ kind, clientId, blobId: localId, dur: (extra && extra.dur) || null, text: (extra && extra.text) || null, effect: (extra && extra.effect) || "none", once: !!(extra && extra.once), quiet: !!(extra && extra.quiet), localId });
       saveOutbox(box);
       render();
       notice("Waiting to send", "It will send when you are back online.");
@@ -4514,7 +4925,17 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const input = $("input");
     const text = input.value.trim();
     const clip = heldClip;
-    if (!text && !clip) return;
+    if (!text && !clip && !stagedMedia) return;
+    if (stagedMedia && !editingId) {
+      const sm = stagedMedia;
+      stagedMedia = null;
+      input.value = ""; autosize(); trackTyping(false); saveDraft(true);
+      const opts = { once: sendOpts.once, quiet: sendOpts.quiet };
+      sendOpts = { once: false, quiet: false };
+      renderHoldBar();
+      await addMedia(sm.kind, sm.blob, { ...sm.extra, text: text || null, ...opts });
+      return;
+    }
     if (clip && !editingId) {
       const blob = clip.blob, dur = clip.dur;
       dropHeld();
@@ -4522,7 +4943,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       autosize();
       trackTyping(false);
       saveDraft(true);
-      await addMedia("audio", blob, { dur, text: text || null });
+      const opts = { once: sendOpts.once, quiet: sendOpts.quiet };
+      sendOpts = { once: false, quiet: false };
+      renderHoldBar();
+      await addMedia("audio", blob, { dur, text: text || null, ...opts });
       return;
     }
     if (!text) return;
@@ -4571,9 +4995,11 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       pair_id: pairId, sender_id: myUserId, kind: "text", text, effect: fx, reply_to: reply, client_id: clientId
     }).select().maybeSingle();
     if (ins.error) {
+      markFailed(local.id);
       const box = outbox();
       box.push({ kind: "text", text, effect: fx, replyTo: reply, clientId, localId: local.id });
       saveOutbox(box);
+      render();
       notice("Waiting to send", ins.error.message, { error: true });
       return;
     }

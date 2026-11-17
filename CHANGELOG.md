@@ -2,6 +2,25 @@
 
 Base: The-Lees-main__2__1.zip (functional build, boots with zero errors).
 
+## Round 7 (build from owner brief, cache-bust lees-patch.css?v=20)
+Live database (project emimwlpsfchndxaxzswh) checked before editing. Already live: all migrations through undo_send, the per-person chat lock (chat_locks, chat_unlocks, unlock_chat, chat_lock_salt, chat_open_for_me), and the new feature columns.
+- Database: media_read storage policy now follows the message lock. Files tied to a message are readable only when that chat is open to the caller. Unreferenced files keep the old rule. Migration: supabase/migrations/2026-11-17_media_lock.sql (rollback block included). Applied and read back.
+- Edge function notify-message (deployed version 4, verify_jwt false): quiet messages send no alert. If the recipient has a chat lock, the alert text is "New message" with no sender name. Deploy read back.
+- NOT SENT: a send that fails on the server and goes to the outbox now shows NOT SENT in red. Tapping it retries the outbox.
+- Drafts: unsent text is also saved to the drafts table (one per chat per person), and loads back on a new device. A "Draft" label shows on the conversation card when there is unsent text.
+- Voice notes: the playback speed (1x, 1.5x, 2x) is remembered per voice note on this device.
+- Read receipts: the Settings toggle already existed and already drives SEEN/DELIVERED. No change.
+- Sticky date marker: already present (.day is sticky in lees-patch.css). No change.
+
+Open questions (not built):
+- Ghost Mode: the brief says a shield long press toggles ghost mode. No ghost mode exists in the code and the brief does not say what it hides. Needs a decision.
+- Home layout from the reference image: the image was not in the upload. Not built.
+- Settings sections and search, Archive passphrase gate, Recently deleted as its own tile: not built.
+- Keep media out of gallery: the save/download path for media was not located. Not built.
+- Speed on the server (messages.speed_pref): not written. Stored on this device only.
+- Voice transcripts: browser speech recognition handles one language at a time. Kiswahili and English mixed in one sentence will not transcribe reliably. Not changed.
+- Repo gap: the per-person chat lock migration applied live is not saved as a file in supabase/migrations. Save it from the live definitions before the next release.
+
 ## Round 6 (final, cache-bust ?v=10)
 - Verification effect changed. The default is now a thin scan line that crosses the blinded marks; each mark lights up as the line passes and settles in the accent colour. A small mono status line reads "Verifying", then "Verified" when the scan completes.
 - The Verified state holds for about half a second before the welcome, so the scan, the confetti, and the welcome read as one sequence.
@@ -128,3 +147,73 @@ Default choices made here (Part 5):
 
 ## Known issues left in place (not in scope)
 - mediaURL is defined twice in index.html; the later definition runs. Consolidating them is a cleanup task.
+
+## 2026-11-17 step 1 (sign-in switch)
+- Account chooser is now a smaller rounded horizontal switch. The knob slides across in 0.6s when you tap either side. Sign-in logic is unchanged.
+- Cache-busting: lees-patch.css?v=11.
+- Database: supabase/migrations/2026-11-17_features.sql (already applied to the live project). Additive and idempotent.
+
+## 2026-11-17 step 1b (home tiles)
+- Long press a home tile (about 0.5s) to enter edit mode. Tiles jiggle and can be dragged to a new place. Tapping outside the tile grid cancels edit mode. There is no Done button.
+- The new order is saved on this device (key pp-home-order).
+- The coming-soon control in the live slot is removed. Notifications is now a tile in the home grid, with an unread count, and opens a notifications panel.
+- Not in this step: resizing tiles, the layout matching the reference image exactly, shield long-press ghost mode from the home grid, and editing from Settings.
+- Cache-busting: lees-patch.css?v=12.
+
+## 2026-11-17 step 1c (home tile resize)
+- In edit mode, resize a tile by pinching it on a phone (two fingers) or holding Ctrl and scrolling on a laptop. Sizes: small, wide, tall, large. Each step is one size, so a pinch never jumps several sizes.
+- Sizes are saved on this device (key pp-home-sizes), alongside the saved order.
+- Cache-busting: lees-patch.css?v=13.
+
+## 2026-11-17 step 2a (chat: receipts, unread counter, glass blur)
+- Receipts on your own messages show a coloured dot with a label: grey SENT, blue DELIVERED, green SEEN with time. Red NOT SENT is wired to a message flag named failed; the app does not set that flag yet, so red will not appear until send-failure handling sets it.
+- Unread messages from the other person count down as they pass an invisible line 40% down the chat. The Newest tray count updates with it. Reaching the bottom still marks everything read on the server, as before.
+- Unread messages below the line show a glass blur. Read messages never blur again when you scroll back up.
+- Not in this step: the read-receipts setting (pair_members.read_receipts) is not read by the app yet, so seen badges still show for everyone.
+- Cache-busting: lees-patch.css?v=14.
+
+## 2026-11-17 step 2b (composer: options before send, view once)
+- Attach: a picked photo, video or audio file is staged above the composer. It does not send by itself. Add text if you want, then tap Send.
+- Voice notes and staged files share one options bar with View once and Quiet toggles, and a Remove button. The options apply to the next send and reset afterwards.
+- View once: a received one-time photo, video or audio shows a "tap to open" gate. Opening it records the opening (messages.opened_by) and shows the item. After a refresh it shows "already opened" instead.
+- Database: supabase/migrations/2026-11-17_once.sql adds mark_opened_once(uuid). Applied to the live project and checked: security definer, runnable by signed-in members only.
+- Known limits in this step: (1) Quiet only stores the flag. The receiving side does not yet suppress sound or banners. (2) View once is enforced in the app. The media file is still in storage, so it is not hidden from someone who has a direct link. (3) Picking several files at once stages only the last one.
+- Cache-busting: lees-patch.css?v=15.
+
+## 2026-11-17 step 2c (notifications tabs, chat lock)
+- Notifications panel has All, Unread and Messages tabs. Each row shows the sender and the message, marked "new" when it is unread. Tapping a row opens the chat.
+- Chat lock: long press the conversation card on home, then choose Lock with my passphrase, Lock with a new password, or Remove the lock. Removing or changing a lock asks for your passphrase first.
+- Locked chats ask for the passphrase (or the chat password) before opening. The lock state is read from Supabase (pair_settings chat_lock_mode, chat_lock_salt, chat_lock_hash) each time a chat opens. If that check fails, the chat stays shut.
+- Only a salted hash is stored. The passphrase is never stored.
+- Known limits in this step: (1) The lock is enforced in the app, not in the database. Someone reading the database directly, or using the API with the anon key, can still read messages. Enforcing it in the database needs a separate change to the messages read policy. (2) Locked chats do not yet hide previews in notifications. (3) Lock icon on the card is not shown yet.
+- Cache-busting: lees-patch.css?v=16.
+
+## 2026-11-17 step 2d (chat lock enforced in the database)
+- Database (live project, applied and tested with a rolled-back test): messages_read now returns messages only while the chat is open to the caller. Tested: 159 visible before lock, 0 while locked, wrong password refused, right password accepted, 159 visible again after unlock. Lock is off on live data, so nothing changed for you.
+- New tables: chat_unlocks (30-minute unlock per person), chat_unlock_attempts (rate limit: ten failed tries in ten minutes).
+- New functions: chat_open_for_me, unlock_chat (both security definer, signed-in members only).
+- App: unlocking calls unlock_chat on the server, then reloads messages. Wrong passwords and rate limits show a message.
+- Lock options now: shared chat password, or remove the lock (needs the chat password). The per-person passphrase lock is removed until it is designed properly.
+- Not done: notifications for locked chats do not yet hide the sender (notify-message edge function unchanged); storage media links are not yet locked down.
+- Cache-busting: lees-patch.css?v=16.
+
+## 2026-11-17 step 3a (sign-out banner)
+- Sign-out now shows a centred banner with exactly one Cancel and one Sign out. Escape or a tap outside cancels. It replaces the bottom panel.
+- Cache-busting: lees-patch.css?v=17.
+
+## 2026-11-17 step 3b (settings search)
+- Settings has a search field at the top. It hides any section or row whose text does not match.
+- Not in this step: regrouping into Account, Privacy, Notifications, Data and Features sections; editable features grid in Settings.
+
+## 2026-11-17 step 3c (settings sections)
+- Settings is regrouped into Account, Privacy, Notifications, Data and Features. Existing rows are moved, not changed. Each control does what it did before.
+- Features section is present but empty. The features grid is not in Settings yet.
+- Cache-busting: lees-patch.css?v=18.
+
+## 2026-11-17 step 4 (quiet send, mute with timer, read receipts, date marker)
+- Quiet send: a message sent with Quiet on does not play a sound or buzz on the other phone.
+- Mute notifications (Settings › Notifications): 8 hours, 1 week, or off. Stored on your member row (pair_members.muted_until). While muted, sound and buzz are silent.
+- Let her see when I've read (Settings › Privacy): stored on your member row (pair_members.read_receipts). When it is off, her messages show DELIVERED instead of SEEN on your side. Your own seen badges follow her setting in the same way.
+- Date marker: the day label stays at the top while you scroll.
+- Not in this step: Undo send, the red NOT SENT badge, and receiver-side notifications for quiet messages (banners).
+- Cache-busting: lees-patch.css?v=19.

@@ -170,3 +170,59 @@ html body #list .msg,html body #list .msg *{-webkit-user-select:none;user-select
 .lp-marks.lp-ok span{color:var(--accent);text-shadow:0 0 6px color-mix(in srgb,var(--accent) 45%,transparent)}
 .lp-status{font:500 11px var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--accent);text-align:center;min-height:16px;margin-top:2px;animation:lpStatusIn .35s ease both}
 @keyframes lpStatusIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+
+/* Home tiles: long press to edit (step 1b) */
+.tools2 .navbtn.jig{animation:homeJig .3s ease-in-out infinite alternate}
+.tools2.editing .navbtn{cursor:grab}
+@keyframes homeJig{from{transform:rotate(-1.2deg)}to{transform:rotate(1.2deg)}}
+.notif-count{margin-left:auto;background:#e0463c;color:#fff;border-radius:10px;font:600 11px system-ui;padding:2px 7px;min-width:20px;text-align:center}
+@media (prefers-reduced-motion: reduce){.tools2 .navbtn.jig{animation:none}}
+.tools2 .navbtn[data-key]{-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+
+/* Home tile sizes (step 1c). Sizes are chosen by pinch or Ctrl+scroll in edit mode. */
+.tools2{grid-auto-rows:minmax(74px,auto)}
+.tools2 .navbtn.sz-w{grid-column:span 2}
+.tools2 .navbtn.sz-t{grid-row:span 2}
+.tools2 .navbtn.sz-l{grid-column:span 2;grid-row:span 2}
+
+/* Chat (step 2a): receipt colour badges, and the glass blur on unread messages */
+.receipt.rc-sent,.receipt.rc-delivered,.receipt.rc-seen,.receipt.rc-failed{display:inline-flex;align-items:center;gap:6px}
+.receipt.rc-sent::before,.receipt.rc-delivered::before,.receipt.rc-seen::before,.receipt.rc-failed::before{content:"";width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.receipt.rc-sent::before{background:#9aa8b2}
+.receipt.rc-delivered::before{background:#2f8fa3}
+.receipt.rc-seen::before{background:#2e9d5b}
+.receipt.rc-failed::before{background:#e0463c}
+.row.theirs.unread-glass .msg{filter:blur(4px);opacity:.72;transition:filter .35s ease,opacity .35s ease}
+@media (prefers-reduced-motion: reduce){.row.theirs.unread-glass .msg{transition:none}}
+
+/* Composer options and one-time media (step 2b) */
+.heldvoice{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.heldvoice .btn.ghost.sm.on{background:var(--ink);color:var(--bg)}
+.oncegate{display:flex;align-items:center;gap:8px;background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:6px 2px;text-align:left}
+.oncegate.done{opacity:.7;cursor:default}
+
+/* Notifications tabs and chat lock (step 2c) */
+.notif-tabs{display:flex;gap:8px;margin:4px 0 10px}
+.notif-tab{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 14px;font:inherit;font-size:14px;cursor:pointer}
+.notif-tab.on{background:var(--ink);color:var(--bg)}
+.notif-list .choice{margin-bottom:6px}
+
+/* Centred confirmation banner (step 3a): one Cancel, one action */
+.cb-scrim{position:fixed;inset:0;background:rgba(20,40,63,.35);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px}
+.cb-box{width:min(340px,100%);background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:24px;padding:22px 20px 18px;box-shadow:0 18px 40px rgba(20,40,63,.28);text-align:center}
+.cb-title{margin:0 0 8px;font-family:var(--serif);font-weight:400;font-size:22px}
+.cb-desc{margin:0 0 18px;color:var(--muted);font-size:14px;line-height:1.4}
+.cb-row{display:flex;gap:10px}
+.cb-btn{flex:1;border-radius:16px;padding:12px 10px;font:inherit;font-size:15px;font-weight:600;cursor:pointer;border:1px solid var(--line)}
+.cb-ghost{background:var(--bg);color:var(--ink)}
+.cb-danger{background:#e0463c;color:#fff;border-color:#e0463c}
+
+/* Settings sections (step 3c) */
+.settings-section{margin-bottom:12px}
+.settings-head{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:16px 4px 6px}
+
+/* Chat (step 4): day marker stays at the top while scrolling */
+.day{position:sticky;top:0;z-index:2;background:var(--bg)}
+
+/* Draft label on the conversation card */
+.draft-tag{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);border:1px solid var(--line);vertical-align:middle}
