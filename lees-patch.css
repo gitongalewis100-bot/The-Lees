@@ -325,3 +325,25 @@ body.lp-wel-on > *:not(.lp-welcome){filter:blur(12px) saturate(.9);transition:fi
 .nudge-bloom{position:fixed;left:50%;top:50%;width:180px;height:180px;margin:-90px 0 0 -90px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 55%,transparent) 0%,transparent 70%);pointer-events:none;z-index:60;animation:lpNudgeBloom 1.2s ease-out forwards}
 @keyframes lpNudgeBloom{0%{transform:scale(.2);opacity:0}30%{opacity:.9}100%{transform:scale(2.2);opacity:0}}
 @media (prefers-reduced-motion: reduce){.nudge-bloom{display:none}}
+
+/* v8: edit and like glow (3.3), edited words (3.4), full-screen thinking-of-you wave (3.9) */
+@keyframes lpGlowEdit{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 0%,transparent)}30%{box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 45%,transparent)}100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 0%,transparent)}}
+.msg.lp-glow-edit,.msg.lp-glow-like{animation:lpGlowEdit 2.5s ease-out 1 both;border-radius:14px}
+@media (prefers-reduced-motion:reduce){.msg.lp-glow-edit,.msg.lp-glow-like{animation:none;box-shadow:0 0 0 2px var(--accent)}}
+mark.lp-diff{background:color-mix(in srgb,var(--accent) 22%,transparent);color:inherit;border-radius:3px;padding:0 1px}
+.lp-wave{position:fixed;inset:0;z-index:2147483000;pointer-events:none;background:radial-gradient(ellipse at center,color-mix(in srgb,var(--accent) 10%,transparent),transparent 75%);animation:lpWave 3s ease-in-out 1 both;opacity:0}
+@keyframes lpWave{0%{opacity:0}30%{opacity:1}65%{opacity:.5}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.lp-wave{animation:none;opacity:.12}}
+
+/* Round 3: one landing page, top to bottom: illustration, text, chooser, passphrase box. */
+#lock{justify-content:flex-start;gap:10px;padding-top:max(20px,env(safe-area-inset-top,0px))}
+#lock > #lpArt{order:0;width:min(190px,50vw);margin:0 auto 4px}
+#lock > #tagline{order:1}
+#lock > .sub{order:2}
+#lock > .acct-switch{order:3}
+#lock > .form{order:4}
+#lock > #lockErr{order:5}
+#lockForm #pass{font-size:17px;padding:12px 14px;min-height:0}
+#lockForm .btn{font-size:16px;min-height:44px;padding:10px 16px}
+#lockForm{width:min(280px,100%)}
+#lock .acct-switch{height:40px}
