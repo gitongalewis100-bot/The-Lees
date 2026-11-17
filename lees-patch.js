@@ -189,16 +189,17 @@
   document.addEventListener("pointerdown", unlockAudio, true);
   document.addEventListener("keydown", unlockAudio, true);
   hooks.primeAudio = unlockAudio;
-  function playPreset(key, vol, tried) {
+  function playPreset(key, vol, tried, onFail) {
     var P = PRESETS[key];
     if (!P) return false;
     try {
       actx = actx || new (window.AudioContext || window.webkitAudioContext)();
       if (actx.state === "suspended") {
+        if (tried) { if (onFail) onFail(); return false; }
         var resume = actx.resume();
-        if (!tried && resume && resume.then) resume.then(function () { playPreset(key, vol, true); });
-        else if (!tried) setTimeout(function () { playPreset(key, vol, true); }, 40);
-        return false;
+        if (resume && resume.then) resume.then(function () { playPreset(key, vol, true, onFail); });
+        else setTimeout(function () { playPreset(key, vol, true, onFail); }, 40);
+        return true;
       }
       var t = actx.currentTime;
       var g = actx.createGain();
@@ -265,7 +266,13 @@
       }
       sel.addEventListener("change", save);
       vol.addEventListener("input", save);
-      play.addEventListener("click", function () { playPreset(sel.value, Number(vol.value)); });
+      play.addEventListener("click", function () {
+        var label = play.textContent;
+        playPreset(sel.value, Number(vol.value), false, function () {
+          play.textContent = "Tap Preview again";
+          setTimeout(function () { play.textContent = label; }, 2500);
+        });
+      });
       line.appendChild(lab); line.appendChild(sel); line.appendChild(vol); line.appendChild(play);
       wrap.appendChild(line);
     });
@@ -294,7 +301,7 @@
     plus.type = "button"; plus.className = "lp-plus"; plus.setAttribute("aria-label", "More options"); plus.setAttribute("aria-expanded", "false");
     plus.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>';
     var pop = document.createElement("div"); pop.className = "lp-pop lp-closed";
-    ["attach", "mic"].forEach(function (id) { var b = $(id); if (b) pop.appendChild(b); });
+    ["attach"].forEach(function (id) { var b = $(id); if (b) pop.appendChild(b); });
     footer.insertBefore(plus, footer.firstChild);
     footer.appendChild(pop);
     plus.addEventListener("click", function () {
@@ -554,6 +561,7 @@
     }, total * 0.96));
     return total + 160;
   }
+  // Welcome state. Its blur uses the class lp-wel-on, separate from the scan blur (lp-behind).
   function showWelcome(name) {
     clearLens();
     setBehind(false);
@@ -561,12 +569,18 @@
     o.className = "lp-welcome"; o.id = "lpWelcome";
     o.innerHTML = "<div class='lp-stack'><div class='lp-tick'><svg viewBox='0 0 24 24'><path d='M5 12.5l4.5 4.5L19 7.5'/></svg></div><h2></h2></div>";
     o.querySelector("h2").textContent = "Welcome, " + name;
+    document.body.classList.add("lp-wel-on");
     document.body.appendChild(o);
     confetti();
-    setTimeout(function () {
+    var timer = null, gone = false;
+    function dismiss() {
+      if (gone) return; gone = true;
+      clearTimeout(timer);
       o.classList.add("lp-out");
-      setTimeout(function () { o.remove(); }, 420);
-    }, 2000);
+      setTimeout(function () { o.remove(); document.body.classList.remove("lp-wel-on"); }, 320);
+    }
+    o.addEventListener("click", dismiss);
+    timer = setTimeout(dismiss, 1200);
   }
   hooks.signInStart = function () {
     loadTok++;
@@ -582,14 +596,11 @@
   };
   hooks.signInOk = function (name) {
     var tok = loadTok;
-    var run = function () {
-      if (tok !== loadTok) return;
-      setArt(false);
-      // Hold the "Verified" state for a beat, then the welcome and confetti.
-      setTimeout(function () { if (tok === loadTok) showWelcome(name); }, 550);
-    };
-    if (!lensRun || loadDone) { run(); return; }
-    loadOk = run;
+    if (tok !== loadTok) return;
+    loadDone = true; loadOk = null;
+    setArt(false);
+    // The server has verified: the welcome shows now, not after the scan finishes.
+    showWelcome(name);
   };
   hooks.signInFail = function (msg) {
     loadTok++; loadDone = true; loadOk = null;
@@ -657,7 +668,11 @@
   }
   function syncBanner() {
     if (!banner) return;
+    if (st.unread > (st.lastUnread || 0)) st.bannerOff = false;
+    st.lastUnread = st.unread;
     var show = signedIn() && !st.bannerOff && (st.typing || st.unread > 0) && !st.inChat;
+    clearTimeout(st.bannerTimer);
+    if (show && !st.typing) st.bannerTimer = setTimeout(function () { st.bannerOff = true; syncBanner(); }, 3200);
     banner.classList.toggle("lp-show", show);
     var name = st.name || "";
     banner.querySelector(".lp-bn-name").textContent = name;
@@ -851,6 +866,8 @@
       if (!st.typing) st.bannerOff = false;
     }
     st.typing = !!on;
+    clearTimeout(st.typingTimer);
+    if (on) st.typingTimer = setTimeout(function () { st.typing = false; syncBanner(); }, 4000);
     syncBanner(); syncTray();
   };
   hooks.onUnread = function (n, name, inChat) {
