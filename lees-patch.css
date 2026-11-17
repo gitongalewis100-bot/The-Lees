@@ -119,7 +119,7 @@ html body #list .msg,html body #list .msg *{-webkit-user-select:none;user-select
 
 /* ---- Part 2.3: sign-in loading box and welcome ---- */
 #lock{transition:filter .6s ease}
-#lock.lp-behind{filter:blur(9px)}
+/* Scan blur removed by request: the scan itself stays visible. */
 .lp-welcome.lp-out{opacity:0;transition:opacity .42s ease}
 .lp-welcome .lp-stack{animation:lpRise .65s cubic-bezier(.2,.9,.25,1) both}
 @keyframes lpRise{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
@@ -164,11 +164,11 @@ html body #list .msg,html body #list .msg *{-webkit-user-select:none;user-select
 @media (prefers-reduced-motion: reduce){.lp-marks span{transition:none}}
 
 /* ---- Scan verification (default): a thin light crosses the marks; each mark lights as it passes ---- */
-.lp-beam{position:absolute;top:0;left:0;width:2px;z-index:3;pointer-events:none;border-radius:2px;background:linear-gradient(180deg,transparent,var(--accent) 22%,var(--accent) 78%,transparent);box-shadow:0 0 12px 3px color-mix(in srgb,var(--accent) 45%,transparent);will-change:transform,opacity}
-.lp-marks span.lp-lit{color:var(--accent);transform:scale(1.5);text-shadow:0 0 10px color-mix(in srgb,var(--accent) 70%,transparent)}
-.lp-marks span.lp-seen{color:var(--accent);transform:scale(1)}
-.lp-marks.lp-ok span{color:var(--accent);text-shadow:0 0 6px color-mix(in srgb,var(--accent) 45%,transparent)}
-.lp-status{font:500 11px var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--accent);text-align:center;min-height:16px;margin-top:2px;animation:lpStatusIn .35s ease both}
+.lp-beam{position:absolute;top:0;left:0;width:3px;z-index:3;pointer-events:none;border-radius:2px;background:linear-gradient(180deg,transparent,var(--ink) 18%,var(--ink) 82%,transparent);box-shadow:0 0 16px 5px color-mix(in srgb,var(--ink) 30%,transparent)}
+.lp-marks span.lp-lit{color:var(--ink);transform:scale(1.5);text-shadow:0 0 10px color-mix(in srgb,var(--ink) 70%,transparent)}
+.lp-marks span.lp-seen{color:var(--ink);transform:scale(1)}
+.lp-marks.lp-ok span{color:var(--ink);text-shadow:0 0 6px color-mix(in srgb,var(--ink) 45%,transparent)}
+.lp-status{font:500 11px var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--ink);text-align:center;min-height:16px;margin-top:2px;animation:lpStatusIn .35s ease both}
 @keyframes lpStatusIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
 
 /* Home tiles: long press to edit (step 1b) */
@@ -245,3 +245,83 @@ html body #list .msg,html body #list .msg *{-webkit-user-select:none;user-select
 .journal-col-head{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:4px 2px 8px}
 .journal-col .note-card{padding:10px;min-width:0}
 .journal-col .txt{word-break:break-word;overflow-wrap:anywhere}
+
+
+/* ---- 2026-11-18 ---- */
+/* Welcome blur: everything behind the welcome softens at once (separate from the scan blur). */
+body.lp-wel-on > *:not(.lp-welcome){filter:blur(12px) saturate(.9);transition:filter .25s ease}
+.lp-welcome{cursor:pointer}
+
+/* View once viewer: full screen, one item, Close button. */
+.once-viewer{position:fixed;inset:0;z-index:98;background:rgba(10,8,7,.94);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;padding-top:calc(24px + env(safe-area-inset-top,0px))}
+.once-viewer img,.once-viewer video{max-width:100%;max-height:82vh;border-radius:16px;object-fit:contain}
+.once-viewer audio{width:min(92vw,420px)}
+.once-close{padding:10px 22px;border-radius:999px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;font-size:15px;cursor:pointer}
+
+/* Switches for View once and Quiet. */
+.hswitch{display:inline-flex;align-items:center;gap:10px;padding:6px 10px 6px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:13px;cursor:pointer}
+.hswitch .hs-track{position:relative;width:40px;height:24px;border-radius:999px;background:var(--line-strong);transition:background .2s ease;flex:none}
+.hswitch .hs-knob{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28);transition:transform .2s ease}
+.hswitch.on .hs-track{background:var(--accent)}
+.hswitch.on .hs-knob{transform:translateX(16px)}
+
+/* Receipts: a small card of their own, below the message card. */
+.receipt{display:inline-flex;align-items:center;gap:6px;margin:6px 0 0 auto;padding:4px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--muted);font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.receipt::before{content:"";width:6px;height:6px;border-radius:50%;flex:none;background:var(--line-strong)}
+
+/* ---- 2026-11-18, round 2 ---- */
+/* View once button: round, icon with a short label. */
+.oncegate{display:inline-flex;align-items:center;gap:8px;padding:8px 14px 8px 8px;border-radius:999px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--ink);font:500 13px var(--sans);cursor:pointer}
+.oncegate .og-ic{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink)}
+.oncegate .og-ic svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.oncegate.done{opacity:.6;cursor:default}
+.oncegate.done .og-ic{background:var(--line-strong);color:var(--ink)}
+
+/* Journal: floating plus, always on screen below the entries. */
+.journal-plus{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom,0px));width:58px;height:58px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 10px 24px rgba(42,36,32,.28);cursor:pointer;z-index:6}
+.journal-plus svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+.journal-plus:active{transform:scale(.94)}
+
+/* Held recording player: play/pause, a slider and the time. */
+.hplayer{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.hp-play{width:38px;height:38px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none;cursor:pointer}
+.hp-play svg{width:16px;height:16px;fill:currentColor}
+.hp-seek{flex:1;min-width:60px;accent-color:var(--accent)}
+.hp-time{font-size:12px;white-space:nowrap}
+
+/* ---- 2026-11-18, settings cards: each Settings section sits in a card, so its title and rows no longer float. ---- */
+.settings-section{background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:6px 16px 8px;margin:0 0 14px;overflow:hidden}
+.settings-section .settings-head{padding:12px 0 6px;color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+
+/* Round 5: mic beside Send, same size, pulses while recording */
+#mic.tool{width:52px;height:52px;flex:none}
+#mic.tool svg{width:28px;height:28px}
+#mic.recording{color:var(--accent);animation:lpMicPulse 1.4s ease-in-out infinite}
+@keyframes lpMicPulse{0%,100%{opacity:1}50%{opacity:.45}}
+@media (prefers-reduced-motion: reduce){#mic.recording{animation:none}}
+
+
+/* v7: staged media thumbnail and full-screen preview, transcript, nudge */
+.stage-thumb{width:46px;height:46px;border-radius:12px;overflow:hidden;border:1px solid var(--line);padding:0;margin:0;background:var(--surface);flex:none;display:grid;place-items:center;cursor:pointer;color:var(--ink)}
+.stage-thumb img,.stage-thumb video{width:100%;height:100%;object-fit:cover;display:block}
+.stage-thumb svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.htx{margin:8px 0 0;font-size:13px;color:var(--muted)}
+.htx-text{width:100%;box-sizing:border-box;margin-top:8px;border-radius:12px;padding:8px 10px;font:inherit;font-size:14px;background:var(--surface);color:var(--ink);border:1px solid var(--line);resize:vertical}
+#mediaPreview.mp-overlay{position:fixed;inset:0;z-index:65;background:#0d0b0a;color:#fff;display:flex;flex-direction:column;box-sizing:border-box;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+.mp-top{display:flex;align-items:center;gap:8px;padding:10px 12px;flex-wrap:wrap}
+.mp-top .grow{flex:1}
+.mp-ibtn{width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;display:grid;place-items:center;cursor:pointer;flex:none}
+.mp-ibtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.mp-tool{border:0;border-radius:999px;padding:8px 12px;background:rgba(255,255,255,.14);color:#fff;font:500 13px var(--sans);cursor:pointer}
+.mp-tool[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.mp-stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:8px 12px;overflow:hidden}
+.mp-stage img,.mp-stage video{max-width:100%;max-height:100%;object-fit:contain;border-radius:12px}
+.mp-stage audio{width:100%}
+.mp-bar{display:flex;flex-direction:column;gap:10px;padding:12px}
+.mp-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mp-cap{flex:1;min-width:0;border:0;border-radius:999px;padding:11px 16px;background:rgba(255,255,255,.14);color:#fff;font:inherit;font-size:15px}
+.mp-cap::placeholder{color:rgba(255,255,255,.6)}
+.mp-bar .hswitch{color:#fff}
+.nudge-bloom{position:fixed;left:50%;top:50%;width:180px;height:180px;margin:-90px 0 0 -90px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 55%,transparent) 0%,transparent 70%);pointer-events:none;z-index:60;animation:lpNudgeBloom 1.2s ease-out forwards}
+@keyframes lpNudgeBloom{0%{transform:scale(.2);opacity:0}30%{opacity:.9}100%{transform:scale(2.2);opacity:0}}
+@media (prefers-reduced-motion: reduce){.nudge-bloom{display:none}}
