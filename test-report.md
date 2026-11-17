@@ -38,7 +38,7 @@ Nothing was seen moving on a screen. Every animation, layout, and visual result 
 | Reduced motion | Final states only (art, lens, morph) | D | PASS in code. NOT RUN (live) |
 | Layout | Banner and tray at 390 px and desktop; lock at 390 px with the larger type | - | NOT RUN |
 | Art | Sign-in art matches IMG_1371.jpg | - | NOT POSSIBLE: image not supplied. The art is this build's own drawing |
-| Art | Pale Newest bar (IMG_1374.jpg) not on screen on screen | D | PASS: no pale bar exists. The tray is the only control |
+| Art | Pale Newest bar (IMG_1374.jpg) not on screen | D | PASS: no pale bar exists. The tray is the only control |
 
 ## Counts
 - Automated and code-level PASS: 22

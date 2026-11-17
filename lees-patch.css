@@ -2,6 +2,171 @@
 
 /* Shield: green = on, red = off. Tap still toggles blur; long press starts ghost mode. */
 #shieldBtn,#homeShield{position:relative}
-#shieldBtn::after,#homeShield::after{content:"";position:absolute;right:2px;top:2px;width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 2px var(--bg);transition:background .2s}
-#shieldBtn.on::after,#homeShield.on::after{background:var(--ok)}
-/* rest of content truncated for this call - will fix with full later */
+#shieldBtn::after,#homeShield::after{content:"";position:absolute;right:6px;bottom:6px;width:9px;height:9px;border-radius:50%;background:#b5534a;box-shadow:0 0 0 2px var(--surface);transition:background .25s}
+#shieldBtn.shieldon::after,#homeShield.shieldon::after{background:#4f9d6a}
+
+/* Ghost mode: conversation hidden, no history shown */
+body.ghost #list>*{display:none!important}
+body.ghost #list::before{content:"No messages";display:block;text-align:center;padding:64px 20px;color:var(--muted);font-family:var(--serif);font-size:18px}
+
+/* Modal (ghost confirm, clear conversation) */
+.lp-modal-wrap{position:fixed;inset:0;z-index:90;background:rgba(10,8,7,.4);display:flex;align-items:center;justify-content:center;padding:24px;animation:lpFade .2s ease both}
+.lp-modal{width:min(360px,100%);background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:var(--shadow);animation:lpPop .32s cubic-bezier(.2,1.3,.4,1) both}
+.lp-modal h3{margin:0 0 8px;font:500 20px var(--serif)}
+.lp-modal p{margin:0 0 14px;color:var(--muted);font-size:14px;line-height:1.5}
+.lp-modal label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+.lp-modal select,.lp-modal input[type=date]{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:14px var(--sans)}
+.lp-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+.lp-btn{padding:10px 16px;border-radius:999px;border:1px solid var(--line-strong);background:none;color:var(--ink);font:600 14px var(--sans);cursor:pointer}
+.lp-btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+
+/* Toast */
+.lp-toast{position:fixed;left:50%;top:max(16px,env(safe-area-inset-top));z-index:95;transform:translate(-50%,-160%);max-width:min(92vw,420px);padding:12px 16px;border-radius:18px;background:var(--surface);color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow);animation:lpToastIn .4s cubic-bezier(.2,1.3,.4,1) forwards;pointer-events:none}
+.lp-toast b{display:block;font:600 14px var(--sans)}
+.lp-toast span{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+.lp-toast.out{animation:lpToastOut .35s ease forwards}
+@keyframes lpToastIn{to{transform:translate(-50%,0)}}
+@keyframes lpToastOut{to{transform:translate(-50%,-160%);opacity:0}}
+
+/* Composer: + button with a pop-out panel for attach, voice and schedule */
+#footer{position:relative}
+#footer #input{flex:1 1 0;min-width:0}
+.lp-plus{width:46px;height:46px;border-radius:50%;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);display:grid;place-items:center;cursor:pointer;flex:none;padding:0;animation:lpWave 3.2s ease-in-out infinite}
+.lp-plus svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.lp-plus[aria-expanded="true"] svg{transform:rotate(45deg)}
+.lp-pop{position:absolute;left:12px;bottom:calc(100% + 8px);display:flex;gap:10px;padding:10px;border-radius:22px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);transform-origin:bottom left;animation:lpPop .32s cubic-bezier(.2,1.3,.4,1) both;z-index:6}
+.lp-pop.lp-closed{display:none}
+
+/* Bin: poof on discard */
+.lp-puff{position:fixed;display:grid;place-items:center;border-radius:50%;background:var(--surface);color:var(--ink);border:1px solid var(--line);z-index:99;pointer-events:none;animation:lpPoof .42s ease-out forwards}
+@keyframes lpPoof{0%{transform:scale(1);opacity:1}40%{transform:scale(1.35);opacity:.85}100%{transform:scale(.2);opacity:0;filter:blur(3px)}}
+
+/* Swipe up to ignore a notice */
+#notice.lp-away{transform:translateY(-160%)!important;opacity:0!important;transition:transform .32s cubic-bezier(.2,.8,.2,1),opacity .28s ease}
+
+/* Long press on a message must not select text or show the blue highlight */
+html body #list .msg,html body #list .msg *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+
+/* Settings additions */
+.lp-settings{border-bottom:1px solid var(--line)}
+.lp-row{display:flex;align-items:center;justify-content:space-between;width:100%;padding:14px 16px;background:none;border:0;border-bottom:1px solid var(--line);color:var(--ink);font:500 15px var(--sans);text-align:left;cursor:pointer}
+.lp-block{padding:14px 16px}
+.lp-title{font:500 15px var(--sans);color:var(--ink);margin-bottom:6px}
+.lp-note{margin:0 0 10px;font-size:12px;color:var(--muted)}
+.lp-sound{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;font-size:14px;color:var(--ink)}
+.lp-sound span{min-width:110px}
+.lp-sound select{flex:1;min-width:120px;padding:8px 10px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:14px var(--sans)}
+.lp-sound input[type=range]{width:90px;accent-color:var(--accent)}
+
+/* Sign-in: processing, then tick and welcome, with confetti */
+.lp-welcome{position:fixed;inset:0;z-index:96;display:grid;place-items:center;background:color-mix(in srgb,var(--bg) 90%,transparent);animation:lpFade .2s ease both}
+.lp-stack{display:grid;justify-items:center;gap:14px}
+.lp-spin{width:42px;height:42px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);animation:lpSpin .9s linear infinite}
+@keyframes lpSpin{to{transform:rotate(360deg)}}
+.lp-tick{width:68px;height:68px;border-radius:50%;background:#4f9d6a;display:grid;place-items:center;animation:lpPop .42s cubic-bezier(.2,1.3,.4,1) both}
+.lp-tick svg{width:34px;height:34px;stroke:#fff;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.lp-welcome h2{margin:0;font:500 26px var(--serif);color:var(--ink);animation:lpPop .5s .2s cubic-bezier(.2,1.3,.4,1) both}
+.lp-conf{position:fixed;top:-20px;width:8px;height:12px;z-index:97;border-radius:2px;pointer-events:none;animation-name:lpFall;animation-timing-function:linear;animation-fill-mode:forwards}
+@keyframes lpFall{to{transform:translate(var(--dx),110vh) rotate(720deg);opacity:.9}}
+
+/* Live surfaces from the approved mock-up */
+.lp-banner{position:fixed;z-index:60;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 8px);display:flex;align-items:center;gap:12px;padding:10px;border-radius:24px;background:color-mix(in srgb,var(--surface) 78%,transparent);backdrop-filter:blur(18px) saturate(1.35);-webkit-backdrop-filter:blur(18px) saturate(1.35);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--ink);cursor:pointer;transform:translateY(-150%);opacity:0;visibility:hidden;transition:transform .55s cubic-bezier(.2,1.3,.4,1),opacity .3s,visibility .3s}
+.lp-banner.lp-show{transform:none;opacity:1;visibility:visible}
+.lp-bn-av{width:40px;height:40px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:600;font-size:15px;flex:none}
+.lp-bn-body{flex:1;min-width:0}
+.lp-bn-name{font-weight:600;font-size:14px}
+.lp-bn-line{display:flex;align-items:center;gap:8px;margin-top:3px;font-size:13px;color:var(--muted);min-height:20px}
+.lp-bn-view{height:36px;padding:0 14px;border-radius:999px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:600;font-size:14px;flex:none}
+.lp-gone-el{display:none!important}
+.lp-mini{display:inline-flex;gap:4px;padding:6px 10px;border-radius:16px;background:var(--theirs)}
+.lp-mini i{display:block;width:6px;height:6px;border-radius:50%;background:var(--muted);animation:lpBob 1s infinite}
+.lp-mini i:nth-child(2){animation-delay:.15s}
+.lp-mini i:nth-child(3){animation-delay:.3s}
+.lp-tray .lp-mini{padding:0;background:transparent;gap:4px}
+@keyframes lpBob{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
+.lp-tray{position:absolute;z-index:9;left:auto;right:12px;bottom:96px;width:max-content;max-width:calc(100% - 24px);display:flex;align-items:center;gap:10px;padding:6px 6px 6px 14px;border-radius:999px;background:color-mix(in srgb,var(--surface) 62%,transparent);backdrop-filter:blur(16px) saturate(1.3);-webkit-backdrop-filter:blur(16px) saturate(1.3);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--ink);cursor:pointer;animation:lpTrayIn .5s cubic-bezier(.2,1.3,.4,1) both}
+.lp-glow{position:absolute;left:0;right:0;bottom:80px;height:110px;pointer-events:none;z-index:4;opacity:0;transition:opacity .4s;background:linear-gradient(to top,color-mix(in srgb,var(--accent) 22%,transparent),transparent)}
+.lp-glow.show{opacity:1}
+.lp-boom{overflow:visible}
+.lp-tray.hidden{display:none}
+@keyframes lpTrayIn{from{transform:translateY(60%);opacity:0}to{transform:none;opacity:1}}
+.lp-tray-label{flex:1;min-width:0;padding-left:6px;font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:8px}
+.lp-newest{height:40px;padding:0 14px 0 12px;border-radius:999px;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;flex:none}
+.lp-newest svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;animation:lpDrop 1.4s ease-in-out infinite}
+@keyframes lpDrop{0%,100%{transform:translateY(0)}50%{transform:translateY(3px)}}
+.lp-count{min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--surface);color:var(--accent);display:grid;place-items:center;font-size:12px;font-weight:700}
+.lp-count.hidden{display:none}
+@keyframes lpEnter{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.lp-morph{position:fixed;z-index:80;pointer-events:none;display:grid;place-items:center;border-radius:26px;background:var(--theirs);box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.lp-pending{opacity:0!important}
+.lp-settle{animation:lpSettle .6s cubic-bezier(.2,1.4,.4,1)}
+@keyframes lpSettle{0%{transform:scale(.97)}40%{transform:scale(1.035) translateX(-1.5px)}70%{transform:scale(.99) translateX(1.5px)}100%{transform:none}}
+.lp-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* Animations shared */
+@keyframes lpFade{from{opacity:0}to{opacity:1}}
+@keyframes lpPop{0%{opacity:0;transform:scale(.82)}60%{opacity:1;transform:scale(1.03)}100%{opacity:1;transform:none}}
+
+/* Desktop: same design, centred column with equal space on both sides */
+@media (min-width:900px){
+  .view{max-width:760px;margin:0 auto;width:100%;box-shadow:0 0 0 1px var(--line)}
+  #lock{max-width:520px;margin:0 auto;width:100%}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .lp-plus,.lp-conf,.lp-spin{animation:none!important}
+}
+
+/* ---- Part 2.3: sign-in loading box and welcome ---- */
+#lock{transition:filter .6s ease}
+#lock.lp-behind{filter:blur(9px)}
+.lp-welcome.lp-out{opacity:0;transition:opacity .42s ease}
+.lp-welcome .lp-stack{animation:lpRise .65s cubic-bezier(.2,.9,.25,1) both}
+@keyframes lpRise{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
+.lp-welcome h2{letter-spacing:.01em}
+
+/* ---- Part 2.4: shield does not select text or open the copy menu ---- */
+#shieldBtn,#homeShield{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+
+@media (prefers-reduced-motion: reduce){
+  .lp-welcome .lp-stack{animation:none!important}
+  #lock{transition:none}
+}
+
+/* ---- Part 1: typing bubble morph, in place ---- */
+.msg.lp-morphing{position:relative;overflow:hidden;transform-origin:left center;will-change:transform,width,height}
+.msg.lp-morphing > :not(.lp-mdots){opacity:0;transition:opacity .3s ease .16s}
+.msg.lp-morphing.lp-showing > :not(.lp-mdots){opacity:1}
+.msg.lp-morphing .lp-mdots{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:5px;transition:opacity .18s ease}
+.msg.lp-morphing .lp-mdots i{width:7px;height:7px;border-radius:50%;background:var(--muted);display:block;animation:bob 1s infinite}
+.msg.lp-morphing .lp-mdots i:nth-child(2){animation-delay:.15s}
+.msg.lp-morphing .lp-mdots i:nth-child(3){animation-delay:.3s}
+.msg.lp-morphing .lp-mdots.lp-dfade{opacity:0}
+.msg.lp-morphing.lp-zoom{transform:scale(1.14);transition:transform .24s cubic-bezier(.3,1.2,.5,1)}
+.msg.lp-morphing.lp-reshape{transition:width .46s cubic-bezier(.2,.9,.25,1),height .46s cubic-bezier(.2,.9,.25,1),transform .46s cubic-bezier(.2,.9,.25,1)}
+.msg.lp-msettle{animation:lpMSettle .6s cubic-bezier(.2,1.4,.4,1)}
+@keyframes lpMSettle{0%{transform:scale(.97)}40%{transform:scale(1.035) translateX(-1.5px)}70%{transform:scale(.99) translateX(1.5px)}100%{transform:none}}
+.lp-mw{display:inline-block;white-space:nowrap;animation:lpMWave .95s ease-in-out both;animation-delay:calc(var(--i) * 70ms + 80ms)}
+@keyframes lpMWave{0%,100%{transform:translateY(0)}35%{transform:translateY(-4px)}65%{transform:translateY(2px)}}
+@media (prefers-reduced-motion: reduce){.msg.lp-morphing,.msg.lp-msettle,.lp-mw{animation:none!important;transition:none!important}}
+
+/* ---- Sign-in: the passphrase is never shown. Blinded marks are magnified by a lens that moves over them. ---- */
+#pass.lp-blind{color:transparent!important;caret-color:transparent}
+.lp-marks{position:absolute;display:flex;align-items:center;gap:.5em;pointer-events:none;overflow:hidden;box-sizing:border-box;color:var(--ink);z-index:2}
+.lp-marks span{display:inline-block;line-height:1;transition:transform .34s cubic-bezier(.2,.9,.25,1)}
+.lp-marks span.lp-mag{transform:scale(1.9)}
+.lp-lens{position:absolute;left:0;top:0;z-index:3;pointer-events:none;will-change:transform,opacity}
+.lp-lens .lp-shape{width:100%;height:100%;box-sizing:border-box;border:1.5px solid color-mix(in srgb,var(--ink) 55%,transparent);border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.75),rgba(255,255,255,.12) 45%,transparent 70%),color-mix(in srgb,var(--surface) 35%,transparent);box-shadow:0 6px 16px rgba(60,20,30,.14),inset 0 0 0 1px rgba(255,255,255,.35)}
+.lp-lens .lp-shape.sq{border-radius:12px}
+.lp-lens .lp-shape.dr{border-radius:50% 50% 50% 0;transform:rotate(-45deg)}
+.lp-lens .lp-shape.st{border:0;background:none;box-shadow:none;border-radius:0;color:var(--accent)}
+.lp-lens .lp-shape.st svg{width:100%;height:100%;display:block}
+@media (prefers-reduced-motion: reduce){.lp-marks span{transition:none}}
+
+/* ---- Scan verification (default): a thin light crosses the marks; each mark lights as it passes ---- */
+.lp-beam{position:absolute;top:0;left:0;width:2px;z-index:3;pointer-events:none;border-radius:2px;background:linear-gradient(180deg,transparent,var(--accent) 22%,var(--accent) 78%,transparent);box-shadow:0 0 12px 3px color-mix(in srgb,var(--accent) 45%,transparent);will-change:transform,opacity}
+.lp-marks span.lp-lit{color:var(--accent);transform:scale(1.5);text-shadow:0 0 10px color-mix(in srgb,var(--accent) 70%,transparent)}
+.lp-marks span.lp-seen{color:var(--accent);transform:scale(1)}
+.lp-marks.lp-ok span{color:var(--accent);text-shadow:0 0 6px color-mix(in srgb,var(--accent) 45%,transparent)}
+.lp-status{font:500 11px var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--accent);text-align:center;min-height:16px;margin-top:2px;animation:lpStatusIn .35s ease both}
+@keyframes lpStatusIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
