@@ -218,11 +218,30 @@ html body #list .msg,html body #list .msg *{-webkit-user-select:none;user-select
 .cb-danger{background:#e0463c;color:#fff;border-color:#e0463c}
 
 /* Settings sections (step 3c) */
-.settings-section{margin-bottom:12px}
+.settings-section{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:2px 16px;margin-bottom:14px}
+.settings-section > .settings-head{margin:12px 4px 4px}
+.settings-section > .prow:last-child{border-bottom:0}
+.settings-section .pgroup{background:transparent;border:0;box-shadow:none;padding:0;margin:0}
+.settings-search-wrap{position:sticky;top:0;z-index:6;background:var(--bg);padding:6px 0 10px}
+.settings-search-bar{display:flex;align-items:center;gap:8px}
+.settings-search{flex:1;min-width:0;border-radius:16px;padding:12px 14px;box-shadow:var(--shadow)}
+.settings-search-clear{width:36px;height:36px;flex:0 0 36px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:18px;line-height:1}
+.settings-suggest{margin-top:8px;background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:6px;display:flex;flex-direction:column;gap:2px}
+.settings-suggest.hidden{display:none}
+.ss-chip{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;border:0;background:transparent;color:var(--ink);border-radius:12px;font-size:15px}
+.ss-chip:hover,.ss-chip:focus-visible{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.ss-kind{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);min-width:56px}
 .settings-head{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:16px 4px 6px}
 
 /* Chat (step 4): day marker stays at the top while scrolling */
-.day{position:sticky;top:0;z-index:2;background:var(--bg)}
+.day{position:static;top:auto;z-index:auto;background:transparent}
 
 /* Draft label on the conversation card */
 .draft-tag{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);border:1px solid var(--line);vertical-align:middle}
+
+/* Journal: two columns, one per person */
+.journal-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+.journal-col{min-width:0}
+.journal-col-head{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:4px 2px 8px}
+.journal-col .note-card{padding:10px;min-width:0}
+.journal-col .txt{word-break:break-word;overflow-wrap:anywhere}

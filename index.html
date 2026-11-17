@@ -69,7 +69,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
 @keyframes lpHeadR{0%,44%{transform:rotate(0)}49%,54%{transform:rotate(3deg)}60%,70%{transform:rotate(0)}72%,82%{transform:rotate(3deg)}88%,100%{transform:rotate(0)}}
 @keyframes twinkle{0%,100%{opacity:.2}40%{opacity:1}70%{opacity:.35}}
 @media (prefers-reduced-motion: reduce){.monoArt .star,.monoArt .armL,.monoArt .armR,.monoArt .headL,.monoArt .headR{animation:none!important}}
-.monoArt.checking{filter:blur(10px);opacity:.35}
+.monoArt.checking{filter:none;opacity:1}
 .acct-switch{position:relative;width:min(260px,100%);height:46px;display:grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:23px;background:color-mix(in srgb,var(--bg) 70%,var(--surface));border:1px solid var(--line);overflow:hidden}
 .acct-switch::before{content:"";position:absolute;top:3px;left:3px;width:calc(50% - 3px);height:calc(100% - 6px);border-radius:20px;background:var(--ink);transition:transform .6s cubic-bezier(.4,0,.2,1);z-index:0}
 .acct-switch.is-right::before{transform:translateX(100%)}
@@ -1670,28 +1670,38 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (s >= m.ts && otherReadReceipts) return { cls: "rc-seen", label: "SEEN " + fmtTime(s) };
     return { cls: "rc-delivered", label: "DELIVERED" };
   }
-  // Unread messages from the other person count down as they pass an invisible line 40% down the chat.
-  // Messages not yet passed stay in the glass blur. Read messages never blur again.
+  // A message counts as read only once it has passed the invisible line, 40% down the chat.
+  // Arriving messages never count as read by themselves: you must scroll down to them.
+  // Reaching the bottom reads everything. The unread count always reflects what is past the line.
+  let readSyncTimer = 0;
   function passUnread(allowPass) {
     if (!unlocked || view !== "chat") return;
     const box = $("list");
     const line = box.getBoundingClientRect().top + box.clientHeight * 0.4;
     let cut = cacheSeen[me] || 0;
     const rows = [...box.querySelectorAll(".row.theirs[data-ts]")];
+    const before = unreadN;
     if (allowPass) {
-      let moved = false;
-      for (const row of rows) {
-        const ts = Number(row.dataset.ts);
-        if (ts <= cut) continue;
-        if (row.getBoundingClientRect().top >= line) break;
-        cut = ts; moved = true;
+      let target = cut;
+      if (nearBottom()) {
+        target = visibleList().reduce((mx, m) => Math.max(mx, m.ts || 0), target);
+      } else {
+        for (const row of rows) {
+          const ts = Number(row.dataset.ts);
+          if (ts <= cut) continue;
+          if (row.getBoundingClientRect().top >= line) break;
+          target = Math.max(target, ts);
+        }
       }
-      if (moved) {
+      if (target > cut) {
+        cut = target;
         cacheSeen[me] = cut;
-        unreadN = visibleList().filter(m => m.from !== me && !m.deleted && m.ts > cut).length;
-        renderBanner();
+        clearTimeout(readSyncTimer);
+        readSyncTimer = setTimeout(() => syncReadCursor(cacheSeen[me]), 600);
       }
     }
+    unreadN = visibleList().filter(m => m.from !== me && !m.deleted && m.ts > cut).length;
+    if (unreadN !== before || allowPass) renderBanner();
     for (const row of rows) row.classList.toggle("unread-glass", Number(row.dataset.ts) > cut);
   }
   function firstUnread() {
@@ -1977,16 +1987,25 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function nearBottom() { const b = $("list"); return b.scrollHeight - b.scrollTop - b.clientHeight <= 80; }
   function scrollBottom() { const b = $("list"); b.scrollTo({ top: b.scrollHeight, behavior: "smooth" }); }
 
+  // Save the read position on the server, so the unread count matches on every device.
+  async function syncReadCursor(ts) {
+    const client = cloudClient();
+    if (!client || !ts) return;
+    const res = await client.rpc("mark_read_upto", { p_at: new Date(ts).toISOString() });
+    if (res.error) return;
+    await refreshUnread();
+  }
+
+  // Used when the reader is at the bottom or explicitly jumps to the newest message.
   async function markRead() {
     if (!unlocked || document.hidden || view !== "chat") return;
-    cacheSeen[me] = Date.now();
+    const latest = visibleList().reduce((mx, m) => Math.max(mx, m.ts || 0), cacheSeen[me] || 0);
+    if (!latest) return;
+    cacheSeen[me] = latest;
     unreadN = 0;
     document.title = baseTitle;
-    const client = cloudClient();
-    if (!client) return;
-    const res = await client.rpc("mark_read");
-    if (!res.error) unreadN = 0;
-    await refreshUnread();
+    renderBanner();
+    await syncReadCursor(latest);
   }
 
   function jumpToUnread() {
@@ -2166,8 +2185,11 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       acts.appendChild(b);
     }
     $("themeBar").classList.remove("hidden");
+    armThemeBarTimer();
   }
-  function closeThemeBar() { $("themeBar").classList.add("hidden"); }
+  let themeBarTimer = 0;
+  function closeThemeBar() { clearTimeout(themeBarTimer); themeBarTimer = 0; $("themeBar").classList.add("hidden"); }
+  function armThemeBarTimer() { clearTimeout(themeBarTimer); themeBarTimer = setTimeout(closeThemeBar, 2200); }
 
   function resolvedTheme(id) {
     if (id === "auto") { const h = new Date().getHours(); return (h >= 19 || h < 6) ? "ink" : "warm"; }
@@ -2396,7 +2418,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       all.forEach(v => { const n = $(v); if (n) n.classList.toggle("hidden", v !== name); });
     }
     if (name === "home" && unlocked) renderHome();
-    if (name !== "lock") markRead();
+    if (name === "chat") passUnread(true);
   }
 
   function openPanel(title, sub, build, backTo) {
@@ -2477,21 +2499,39 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const add = el("button", "btn", "New entry");
       add.addEventListener("click", () => openJournalComposer());
       body.appendChild(add);
-      const list = el("div", "");
-      list.style.marginTop = "14px";
+      const cols = el("div", "journal-cols");
+      cols.style.marginTop = "14px";
       const entries = (cacheJournal || []).slice().sort((a, b) => b.ts - a.ts);
-      if (!entries.length) list.appendChild(el("p", "fp-desc", "No entries yet."));
-      for (const e of entries) {
-        const card = el("div", "note-card");
-        const top = el("div", "top");
-        top.append(el("span", "kind", e.kind === "diary" ? "Diary" : "Note only"), el("span", "", NAME[e.from] || e.from));
-        card.appendChild(top);
-        card.appendChild(el("div", "txt", e.text));
-        card.appendChild(el("div", "mono muted", fmtDateTime(e.ts)));
-        list.appendChild(card);
+      for (const side of [me, other()]) {
+        const col = el("div", "journal-col");
+        col.appendChild(el("div", "journal-col-head mono", (NAME[side] || side) + (side === me ? " · you" : "")));
+        const mine = entries.filter(e => e.from === side);
+        if (!mine.length) col.appendChild(el("p", "fp-desc", "No entries."));
+        for (const e of mine) {
+          const card = el("div", "note-card");
+          const top = el("div", "top");
+          top.appendChild(el("span", "kind", e.kind === "diary" ? "Diary" : "Note only"));
+          card.appendChild(top);
+          card.appendChild(el("div", "txt", e.text));
+          card.appendChild(el("div", "mono muted", fmtDateTime(e.ts) + (e.edited ? " · edited" : "")));
+          if (e.from === me) {
+            const row = el("div", "");
+            row.style.cssText = "display:flex;gap:8px;margin-top:10px;flex-wrap:wrap";
+            const ed = el("button", "btn sm ghost", "Edit");
+            ed.addEventListener("click", () => openJournalComposer(e));
+            const dl = el("button", "btn sm danger", "Delete");
+            dl.addEventListener("click", async () => {
+              const ok = await choicePanel({ title: "Delete this entry?", desc: "It will disappear from the journal on both sides.", options: [{ label: "Delete entry", sub: e.text.slice(0, 80), value: "yes", danger: true }] });
+              if (ok === "yes") { await deleteJournal(e.id); openJournal(); }
+            });
+            row.append(ed, dl);
+            card.appendChild(row);
+          }
+          col.appendChild(card);
+        }
+        cols.appendChild(col);
       }
-      body.appendChild(list);
-      body.appendChild(el("div", "sec-label mono", "Notes"));
+      body.appendChild(cols);
       const notes = notesAll().slice().sort((a, b) => b.ts - a.ts);
       if (!notes.length) body.appendChild(el("p", "fp-desc", "No notes yet."));
       for (const n of notes) {
@@ -2518,19 +2558,26 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       }
     });
   }
-  function openJournalComposer() {
+  function openJournalComposer(existing) {
     sheetOpen((body) => {
-      body.appendChild(el("h3", "fp-title", "New entry"));
+      body.appendChild(el("h3", "fp-title", existing ? "Edit entry" : "New entry"));
       const ta = el("textarea", "in plain");
       ta.placeholder = "Write...";
       ta.style.minHeight = "80px";
+      if (existing) ta.value = existing.text;
       body.appendChild(ta);
       const row = el("div", "");
       row.style.display = "flex"; row.style.gap = "8px"; row.style.marginTop = "10px";
-      const diary = el("button", "btn", "Add to diary");
-      const note = el("button", "btn ghost", "Note only");
-      diary.addEventListener("click", async () => { if (ta.value.trim()) { await saveJournal(ta.value.trim(), "diary"); sheetClose(); openJournal(); } });
-      note.addEventListener("click", async () => { if (ta.value.trim()) { await saveJournal(ta.value.trim(), "note"); sheetClose(); openJournal(); } });
+      const diary = el("button", "btn", existing ? "Save as diary" : "Add to diary");
+      const note = el("button", "btn ghost", existing ? "Save as note only" : "Note only");
+      const save = async (kind) => {
+        if (!ta.value.trim()) return;
+        if (existing) await editJournal(existing.id, ta.value.trim(), kind);
+        else await saveJournal(ta.value.trim(), kind);
+        sheetClose(); openJournal();
+      };
+      diary.addEventListener("click", () => save("diary"));
+      note.addEventListener("click", () => save("note"));
       row.append(diary, note);
       body.appendChild(row);
     });
@@ -2541,20 +2588,35 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     await client.from("journal_entries").insert({ pair_id: pairId, side: me, kind, text });
     await reloadJournal();
   }
+  async function editJournal(id, text, kind) {
+    const client = cloudClient();
+    if (!client || !pairId) return;
+    const r = await client.from("journal_entries").update({ text, kind, edited_at: new Date().toISOString() }).eq("id", id);
+    if (r.error) { notice("Couldn't save that entry", r.error.message, { error: true }); return; }
+    await reloadJournal();
+  }
+  async function deleteJournal(id) {
+    const client = cloudClient();
+    if (!client || !pairId) return;
+    const r = await client.from("journal_entries").delete().eq("id", id);
+    if (r.error) { notice("Couldn't delete that entry", r.error.message, { error: true }); return; }
+    await reloadJournal();
+  }
   async function reloadJournal() {
     const client = cloudClient();
     if (!client || !pairId) return;
     const r = await client.from("journal_entries").select("*").eq("pair_id", pairId).order("created_at", { ascending: false });
-    cacheJournal = (r.data || []).map(e => ({ id: e.id, from: e.side, kind: e.kind, text: e.text, ts: new Date(e.created_at).getTime() }));
+    cacheJournal = (r.data || []).map(e => ({ id: e.id, from: e.side, kind: e.kind, text: e.text, ts: new Date(e.created_at).getTime(), edited: !!e.edited_at }));
   }
   // Regroups the Settings panel into Account, Privacy, Notifications, Data and Features.
   // It only moves existing rows and groups. It never changes what a control does.
   function groupSettings(body) {
     const plan = [
       { name: "Account", groups: ["Your side", "Names shown to us", "Lock-screen tagline"], rows: ["Status", "Choose photo", "Time zone"] },
-      { name: "Privacy", groups: ["Words you want blurred"], rows: ["Auto-blur", "Shake to lock", "Sign-in object"] },
+      { name: "Privacy", groups: ["Words you want blurred"], rows: ["Auto-blur", "Shake to lock", "Sign-in object", "Change passphrase", "Recovery questions"] },
       { name: "Notifications", groups: [], rows: ["Haptics", "Vibration", "Sounds"] },
       { name: "Data", groups: ["Shared · both of you"], rows: ["Theme", "Archive old messages", "Open archive"] },
+      { name: "Session", groups: [], rows: ["Sign out"] },
       { name: "Features", groups: [], rows: [] }
     ];
     const secs = plan.map((sec) => { const w = el("div", "settings-section"); w.appendChild(el("div", "settings-head", sec.name)); return w; });
@@ -2573,21 +2635,126 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     });
     secs.forEach((w) => { if (w.children.length > 1) body.appendChild(w); });
   }
+  // ---- Settings search: always at the top, waits for you to pause, learns what you search for ----
+  let settingsQ = "";
+  let settingsSearchTimer = 0;
+  const SS_KEY = "pp-settings-search";
+  function settingsSearchStats() { return store.get(SS_KEY, {}); }
+  function recordSettingsSearch(q) {
+    q = String(q || "").trim().toLowerCase();
+    if (q.length < 2) return;
+    const stats = settingsSearchStats();
+    const cur = stats[q] || { n: 0, t: 0 };
+    stats[q] = { n: cur.n + 1, t: Date.now() };
+    const keys = Object.keys(stats);
+    if (keys.length > 60) {
+      keys.sort((a, b) => stats[a].t - stats[b].t).slice(0, keys.length - 60).forEach((k) => { delete stats[k]; });
+    }
+    store.set(SS_KEY, stats);
+  }
+  function settingsLabels(body) {
+    const seen = new Set();
+    return [...body.querySelectorAll(".prow .lab span, button.prow")]
+      .map((n) => (n.textContent || "").trim())
+      .filter((t) => t && !seen.has(t) && seen.add(t));
+  }
+  // Shows only the rows, groups and sections that match. A section whose title matches shows in full.
+  function applySettingsFilter(body, raw) {
+    const q = String(raw || "").trim().toLowerCase();
+    const hit = (n) => !q || (n.textContent || "").toLowerCase().includes(q);
+    body.querySelectorAll(".prow").forEach((r) => { r.style.display = hit(r) ? "" : "none"; });
+    body.querySelectorAll(".pgroup").forEach((g) => { g.style.display = hit(g) ? "" : "none"; });
+    [...body.children].forEach((c) => {
+      if (c.classList.contains("settings-search-wrap") || c.classList.contains("settings-section")) return;
+      if (c.classList.contains("prow")) return;
+      c.style.display = hit(c) ? "" : "none";
+    });
+    body.querySelectorAll(".settings-section").forEach((sec) => {
+      const head = (sec.querySelector(".settings-head") || {}).textContent || "";
+      const titleHit = !!q && head.toLowerCase().includes(q);
+      const kids = [...sec.children].filter((c) => !c.classList.contains("settings-head"));
+      if (titleHit) kids.forEach((c) => { c.style.display = ""; });
+      const any = kids.some((c) => c.style.display !== "none");
+      sec.style.display = !q || titleHit || any ? "" : "none";
+    });
+  }
+  function mountSettingsSearch(body) {
+    const wrap = el("div", "settings-search-wrap");
+    const bar = el("div", "settings-search-bar");
+    const input = el("input", "in plain settings-search");
+    input.type = "search";
+    input.placeholder = "Search settings";
+    input.setAttribute("aria-label", "Search settings");
+    input.autocomplete = "off";
+    input.value = settingsQ;
+    const clear = el("button", "settings-search-clear", "×");
+    clear.type = "button";
+    clear.setAttribute("aria-label", "Clear search");
+    const box = el("div", "settings-suggest hidden");
+    box.setAttribute("role", "listbox");
+    bar.append(input, clear);
+    wrap.append(bar, box);
+    body.appendChild(wrap);
+
+    const draw = () => {
+      const q = settingsQ.trim().toLowerCase();
+      box.textContent = "";
+      const stats = settingsSearchStats();
+      const past = Object.keys(stats)
+        .filter((k) => !q || (k.startsWith(q) && k !== q))
+        .sort((a, b) => (stats[b].n - stats[a].n) || (stats[b].t - stats[a].t))
+        .slice(0, 4)
+        .map((t) => ({ text: t, kind: "Recent" }));
+      const labels = q
+        ? settingsLabels(body).filter((t) => t.toLowerCase().includes(q) && t.toLowerCase() !== q).slice(0, 4).map((t) => ({ text: t, kind: "Setting" }))
+        : [];
+      const items = past.concat(labels);
+      if (!items.length) { box.classList.add("hidden"); return; }
+      box.classList.remove("hidden");
+      for (const it of items) {
+        const b = el("button", "ss-chip");
+        b.type = "button";
+        b.append(el("span", "ss-kind mono", it.kind), el("span", "", it.text));
+        b.addEventListener("mousedown", (ev) => ev.preventDefault());
+        b.addEventListener("click", () => {
+          input.value = it.text; settingsQ = it.text;
+          applySettingsFilter(body, settingsQ);
+          recordSettingsSearch(settingsQ);
+          box.classList.add("hidden");
+          input.blur();
+        });
+        box.appendChild(b);
+      }
+    };
+    input.addEventListener("focus", () => draw());
+    input.addEventListener("input", () => {
+      settingsQ = input.value;
+      clearTimeout(settingsSearchTimer);
+      // Wait for the pause: filter and suggestions update only after a short rest.
+      settingsSearchTimer = setTimeout(() => { applySettingsFilter(body, settingsQ); draw(); }, 280);
+    });
+    input.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") { ev.preventDefault(); recordSettingsSearch(settingsQ); box.classList.add("hidden"); input.blur(); }
+      if (ev.key === "Escape") { box.classList.add("hidden"); }
+    });
+    input.addEventListener("blur", () => {
+      recordSettingsSearch(settingsQ);
+      setTimeout(() => box.classList.add("hidden"), 120);
+    });
+    clear.addEventListener("mousedown", (ev) => ev.preventDefault());
+    clear.addEventListener("click", () => {
+      input.value = ""; settingsQ = "";
+      clearTimeout(settingsSearchTimer);
+      applySettingsFilter(body, "");
+      draw();
+      input.focus();
+    });
+  }
   function openSettings() {
+    settingsQ = "";
     openPanel("Settings", NAME[me], (body) => {
       const sh = SH(), s = S(me);
-      const search = el("input", "in plain");
-      search.type = "search";
-      search.placeholder = "Search settings";
-      search.setAttribute("aria-label", "Search settings");
-      search.addEventListener("input", () => {
-        const q = search.value.trim().toLowerCase();
-        [...body.children].forEach((c) => {
-          if (c === search) return;
-          c.style.display = !q || c.textContent.toLowerCase().includes(q) ? "" : "none";
-        });
-      });
-      body.appendChild(search);
+      mountSettingsSearch(body);
       body.appendChild(group("Shared · both of you", [
         btnRow("Theme · " + (THEMES.find(t => t.id === sh.theme) || THEMES[0]).name, "palette", () => openThemeBar("app")),
         prow("Archive old messages", "Moved to Archive, never deleted", selectCtl(ARCHIVE, sh.archiveDays, (v) => { setSH({ archiveDays: Number(v) }); render(); notice("Archive updated"); })),
@@ -2688,6 +2855,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         btnRow("Sign out", "logout", () => confirmSignOut("this"), true)
       ]));
       groupSettings(body);
+      applySettingsFilter(body, settingsQ);
     }, "home");
   }
 
@@ -2701,11 +2869,12 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         const t = el("div", "txt");
         t.append(el("span", "", m.kind === "text" ? m.text : m.kind === "image" ? "Photo" : "Voice note"), el("small", "", NAME[m.from] + " · " + fmtDateTime(m.ts)));
         const rb = el("button", "btn sm ghost", "Restore");
-        rb.addEventListener("click", () => {
-          const list = thread();
-          const t2 = list.find(x => x.id === m.id);
-          if (t2) t2.noArchive = true;
-          saveThread(list);
+        rb.addEventListener("click", async () => {
+          const client = cloudClient();
+          if (!client) return;
+          const r = await client.rpc("unarchive_message", { p_id: m.id });
+          if (r.error) { notice("Couldn't restore that", r.error.message, { error: true }); return; }
+          await reloadAll();
           render();
           openArchive();
         });
@@ -3355,7 +3524,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       if (row) row.scrollIntoView({ block: "start" }); else scrollBottomInstant();
     }
     if (withSearch) toggleSearch(true);
-    markRead();
+    passUnread(true);
   }
 
   /* ================= Sign-in ================= */
@@ -3827,6 +3996,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   /* ================= Composer and media ================= */
   let heldClip = null;
+  let heldAudio = null;
   let stagedMedia = null;
   let myMutedUntil = 0, myReadReceipts = true, otherReadReceipts = true;
   function ppShouldAlert(m) {
@@ -3859,7 +4029,18 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     t.style.height = Math.min(t.scrollHeight, 128) + "px";
     $("send").disabled = !t.value.trim() && !heldClip && !stagedMedia;
   }
+  function heldToggle() {
+    if (!heldClip) return;
+    if (!heldAudio) {
+      heldAudio = new Audio(heldClip.url);
+      heldAudio.addEventListener("play", () => renderHoldBar());
+      heldAudio.addEventListener("pause", () => renderHoldBar());
+      heldAudio.addEventListener("ended", () => renderHoldBar());
+    }
+    if (heldAudio.paused) heldAudio.play().catch(() => {}); else heldAudio.pause();
+  }
   function dropHeld() {
+    if (heldAudio) { heldAudio.pause(); heldAudio = null; }
     if (heldClip && heldClip.url) URL.revokeObjectURL(heldClip.url);
     heldClip = null;
     renderHoldBar();
@@ -3892,6 +4073,13 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       mk(sendOpts.quiet ? "Quiet: on" : "Quiet: off", sendOpts.quiet, () => { sendOpts.quiet = !sendOpts.quiet; renderHoldBar(); }),
       mk("Remove", false, () => { if (stagedMedia) stagedMedia = null; else dropHeld(); renderHoldBar(); autosize(); })
     );
+    if (heldClip) {
+      const playing = !!(heldAudio && !heldAudio.paused);
+      const d = Math.max(0, Math.round(heldClip.dur || 0));
+      b.append(mk(playing ? "Pause" : "Listen", playing, heldToggle));
+      b.append(mk("Record again", false, () => { dropHeld(); startRecording(); }));
+      b.append(el("span", "mono muted", Math.floor(d / 60) + ":" + String(d % 60).padStart(2, "0")));
+    }
     if (old) old.replaceWith(b); else $("footer").before(b);
   }
 
@@ -4265,7 +4453,6 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   $("list").addEventListener("scroll", () => {
     if (!unlocked || view !== "chat") return;
     passUnread(true);
-    if (nearBottom()) markRead();
     clearTimeout(posTimer);
     posTimer = setTimeout(savePosition, 400);
   });
@@ -4370,7 +4557,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   document.addEventListener("visibilitychange", () => {
     document.body.classList.toggle("private", document.hidden);
-    if (!document.hidden) markRead();
+    if (!document.hidden) passUnread(true);
   });
 
   // Live sync between tabs and devices sharing this browser.
@@ -4384,7 +4571,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (!unlocked) return;
     if (e.key === KEY.thread) {
       const fresh = visibleList().filter(m => !knownIds.has(m.id) && m.from !== me);
-      const wasNear = nearBottom();
+      const wasNear = view === "chat" && nearBottom();
       const dotsRect = fresh.length ? consumeTypingRow() : null;
       render();
       if (fresh.length) {
@@ -4396,7 +4583,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
           document.title = "(" + unreadN + ") " + baseTitle;
           if ("Notification" in window && Notification.permission === "granted") new Notification(NAME[fresh[fresh.length - 1].from], { body: fresh.length > 1 ? fresh.length + " new messages" : "New message", tag: "notes" });
         } else if (view === "chat" && !wasNear) { /* reader is away: the tray shows the count */ }
-        else if (view === "chat") markRead();
+        else if (view === "chat" && wasNear) { scrollBottomInstant(); markRead(); }
+        else if (view === "chat") passUnread(false);
         else if (view === "home") notice("New message", "From " + NAME[other()] + ".", { action: { label: "Open chat", run: () => openChat() } });
       }
     } else if (e.key === KEY.typing) renderPresence();
@@ -4512,7 +4700,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const pending = cacheThread.filter(m => m.pending);
     cacheThread = (messages.data || []).map(msgFromRow).concat(pending);
     cacheNotes = (notes.data || []).map(noteFromRow);
-    cacheJournal = (journal.data || []).map(e => ({ id: e.id, from: e.side, kind: e.kind, text: e.text, ts: new Date(e.created_at).getTime() }));
+    cacheJournal = (journal.data || []).map(e => ({ id: e.id, from: e.side, kind: e.kind, text: e.text, ts: new Date(e.created_at).getTime(), edited: !!e.edited_at }));
     cacheSched = (scheduled.data || []).filter(s => s.side === me).map(s => ({ id: s.id, from: s.side, text: s.text, effect: s.effect, sendAt: new Date(s.send_at).getTime(), createdAt: new Date(s.created_at).getTime() }));
     cacheSeen = {};
     for (const r of reads.data || []) cacheSeen[r.side] = new Date(r.read_at).getTime();
@@ -4595,6 +4783,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
             partnerTypingUntil = 0;
             dropPresenceTyping = true;
             if (m.effect && m.effect !== "none") pendingFx.add(m.id);
+            const wasNearRt = view === "chat" && nearBottom();
             const dotsRect = consumeTypingRow();
             if (view !== "chat") unreadN += 1;
             render();
@@ -4602,7 +4791,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
             const runFx = () => { if (m.effect && m.effect !== "none") playEffect(m); };
             if (window.LeesHooks && LeesHooks.afterArrival) LeesHooks.afterArrival(runFx); else runFx();
             if (ppShouldAlert(m)) { chime(); arrivalBuzz(); }
-            if (view === "chat" && !document.hidden) markRead();
+            if (view === "chat" && !document.hidden) { if (wasNearRt) { scrollBottomInstant(); markRead(); } else passUnread(false); }
             else if (document.hidden) document.title = "(" + unreadN + ") " + baseTitle;
             else notice("New message", "From " + NAME[other()] + ".", { action: { label: "Open chat", run: () => openChat() } });
           } else render();
@@ -4655,7 +4844,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       dropPresenceTyping = false;
       partnerTypingPulse = Date.now();
       // Typing is re-sent at most every 900 ms, so the window must be longer than that gap.
-      partnerTypingUntil = Date.now() + 1400;
+      partnerTypingUntil = Date.now() + 2600;
       partnerEnergy = payload.energy || "mid";
       renderPresence();
       clearTimeout(typeChannel._hide);
@@ -5031,9 +5220,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     lastPull = Date.now();
     const prev = new Set(cacheThread.map(m => m.id));
     const prevSched = cacheSched.map(s => s.id);
+    const wasNearSync = view === "chat" && nearBottom();
     await reloadAll();
     if (view === "chat" || view === "home" || view === "panel") render();
-    if (cameIn(prev).length && view === "chat" && !document.hidden) markRead();
+    if (cameIn(prev).length && view === "chat" && !document.hidden) { if (wasNearSync) { scrollBottomInstant(); markRead(); } else passUnread(false); }
     noteDelivered(prevSched);
   }
   async function cancelScheduled(id) {
@@ -5147,6 +5337,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     voiceCache.delete(id);
     const res = await client.rpc("delete_for_both", { p_id: id });
     if (res.error) { notice("Couldn't delete that", res.error.message, { error: true }); return; }
+    if (res.data) { const rm = await client.storage.from("media").remove([res.data]); if (rm.error) notice("Message deleted, file kept", rm.error.message, { error: true }); }
     await reloadAll();
     render();
     haptic("error");
@@ -5411,7 +5602,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
 
   /* ---- Typing bubble, drawn inside the thread on the partner's side ---- */
-  const TYPING_GRACE_MS = 900;
+  const TYPING_GRACE_MS = 2400;
   let typingGraceTimer = 0;
   function typingRowEl() { return document.querySelector("#list .typing-row"); }
   function showTypingRow(energy) {
