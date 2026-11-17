@@ -594,13 +594,15 @@
       if (loadOk) { var f = loadOk; loadOk = null; f(); }
     }, wait);
   };
-  hooks.signInOk = function (name) {
+  hooks.signInOk = function (name, done) {
     var tok = loadTok;
     if (tok !== loadTok) return;
-    loadDone = true; loadOk = null;
     setArt(false);
-    // The server has verified: the welcome shows now, not after the scan finishes.
-    showWelcome(name);
+    var show = function () { showWelcome(name); if (typeof done === "function") done(); };
+    // The server has verified, but the welcome and the unlock wait until the scan has walked the whole passphrase.
+    if (!loadDone) { loadOk = show; return; }
+    loadOk = null;
+    show();
   };
   hooks.signInFail = function (msg) {
     loadTok++; loadDone = true; loadOk = null;
