@@ -1,5 +1,11 @@
 # DEPLOY - The Lees v3 (release candidate)
 
+## Round 5 note (final v4)
+Publish only. No database step. See PUBLISH_FOR_GROK.md, which is the controlling instruction for publishing and deploying this build.
+
+## Round 4 note (v4 candidate)
+This round changes only index.html, lees-patch.js and lees-patch.css. There is no database change. The Step 1 and Step 2 checks above are not needed for v4. Only Step 3 (publish) and Step 4 (live check) apply, and the live check must include the boomerang, the divider count (one), and typing on the home screen.
+
 The site is static and is deployed from the main branch (see README). The database change is one additive migration.
 
 ## Before you start
