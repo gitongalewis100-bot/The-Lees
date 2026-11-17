@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="The Lees">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="icon" href="/icon-192.png">
-<link rel="stylesheet" href="/lees-patch.css?v=25">
+<link rel="stylesheet" href="/lees-patch.css?v=28">
 <style>
 :root{
   --bg:#f8f4ee;--surface:#fffdf9;--ink:#2a2420;--muted:#8c8179;--line:#ebe2d7;--line-strong:#dcd0c2;
@@ -850,6 +850,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const s = S(me);
     if (s.haptics && s.vibrate !== false) { try { navigator.vibrate?.([20, 60, 20]); } catch {} }
     notice(NAME[payload.from] + " is thinking of you", "");
+    const wave = el("div", "lp-wave");
+    wave.setAttribute("aria-hidden", "true");
+    document.body.appendChild(wave);
+    setTimeout(() => wave.remove(), 4200);
     if (reduceMotion()) return;
     const bloom = el("div", "nudge-bloom");
     bloom.setAttribute("aria-hidden", "true");
@@ -2188,7 +2192,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (!m.deleted) add(cacheShared.pinnedId === m.id ? "Unpin" : "Pin", () => setPinned(m.id));
     if (!m.deleted) add(hidden ? "Unhide" : "Hide", () => setHidden(m.id, !hidden));
     add("Delete for me", () => deleteForMe(m.id), true);
-    if (mine && age < DELETE_ALL_MS && !m.deleted) add("Delete for both", () => deleteForEveryone(m.id), true);
+    if ((mine || m.kind !== "text") && age < DELETE_ALL_MS && !m.deleted) add("Delete for both", () => deleteForEveryone(m.id), true);
     if (!m.deleted) add(m.moment ? "Moment off" : "Moment on", () => setMoment(m.id, !m.moment));
     menu.classList.remove("hidden");
     const anchor = card || document.querySelector('[data-row="' + m.id + '"]');
@@ -2405,7 +2409,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const mine = m.from === me;
     const age = Date.now() - m.ts;
     const opts = [{ label: "Delete for me", sub: "Removes it from your side only. " + NAME[other()] + " still sees it.", value: "me" }];
-    if (mine && age < DELETE_ALL_MS) opts.push({ label: "Delete for both", sub: "Replaces it with a deleted note on both sides. Available for 24 hours.", value: "all", danger: true });
+    if ((mine || m.kind !== "text") && age < DELETE_ALL_MS) opts.push({ label: "Delete for both", sub: "Replaces it with a deleted note on both sides. Available for 24 hours.", value: "all", danger: true });
     choicePanel({ title: "Delete message", desc: "Choose what should happen to this message.", options: opts }).then(v => {
       if (v === "me") deleteForMe(m.id);
       else if (v === "all") deleteForEveryone(m.id);
@@ -4612,18 +4616,24 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     clearInterval(recTimer);
     $("recbar").classList.add("hidden"); $("mic").classList.remove("recording");
     $("footer").classList.remove("hidden");
-    r.onstop = async () => {
+    // Wait for the recorder's final data before deciding what to keep. The old code raced this.
+    const finish = () => {
       stream?.getTracks().forEach(t => t.stop());
-      recStream = null;
+      if (recStream === stream) recStream = null;
       const chunks = recChunks;
       recChunks = [];
-      if (sendIt && chunks.length) {
-        const blob = new Blob(chunks, { type: r.mimeType || "audio/webm" });
-        showHeld(blob, dur);
+      if (!sendIt) return;
+      if (!chunks.length) { notice("Nothing was recorded", "Check the microphone and try again.", { error: true }); return; }
+      try {
+        showHeld(new Blob(chunks, { type: r.mimeType || "audio/webm" }), dur);
+      } catch (err) {
+        notice("Couldn't keep that recording", String((err && err.message) || err), { error: true });
       }
     };
-    try { if (r.state === "recording") r.requestData(); } catch {}
-    if (r.state !== "inactive") r.stop(); else r.onstop();
+    if (r.state === "inactive") { finish(); return; }
+    r.addEventListener("stop", finish, { once: true });
+    try { r.requestData(); } catch {}
+    try { r.stop(); } catch { finish(); }
   }
 
   function drawWave() {
@@ -4869,8 +4879,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   // The floating tray (lees-patch.js) calls this to jump to the newest message.
   window.LeesUI = { jumpLatest: () => { scrollBottom(); markRead(); }, isNearBottom: () => nearBottom() };
 
-  // Keyboard hides when you scroll or tap the thread, so it never covers what you are reading.
-  $("list").addEventListener("touchstart", () => { if (document.activeElement && document.activeElement.tagName === "TEXTAREA") dismissKeyboard(); }, { passive: true });
+  // Keyboard hides when you tap the thread, but only when the composer is empty, so typing is never interrupted.
+  $("list").addEventListener("touchstart", () => { const a = document.activeElement; if (a && a.tagName === "TEXTAREA" && !a.value.trim()) dismissKeyboard(); }, { passive: true });
   $("list").addEventListener("scroll", () => {
     if (!unlocked || view !== "chat") return;
     passUnread(true);
@@ -5188,6 +5198,60 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function cameIn(prevIds) {
     return cacheThread.filter(m => m.from && m.from !== me && !m.deleted && !(m.deletedFor || []).includes(me) && !prevIds.has(m.id));
   }
+  /* Partner edits (3.2 to 3.4). The edit arrives on the messages realtime row, which carries edited_at. */
+  const pendingEdits = {};
+  function flashRow(id, cls) {
+    const r = $("list").querySelector(`[data-row="${id}"]`);
+    if (!r) return;
+    const target = r.querySelector(".msg") || r;
+    target.classList.remove("lp-glow-edit", "lp-glow-like");
+    void target.offsetWidth;
+    target.classList.add(cls);
+    const off = () => target.classList.remove(cls);
+    target.addEventListener("animationend", off, { once: true });
+    setTimeout(off, 2600);
+  }
+  /* Marks the words that are new in the edit (words not present in the previous text). Plain text bubbles only. */
+  function applyEditDiff(id, prev, next) {
+    const r = $("list").querySelector(`[data-row="${id}"]`);
+    const body = r && r.querySelector(".msg");
+    if (!body || body.children.length) return;
+    const had = new Set(String(prev || "").split(/\s+/).filter(Boolean));
+    body.textContent = "";
+    String(next || "").split(/(\s+)/).forEach(w => {
+      if (!w) return;
+      if (/^\s+$/.test(w) || had.has(w)) { body.appendChild(document.createTextNode(w)); return; }
+      const mk = document.createElement("mark"); mk.className = "lp-diff"; mk.textContent = w; body.appendChild(mk);
+    });
+    setTimeout(() => { body.textContent = next || ""; }, 4000);
+  }
+  function jumpToMessage(id, cls) {
+    if (view !== "chat") showView("chat");
+    setTimeout(() => {
+      const r = $("list").querySelector(`[data-row="${id}"]`);
+      if (!r) return;
+      r.scrollIntoView({ behavior: "smooth", block: "center" });
+      flashRow(id, cls);
+      if (cls === "lp-glow-edit" && pendingEdits[id]) { applyEditDiff(id, pendingEdits[id].prev, pendingEdits[id].next); delete pendingEdits[id]; }
+    }, view === "chat" ? 0 : 150);
+  }
+  function partnerEdited(m) {
+    const prev = (m.history || []).length ? m.history[m.history.length - 1].text : "";
+    pendingEdits[m.id] = { prev: prev, next: m.text };
+    setTimeout(() => {
+      const r = $("list").querySelector(`[data-row="${m.id}"]`);
+      const rect = r && r.getBoundingClientRect();
+      const lr = $("list").getBoundingClientRect();
+      const onScreen = view === "chat" && rect && rect.top >= lr.top && rect.bottom <= lr.bottom;
+      if (onScreen) {
+        flashRow(m.id, "lp-glow-edit");
+        applyEditDiff(m.id, prev, m.text); delete pendingEdits[m.id];
+      } else {
+        notice(NAME[m.from] + " edited a message", "Tap to see what changed.", { action: { label: "Show", run: () => jumpToMessage(m.id, "lp-glow-edit") } });
+      }
+    }, 60);
+  }
+
   function subscribePair() {
     const client = cloudClient();
     if (!client || !pairId) return;
@@ -5200,12 +5264,17 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
           const i = cacheThread.findIndex(x => x.id === m.id || (m.clientId && x.clientId === m.clientId));
           const known = i >= 0 && cacheThread[i].id === m.id;
           const prevHearts = (i >= 0 && cacheThread[i].hearts) || [];
+          const prevEditAt = (i >= 0 && cacheThread[i].editedAt) || 0;
           if (i >= 0) cacheThread[i] = Object.assign({}, cacheThread[i], m, { pending: false });
+          if (known && m.from !== me && m.editedAt && m.editedAt !== prevEditAt && Date.now() - m.editedAt < 60000) partnerEdited(m);
           if (known && m.from === me) {
             const newLike = (m.hearts || []).find(h => String(h).indexOf(":") < 0 && h !== me && !prevHearts.includes(h));
-            if (newLike) notice(NAME[newLike] + " liked your message", "");
+            if (newLike) {
+              notice(NAME[newLike] + " liked your message", "", { action: { label: "Show", run: () => jumpToMessage(m.id, "lp-glow-like") } });
+              setTimeout(() => flashRow(m.id, "lp-glow-like"), 60);
+            }
           }
-          else cacheThread = cacheThread.concat([m]).sort((a, b) => a.ts - b.ts);
+          else if (!known) cacheThread = cacheThread.concat([m]).sort((a, b) => a.ts - b.ts);
           const fresh = !known && m.from && m.from !== me && !m.deleted && !(m.deletedFor || []).includes(me);
           if (fresh) {
             partnerTypingUntil = 0;
@@ -6203,11 +6272,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const all = store.get(KEY.fail, {});
     all[chosen] = 0;
     store.set(KEY.fail, all);
-    if (window.LeesHooks && LeesHooks.signInOk) LeesHooks.signInOk(NAME[chosen]);
+    const finishSignIn = () => { rememberSide(chosen); unlock(chosen); };
     $("lockErr").textContent = "";
     $("pass").value = "";
-    rememberSide(chosen);
-    unlock(chosen);
+    if (window.LeesHooks && LeesHooks.signInOk) LeesHooks.signInOk(NAME[chosen], finishSignIn); else finishSignIn();
   }
   async function cloudSetup(e) {
     e.preventDefault();
@@ -6443,6 +6511,6 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   })();
 })();
 </script>
-<script src="/lees-patch.js?v=13" defer></script>
+<script src="/lees-patch.js?v=14" defer></script>
 </body>
 </html>
