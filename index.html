@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="The Lees">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="icon" href="/icon-192.png">
-<link rel="stylesheet" href="/lees-patch.css?v=20">
+<link rel="stylesheet" href="/lees-patch.css?v=25">
 <style>
 :root{
   --bg:#f8f4ee;--surface:#fffdf9;--ink:#2a2420;--muted:#8c8179;--line:#ebe2d7;--line-strong:#dcd0c2;
@@ -641,8 +641,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   <footer id="footer">
     <button id="attach" class="tool" aria-label="Attach photos or audio"><svg class="i" viewBox="0 0 24 24"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7L14 4.5a3.5 3.5 0 0 1 5 5L10.5 18a2 2 0 0 1-3-3L16 6.5"/></svg></button>
     <input id="file" type="file" accept="image/*,video/*,audio/*" multiple hidden>
-    <button id="mic" class="tool" aria-label="Record voice note"><svg class="i" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
     <textarea id="input" rows="1" placeholder="Write something…" aria-label="Message"></textarea>
+    <button id="mic" class="tool" aria-label="Record voice note"><svg class="i" viewBox="0 0 24 24" stroke-width="1.9"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3.5M8.5 21.5h7"/></svg></button>
     <button id="send" type="button" aria-label="Send"><svg class="i" viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
   </footer>
   <div id="actionBar" class="bar hidden"><div class="acts" id="acts"></div></div>
@@ -830,6 +830,33 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     try { navigator.vibrate?.(PATTERNS.recv); } catch {}
   }
 
+  /* "Thinking of you": a broadcast on the pair's nudge channel. No table, no push, in-app only.
+     One send per 5 minutes per sender, remembered on this device. */
+  const NUDGE_GAP_MS = 5 * 60 * 1000;
+  let nudgeChannel = null;
+  function sendNudge() {
+    const client = cloudClient();
+    if (!unlocked || !client || !pairId) return;
+    const wait = Number(store.get("pp-nudge-at", 0)) + NUDGE_GAP_MS - Date.now();
+    if (wait > 0) { notice("Already sent", "You can send another in " + Math.ceil(wait / 60000) + " min."); return; }
+    if (!nudgeChannel) { notice("Can't send right now", "Check your connection and try again.", { error: true }); return; }
+    store.set("pp-nudge-at", Date.now());
+    haptic("press");
+    nudgeChannel.send({ type: "broadcast", event: "nudge", payload: { from: me } });
+    notice("Sent", "Thinking of " + NAME[other()] + ".");
+  }
+  function receiveNudge(payload) {
+    if (!unlocked || !payload || payload.from === me) return;
+    const s = S(me);
+    if (s.haptics && s.vibrate !== false) { try { navigator.vibrate?.([20, 60, 20]); } catch {} }
+    notice(NAME[payload.from] + " is thinking of you", "");
+    if (reduceMotion()) return;
+    const bloom = el("div", "nudge-bloom");
+    bloom.setAttribute("aria-hidden", "true");
+    document.body.appendChild(bloom);
+    setTimeout(() => bloom.remove(), 1400);
+  }
+
   function burst(glyph, n) {
     for (let i = 0; i < (n || 14); i++) {
       const s = el("span", "fx", glyph || "♥");
@@ -970,7 +997,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   /* ================= Sensitive words ================= */
   function sensitiveRE() {
-    const words = [...TERMS, ...((S(me || "Lewis").blurWords) || [])];
+    const words = termsFor(me || "Lewis");
     const key = words.join("|");
     if (sensCache.key !== key) sensCache = { key, re: new RegExp("(^|[^a-z])(" + words.map(esc).join("|") + ")(?![a-z])", "i") };
     return sensCache.re;
@@ -1188,6 +1215,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const cut = archiveCutoff();
     return thread().filter(m => {
       if (isPlay(m)) return false;
+      if (m.deleted) return false;
       if ((m.deletedFor || []).includes(me)) return false;
       if (chatDay && m.ts >= chatDay.start && m.ts < chatDay.end) return true;
       return !isArchived(m, cut);
@@ -1195,7 +1223,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
   function archivedList() {
     const cut = archiveCutoff();
-    return thread().filter(m => isArchived(m, cut) && !(m.deletedFor || []).includes(me));
+    return thread().filter(m => isArchived(m, cut) && !m.deleted && !(m.deletedFor || []).includes(me));
   }
 
   /* ================= Rendering: chat ================= */
@@ -1547,13 +1575,32 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       }));
     });
   }
+  // View once: record the opening first, then load a link that lasts 60 seconds (never cached).
   async function openOnceMedia(m) {
+    const client = cloudClient();
+    if (!client || !m.mid || String(m.mid).startsWith("local-")) { notice("Couldn't open that", "Try again in a moment.", { error: true }); return; }
+    const r = await client.rpc("mark_opened_once", { p_id: m.id });
+    if (r.error) { notice("Couldn't open that", "Refresh and try again.", { error: true }); return; }
+    const signed = await client.storage.from("media").createSignedUrl(m.mid, 60);
+    if (signed.error || !signed.data || !signed.data.signedUrl) { notice("Couldn't open that", "The file could not be loaded.", { error: true }); return; }
     openedOnce.add(m.id);
     render();
-    const client = cloudClient();
-    if (!client) return;
-    const r = await client.rpc("mark_opened_once", { p_id: m.id });
-    if (r.error) notice("Couldn't record that it was opened", "It may show again after a refresh.", { error: true });
+    showOnceViewer(m.kind, signed.data.signedUrl);
+  }
+  function showOnceViewer(kind, url) {
+    const wrap = el("div", "once-viewer");
+    let node;
+    if (kind === "video") { node = el("video"); node.controls = true; node.playsInline = true; node.autoplay = true; }
+    else if (kind === "audio") { node = el("audio"); node.controls = true; node.autoplay = true; }
+    else { node = el("img"); node.alt = "One-time photo"; }
+    node.src = url;
+    const close = el("button", "once-close", "Close");
+    close.type = "button";
+    const done = () => { try { node.pause && node.pause(); } catch (e) {} node.removeAttribute("src"); wrap.remove(); };
+    close.addEventListener("click", done);
+    wrap.addEventListener("click", (e) => { if (e.target === wrap) done(); });
+    wrap.append(node, close);
+    document.body.appendChild(wrap);
   }
   function buildRow(m, seen, isLastMine) {
     const mine = m.from === me;
@@ -1574,9 +1621,13 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       q.append(el("b", "", NAME[m.replyTo.from]), el("span", "", m.replyTo.preview));
       card.appendChild(q);
     }
-    if (m.once && m.from !== me && m.kind !== "text" && !openedOnce.has(m.id)) {
-      const opened = (m.openedBy || []).includes(me);
-      const gate = el("button", "oncegate" + (opened ? " done" : ""), opened ? "One-time media, already opened" : "One-time " + (m.kind === "video" ? "video" : m.kind === "audio" ? "audio" : "photo") + " · tap to open");
+    if (m.once && m.from !== me && m.kind !== "text") {
+      const opened = (m.openedBy || []).includes(me) || openedOnce.has(m.id);
+      const gate = el("button", "oncegate" + (opened ? " done" : ""));
+      gate.type = "button";
+      gate.setAttribute("aria-label", opened ? "Viewed" : "View once");
+      gate.innerHTML = '<span class="og-ic"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span><span class="og-t"></span>';
+      gate.querySelector(".og-t").textContent = opened ? "Viewed" : "View once";
       gate.type = "button";
       if (!opened) gate.addEventListener("click", (e) => { e.stopPropagation(); openOnceMedia(m); });
       card.appendChild(gate);
@@ -1615,7 +1666,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       else if (shield) card.classList.add("blurred");
     }
     card.addEventListener("pointerup", (e) => {
-      if (e.target.closest(".scratch,.heartbtn,.vplay,.vspeed,.bars,.edlabel")) return;
+      if (e.target.closest(".scratch,.heartbtn,.vplay,.vspeed,.bars,.edlabel,.oncegate")) return;
       const now = Date.now();
       const live = thread().find(x => x.id === card.dataset.id) || m;
       if (card._tap && now - card._tap < 300) {
@@ -1978,9 +2029,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (!unlocked || view !== "chat") return;
     const n = unreadN;
     // One unread notice only: the banner and tray. The "All caught up" toast stays.
-    if (prevUnread > 0 && n === 0) {
-      notice("All caught up", "You have read everything from " + NAME[other()] + ".");
-    }
+    // "All caught up" removed by request: the banner and tray already show unread state.
     prevUnread = n;
   }
 
@@ -2493,10 +2542,113 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
 
 
+  // Blurred words for one person. Entries starting with "~" switch a built-in word off.
+  function termsFor(side) {
+    const list = (S(side).blurWords) || [];
+    const off = new Set(list.filter(w => w.startsWith("~")).map(w => w.slice(1)));
+    return [...TERMS.filter(t => !off.has(t)), ...list.filter(w => !w.startsWith("~"))];
+  }
+  function openWordManager() {
+    const OFF = "~";
+    const yours = () => (S(me).blurWords || []).filter(w => !w.startsWith(OFF));
+    const offSet = () => new Set((S(me).blurWords || []).filter(w => w.startsWith(OFF)).map(w => w.slice(1)));
+    const persist = (mine, off) => { setS(me, { blurWords: [...mine, ...[...off].map(w => OFF + w)] }); render(); };
+    let q = "", tab = "yours";
+    const picked = new Set();
+    sheetOpen((body) => {
+      body.appendChild(el("h3", "fp-title", "Blurred words"));
+      body.appendChild(el("p", "fp-desc", "Changes apply straight away, on this device and on your partner's."));
+      const search = el("input", "in plain");
+      search.placeholder = "Search words";
+      search.setAttribute("aria-label", "Search words");
+      body.appendChild(search);
+      const addRow = el("div", "");
+      addRow.style.cssText = "display:flex;gap:8px;margin:10px 0";
+      const addIn = el("input", "in plain");
+      addIn.placeholder = "Add a word";
+      addIn.style.flex = "1";
+      const addBtn = el("button", "btn sm", "Add");
+      addBtn.type = "button";
+      addRow.append(addIn, addBtn);
+      body.appendChild(addRow);
+      const tabs = el("div", "");
+      tabs.style.cssText = "display:flex;gap:8px;margin-bottom:8px";
+      const tYours = el("button", "btn sm", "Yours");
+      const tBuilt = el("button", "btn sm ghost", "Built in");
+      tYours.type = tBuilt.type = "button";
+      tabs.append(tYours, tBuilt);
+      body.appendChild(tabs);
+      const bulk = el("button", "btn sm danger", "Remove selected");
+      bulk.type = "button";
+      bulk.style.marginBottom = "8px";
+      body.appendChild(bulk);
+      const list = el("div", "");
+      body.appendChild(list);
+      const draw = () => {
+        list.innerHTML = "";
+        tYours.classList.toggle("ghost", tab !== "yours");
+        tBuilt.classList.toggle("ghost", tab !== "built");
+        bulk.classList.toggle("hidden", tab !== "yours");
+        const needle = q.trim().toLowerCase();
+        const off = offSet();
+        const items = tab === "yours" ? yours() : TERMS;
+        const shown = items.filter(w => !needle || w.toLowerCase().includes(needle));
+        if (!shown.length) list.appendChild(el("p", "fp-desc", needle ? "No match." : (tab === "yours" ? "No words of your own yet." : "No built-in words.")));
+        for (const w of shown) {
+          const row = el("div", "prow");
+          row.style.cssText = "display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)";
+          if (tab === "yours") {
+            const cb = el("input");
+            cb.type = "checkbox";
+            cb.checked = picked.has(w);
+            cb.setAttribute("aria-label", "Select " + w);
+            cb.addEventListener("change", () => { if (cb.checked) picked.add(w); else picked.delete(w); });
+            row.appendChild(cb);
+            row.appendChild(el("span", "", w));
+            const x = el("button", "btn sm ghost", "Remove");
+            x.type = "button";
+            x.addEventListener("click", () => { picked.delete(w); persist(yours().filter(z => z !== w), offSet()); draw(); });
+            row.appendChild(x);
+          } else {
+            row.appendChild(el("span", "", w));
+            row.appendChild(swRow(off.has(w) ? "Off" : "On", !off.has(w), () => {
+              const nextOff = offSet();
+              if (nextOff.has(w)) nextOff.delete(w); else nextOff.add(w);
+              persist(yours(), nextOff);
+              draw();
+            }));
+          }
+          list.appendChild(row);
+        }
+      };
+      search.addEventListener("input", () => { q = search.value; draw(); });
+      tYours.addEventListener("click", () => { tab = "yours"; draw(); });
+      tBuilt.addEventListener("click", () => { tab = "built"; draw(); });
+      addBtn.addEventListener("click", () => {
+        const w = addIn.value.trim().toLowerCase();
+        if (!w || w.startsWith(OFF)) return;
+        const mine = yours();
+        if (!mine.includes(w)) mine.push(w);
+        addIn.value = "";
+        persist(mine, offSet());
+        draw();
+      });
+      bulk.addEventListener("click", () => {
+        if (!picked.size) return;
+        persist(yours().filter(w => !picked.has(w)), offSet());
+        picked.clear();
+        draw();
+      });
+      draw();
+    });
+  }
   function openJournal() {
     openPanel("Journal", "Kept", async (body) => {
       await reloadJournal();
-      const add = el("button", "btn", "New entry");
+      const add = el("button", "journal-plus");
+      add.type = "button";
+      add.setAttribute("aria-label", "New entry");
+      add.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>';
       add.addEventListener("click", () => openJournalComposer());
       body.appendChild(add);
       const cols = el("div", "journal-cols");
@@ -2640,6 +2792,11 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   let settingsSearchTimer = 0;
   const SS_KEY = "pp-settings-search";
   function settingsSearchStats() { return store.get(SS_KEY, {}); }
+  // True while the Settings search box has focus. Realtime refreshes wait so the keyboard stays up.
+  function settingsTyping() {
+    const a = document.activeElement;
+    return !!(a && a.classList && a.classList.contains("settings-search"));
+  }
   function recordSettingsSearch(q) {
     q = String(q || "").trim().toLowerCase();
     if (q.length < 2) return;
@@ -2803,6 +2960,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         prow("Sign-in object", "What moves over the passphrase marks", selectCtl([["scan", "Scan line (recommended)"], ["round", "Round lens"], ["small", "Small lens"], ["square", "Square lens"], ["drop", "Drop"], ["star", "Star"]], s.lens || "scan", (v) => { try { localStorage.setItem("pp-lens", v); } catch (e) {} setS(me, { lens: v }); })),
         prow("Let her see when I've read", "Turn off to hide your read receipts", toggle(myReadReceipts, (v) => ppSetReadReceipts(v))),
         prow("Auto-blur sensitive words", "Blurs " + TERMS.length + " built-in words", toggle(s.autoBlur, (v) => { setS(me, { autoBlur: v }); render(); })),
+        prow("Transcribe my voice notes", "Voice clips go to a third-party speech service", toggle(myTranscribe, (v) => ppSetTranscribe(v))),
         prow("Shake to lock", "Two firm shakes lock at once", toggle(s.shake, async (v) => {
           if (v && typeof DeviceMotionEvent !== "undefined" && DeviceMotionEvent.requestPermission) {
             try { if ((await DeviceMotionEvent.requestPermission()) !== "granted") { notice("Motion access denied", "Allow motion in Safari settings to use shake.", { error: true }); return; } } catch {}
@@ -2829,7 +2987,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       add.append(wi, wa);
       wordsBox.appendChild(add);
       const chips = el("div", "wchips");
-      for (const w of (s.blurWords || [])) {
+      for (const w of (s.blurWords || []).filter(z => !z.startsWith("~"))) {
         const c = el("span", "", w);
         const x = el("button");
         x.innerHTML = ic("close");
@@ -2838,6 +2996,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         chips.appendChild(c);
       }
       wordsBox.appendChild(chips);
+      const mgr = el("button", "btn sm ghost", "Manage all words");
+      mgr.type = "button";
+      mgr.addEventListener("click", () => openWordManager());
+      wordsBox.appendChild(mgr);
       body.appendChild(wordsBox);
 
       body.appendChild(group("Save a copy", [
@@ -3343,6 +3505,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       ["shield", shield ? "Shield on" : "Shield", () => { shield = !shield; haptic("press"); render(); }, shield],
       ["image", "Media", () => openMedia(), false],
       ["book", "Journal", () => openJournal(), false],
+      ["heart", "Thinking of you", () => sendNudge(), false],
       ["bell", "Notifications", () => openNotifications(), false]
     ];
     const savedOrder = store.get("pp-home-order", null);
@@ -3997,8 +4160,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   /* ================= Composer and media ================= */
   let heldClip = null;
   let heldAudio = null;
+  let heldUi = null;
   let stagedMedia = null;
-  let myMutedUntil = 0, myReadReceipts = true, otherReadReceipts = true;
+  let myMutedUntil = 0, myReadReceipts = true, otherReadReceipts = true, myTranscribe = true;
   function ppShouldAlert(m) {
     if (m && m.quiet) return false;
     return !(myMutedUntil && Date.now() < myMutedUntil);
@@ -4022,6 +4186,13 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     myReadReceipts = v;
     notice(v ? "Read receipts on" : "Read receipts off", v ? "She can see when you have read her messages." : "She will only see that your messages arrived.");
   }
+  async function ppSetTranscribe(v) {
+    const client = cloudClient();
+    const r = client && pairId ? await client.from("pair_members").update({ transcribe_voice: v }).eq("pair_id", pairId).eq("user_id", myUserId) : { error: true };
+    if (r.error) { notice("Couldn't save that", "Nothing was changed.", { error: true }); return; }
+    myTranscribe = v;
+    notice(v ? "Voice transcripts on" : "Voice transcripts off", v ? "New voice notes are turned into text by a third-party speech service." : "New voice notes will not be sent for transcription.");
+  }
   let sendOpts = { once: false, quiet: false };
   function autosize() {
     const t = $("input");
@@ -4042,6 +4213,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function dropHeld() {
     if (heldAudio) { heldAudio.pause(); heldAudio = null; }
     if (heldClip && heldClip.url) URL.revokeObjectURL(heldClip.url);
+    heldUi = null;
     heldClip = null;
     renderHoldBar();
     if ($("input")) autosize();
@@ -4051,15 +4223,263 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     heldClip = { blob, dur, mime: blob.type || "audio/webm", url: URL.createObjectURL(blob) };
     renderHoldBar();
     autosize();
+    transcribeHeld(blob);
   }
   function stageMedia(kind, blob, extra, label) {
     dropHeld();
-    stagedMedia = { kind, blob, extra: extra || {}, label };
+    if (stagedMedia && stagedMedia.thumb) URL.revokeObjectURL(stagedMedia.thumb);
+    stagedMedia = { kind, blob, extra: extra || {}, label, thumb: kind === "audio" ? null : URL.createObjectURL(blob), source: (extra && extra.source) || null };
     renderHoldBar();
     autosize();
   }
   // One bar above the composer for a held voice note or a staged photo, video or audio file.
   // It lets you choose View once and Quiet before Send. Nothing sends until you tap Send.
+  // The held recording's audio element. Chrome reports Infinity for recorded clips, so the real length is read by seeking to the end.
+  function ensureHeldAudio() {
+    if (heldAudio) return heldAudio;
+    const a = new Audio(heldClip.url);
+    a.preload = "auto";
+    const sync = () => { if (heldUi) heldUi.sync(); };
+    ["timeupdate", "play", "pause", "ended", "loadedmetadata"].forEach(ev => a.addEventListener(ev, sync));
+    a.addEventListener("loadedmetadata", () => {
+      if (isFinite(a.duration)) return;
+      a.currentTime = 1e101;
+      a.addEventListener("timeupdate", function once() { a.removeEventListener("timeupdate", once); a.currentTime = 0; });
+    });
+    heldAudio = a;
+    return a;
+  }
+  // Play or pause, a position slider you can drag, and the time.
+  function heldPlayer() {
+    const a = ensureHeldAudio();
+    const dur = Math.max(1, heldClip.dur || 1);
+    const fmt = (t) => { t = Math.max(0, Math.floor(t || 0)); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); };
+    const wrap = el("div", "hplayer");
+    const play = el("button", "hp-play");
+    play.type = "button";
+    const seek = el("input", "hp-seek");
+    seek.type = "range"; seek.min = "0"; seek.max = String(dur); seek.step = "0.05"; seek.value = "0";
+    seek.setAttribute("aria-label", "Position in recording");
+    const time = el("span", "mono muted hp-time", "");
+    const sync = () => {
+      play.innerHTML = a.paused ? '<svg viewBox="0 0 24 24"><path d="M7 5v14l12-7z"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
+      play.setAttribute("aria-label", a.paused ? "Play" : "Pause");
+      if (!seek.matches(":active")) seek.value = String(Math.min(dur, a.currentTime || 0));
+      time.textContent = fmt(a.currentTime) + " / " + fmt(dur);
+    };
+    play.addEventListener("click", () => { if (a.paused) a.play().catch(() => notice("Couldn't play that", "Record again and try once more.", { error: true })); else a.pause(); });
+    seek.addEventListener("input", () => { try { a.currentTime = Number(seek.value); } catch (e) {} sync(); });
+    wrap.append(play, seek, time);
+    heldUi = { sync };
+    sync();
+    return wrap;
+  }
+
+  // A real switch: label, track and knob. Used for View once and Quiet.
+  function swRow(label, on, fn) {
+    const w = el("button", "hswitch" + (on ? " on" : ""));
+    w.type = "button";
+    w.setAttribute("role", "switch");
+    w.setAttribute("aria-checked", String(!!on));
+    w.setAttribute("aria-label", label);
+    w.innerHTML = '<span class="hs-label"></span><span class="hs-track"><span class="hs-knob"></span></span>';
+    w.querySelector(".hs-label").textContent = label;
+    w.addEventListener("click", fn);
+    return w;
+  }
+  /* Voice transcription: the held clip goes to the transcribe-voice function after Done. The text is
+     editable in the player and is saved with the message on Send. Off when the Settings switch is off. */
+  async function transcribeHeld(blob) {
+    const client = cloudClient();
+    if (!client || !pairId || !myTranscribe || !heldClip || heldClip.blob !== blob) return;
+    const still = () => heldClip && heldClip.blob === blob;
+    if (blob.size > 5 * 1024 * 1024) { heldClip.tx = { status: "failed", text: "" }; renderHoldBar(); return; }
+    heldClip.tx = { status: "pending", text: "" };
+    renderHoldBar();
+    try {
+      if (!navigator.onLine) throw new Error("offline");
+      const fd = new FormData();
+      const ext = (blob.type || "").includes("mp4") ? "m4a" : (blob.type || "").includes("ogg") ? "ogg" : "webm";
+      fd.append("audio", blob, "voice-note." + ext);
+      const res = await client.functions.invoke("transcribe-voice", { body: fd });
+      if (!still()) return;
+      if (res.error || !res.data || typeof res.data.text !== "string") throw new Error("transcribe failed");
+      heldClip.tx = { status: "done", text: res.data.text.trim() };
+    } catch {
+      if (still()) heldClip.tx = { status: "failed", text: "" };
+    }
+    if (still()) renderHoldBar();
+  }
+  function heldTranscript(tx) {
+    if (tx.status === "pending") return el("p", "htx", "Transcribing...");
+    if (tx.status === "failed") return el("p", "htx", "Couldn't turn this clip into text. You can still send it.");
+    const ta = el("textarea", "htx-text");
+    ta.rows = 2;
+    ta.value = tx.text || "";
+    ta.placeholder = "Transcript";
+    ta.setAttribute("aria-label", "Transcript, you can edit it");
+    ta.addEventListener("input", () => { tx.text = ta.value; });
+    return ta;
+  }
+
+  /* Staged photo, video or audio: thumbnail above the composer, full-screen preview on tap. */
+  function stageThumb() {
+    const th = document.createElement("button");
+    th.type = "button";
+    th.className = "stage-thumb";
+    th.setAttribute("aria-label", "Open preview");
+    if (stagedMedia.kind === "image" && stagedMedia.thumb) { const im = document.createElement("img"); im.src = stagedMedia.thumb; im.alt = ""; th.append(im); }
+    else if (stagedMedia.kind === "video" && stagedMedia.thumb) { const v = document.createElement("video"); v.src = stagedMedia.thumb; v.muted = true; v.preload = "metadata"; v.playsInline = true; th.append(v); }
+    else th.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></svg>';
+    th.addEventListener("click", () => openMediaPreview());
+    return th;
+  }
+  const CROPS = [[null, "Free"], [1, "1:1"], [4 / 5, "4:5"], [16 / 9, "16:9"]];
+  let ped = null, pvUrl = null, pvSeq = 0;
+  // Applies rotate, flip and crop to a photo and re-encodes it. The output has no original metadata.
+  async function exportEditedPhoto(src, ed, maxSide) {
+    const url = URL.createObjectURL(src);
+    try {
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+      const quarter = ed.rot % 180 !== 0;
+      const W = quarter ? img.height : img.width, H = quarter ? img.width : img.height;
+      let cw = W, ch = H;
+      if (ed.ratio) { if (W / H > ed.ratio) cw = Math.round(H * ed.ratio); else ch = Math.round(W / ed.ratio); }
+      const sx = Math.round((W - cw) / 2), sy = Math.round((H - ch) / 2);
+      const full = document.createElement("canvas");
+      full.width = W; full.height = H;
+      const fx = full.getContext("2d");
+      fx.translate(W / 2, H / 2);
+      fx.rotate(ed.rot * Math.PI / 180);
+      if (ed.flip) fx.scale(-1, 1);
+      fx.drawImage(img, -img.width / 2, -img.height / 2);
+      const s = Math.min(1, maxSide / Math.max(cw, ch));
+      const out = document.createElement("canvas");
+      out.width = Math.max(1, Math.round(cw * s));
+      out.height = Math.max(1, Math.round(ch * s));
+      out.getContext("2d").drawImage(full, sx, sy, cw, ch, 0, 0, out.width, out.height);
+      return await new Promise(res => out.toBlob(res, "image/jpeg", 0.9));
+    } catch { return null; }
+    finally { URL.revokeObjectURL(url); }
+  }
+  function mpIcon(d, label, fn) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "mp-ibtn"; b.setAttribute("aria-label", label);
+    b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '"/></svg>';
+    b.addEventListener("click", fn);
+    return b;
+  }
+  function mpTool(label, pressed, fn) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "mp-tool"; b.textContent = label;
+    b.setAttribute("aria-pressed", String(!!pressed));
+    b.addEventListener("click", fn);
+    return b;
+  }
+  function openMediaPreview() {
+    if (!stagedMedia) return;
+    closeMediaPreview();
+    ped = { rot: 0, flip: false, ratio: null, cropIdx: 0, hd: false };
+    if (stagedMedia.kind !== "image") pvUrl = URL.createObjectURL(stagedMedia.blob);
+    const ov = document.createElement("div");
+    ov.id = "mediaPreview";
+    ov.className = "mp-overlay";
+    ov.setAttribute("role", "dialog");
+    ov.setAttribute("aria-label", "Preview");
+    ov.innerHTML = '<div class="mp-top"></div><div class="mp-stage"></div><div class="mp-bar"></div>';
+    document.body.appendChild(ov);
+    paintPreview(true);
+  }
+  function closeMediaPreview() {
+    const ov = $("mediaPreview");
+    if (ov) ov.remove();
+    if (pvUrl) { URL.revokeObjectURL(pvUrl); pvUrl = null; }
+    ped = null;
+    if ($("input")) autosize();
+  }
+  function paintPreview(full) {
+    const ov = $("mediaPreview");
+    if (!ov || !stagedMedia || !ped) { closeMediaPreview(); return; }
+    const top = ov.querySelector(".mp-top"), stage = ov.querySelector(".mp-stage"), bar = ov.querySelector(".mp-bar");
+    const isPhoto = stagedMedia.kind === "image";
+    if (full) {
+      stage.textContent = "";
+      if (isPhoto) {
+        const im = document.createElement("img");
+        im.id = "pvImg"; im.alt = "Photo preview"; im.src = stagedMedia.thumb;
+        stage.append(im);
+        refreshPreviewImg();
+      } else {
+        const m = document.createElement(stagedMedia.kind === "video" ? "video" : "audio");
+        m.id = "pvMedia"; m.controls = true; m.playsInline = true; m.src = pvUrl;
+        stage.append(m);
+      }
+    }
+    top.textContent = "";
+    top.append(mpIcon("M18 6L6 18M6 6l12 12", "Close preview", () => closeMediaPreview()));
+    const sp = document.createElement("span"); sp.className = "grow"; top.append(sp);
+    if (isPhoto) {
+      top.append(mpTool("Rotate", false, () => { ped.rot = (ped.rot + 90) % 360; paintPreview(false); refreshPreviewImg(); }));
+      top.append(mpTool("Flip", ped.flip, () => { ped.flip = !ped.flip; paintPreview(false); refreshPreviewImg(); }));
+      top.append(mpTool("Crop " + CROPS[ped.cropIdx][1], ped.ratio !== null, () => {
+        ped.cropIdx = (ped.cropIdx + 1) % CROPS.length; ped.ratio = CROPS[ped.cropIdx][0];
+        paintPreview(false); refreshPreviewImg();
+      }));
+      top.append(mpTool("HD", ped.hd, () => { ped.hd = !ped.hd; paintPreview(false); }));
+    } else {
+      const m = $("pvMedia");
+      top.append(mpTool("Mute preview", m && m.muted, () => { if (m) m.muted = !m.muted; paintPreview(false); }));
+    }
+    bar.textContent = "";
+    const cap = document.createElement("input");
+    cap.type = "text"; cap.className = "mp-cap"; cap.placeholder = "Add a caption"; cap.value = $("input").value;
+    cap.setAttribute("aria-label", "Caption");
+    cap.addEventListener("input", () => { $("input").value = cap.value; autosize(); });
+    const row1 = document.createElement("div"); row1.className = "mp-row"; row1.append(cap);
+    const row2 = document.createElement("div"); row2.className = "mp-row";
+    row2.append(
+      swRow("View once", sendOpts.once, () => { sendOpts.once = !sendOpts.once; paintPreview(false); }),
+      swRow("Quiet", sendOpts.quiet, () => { sendOpts.quiet = !sendOpts.quiet; paintPreview(false); })
+    );
+    const row3 = document.createElement("div"); row3.className = "mp-row";
+    const rm = mpTool("Remove", false, () => removeFromPreview());
+    const send = document.createElement("button");
+    send.type = "button"; send.className = "btn"; send.textContent = "Send";
+    send.addEventListener("click", () => sendFromPreview());
+    const sp2 = document.createElement("span"); sp2.className = "grow"; sp2.style.flex = "1";
+    row3.append(rm, sp2, send);
+    bar.append(row1, row2, row3);
+  }
+  async function refreshPreviewImg() {
+    const token = ++pvSeq;
+    if (!stagedMedia || !ped || stagedMedia.kind !== "image") return;
+    const out = await exportEditedPhoto(stagedMedia.source || stagedMedia.blob, { ...ped }, 1000);
+    if (token !== pvSeq || !out) return;
+    const im = $("pvImg");
+    if (!im) return;
+    const next = URL.createObjectURL(out);
+    if (im.dataset.url) URL.revokeObjectURL(im.dataset.url);
+    im.dataset.url = next;
+    im.src = next;
+  }
+  async function sendFromPreview() {
+    if (!stagedMedia || !ped) return;
+    if (stagedMedia.kind === "image") {
+      const out = await exportEditedPhoto(stagedMedia.source || stagedMedia.blob, { ...ped }, ped.hd ? 2048 : 1600);
+      if (!out) { notice("Couldn't prepare that photo", "Try again or choose another.", { error: true }); return; }
+      stagedMedia.blob = out;
+    }
+    closeMediaPreview();
+    await sendText();
+  }
+  function removeFromPreview() {
+    if (stagedMedia && stagedMedia.thumb) URL.revokeObjectURL(stagedMedia.thumb);
+    stagedMedia = null;
+    closeMediaPreview();
+    renderHoldBar();
+    autosize();
+  }
+
   function renderHoldBar() {
     const old = $("heldVoice");
     if (!heldClip && !stagedMedia) { if (old) old.classList.add("hidden"); return; }
@@ -4067,18 +4487,17 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     b.id = "heldVoice";
     const label = stagedMedia ? stagedMedia.label : "Voice note held. It sends with your words.";
     b.append(el("span", "dot"), el("span", "heldlabel", label));
+    if (stagedMedia) b.prepend(stageThumb());
     const mk = (text, on, fn) => { const x = el("button", "btn ghost sm", text); x.type = "button"; if (on) x.classList.add("on"); x.setAttribute("aria-pressed", String(!!on)); x.addEventListener("click", fn); return x; };
     b.append(
-      mk(sendOpts.once ? "View once: on" : "View once: off", sendOpts.once, () => { sendOpts.once = !sendOpts.once; renderHoldBar(); }),
-      mk(sendOpts.quiet ? "Quiet: on" : "Quiet: off", sendOpts.quiet, () => { sendOpts.quiet = !sendOpts.quiet; renderHoldBar(); }),
+      swRow("View once", sendOpts.once, () => { sendOpts.once = !sendOpts.once; renderHoldBar(); }),
+      swRow("Quiet", sendOpts.quiet, () => { sendOpts.quiet = !sendOpts.quiet; renderHoldBar(); }),
       mk("Remove", false, () => { if (stagedMedia) stagedMedia = null; else dropHeld(); renderHoldBar(); autosize(); })
     );
     if (heldClip) {
-      const playing = !!(heldAudio && !heldAudio.paused);
-      const d = Math.max(0, Math.round(heldClip.dur || 0));
-      b.append(mk(playing ? "Pause" : "Listen", playing, heldToggle));
+      b.append(heldPlayer());
+      if (heldClip.tx) b.append(heldTranscript(heldClip.tx));
       b.append(mk("Record again", false, () => { dropHeld(); startRecording(); }));
-      b.append(el("span", "mono muted", Math.floor(d / 60) + ":" + String(d % 60).padStart(2, "0")));
     }
     if (old) old.replaceWith(b); else $("footer").before(b);
   }
@@ -4110,7 +4529,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   async function handleFiles(files) {
     for (const f of [...files]) {
       try {
-        if (f.type.startsWith("image/")) { const blob = await compressImage(f); if (!blob) { notice("Couldn't save that photo", "Try a different image.", { error: true }); continue; } stageMedia("image", blob, {}, "Photo ready to send"); }
+        if (f.type.startsWith("image/")) { const blob = await compressImage(f); if (!blob) { notice("Couldn't save that photo", "Try a different image.", { error: true }); continue; } stageMedia("image", blob, { source: f }, "Photo ready to send"); }
         else if (f.type.startsWith("video/")) stageMedia("video", f, { dur: await audioDuration(f), mime: f.type }, "Video ready to send");
         else if (f.type.startsWith("audio/")) stageMedia("audio", f, { dur: await audioDuration(f), mime: f.type }, "Audio ready to send");
         else notice("That file type isn't supported", "Choose a picture, a video, or an audio file.", { error: true });
@@ -4118,11 +4537,12 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     }
   }
 
+  const REC_AUDIO = { channelCount: 1, sampleRate: 48000, echoCancellation: true, noiseSuppression: true, autoGainControl: true };
   let micPrimed = false, micGestureTried = false;
   async function primeMic(fromGesture) {
     if (micPrimed || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: REC_AUDIO });
       stream.getTracks().forEach(t => t.stop());
       micPrimed = true;
     } catch {
@@ -4141,10 +4561,11 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     $("footer").classList.add("hidden");
     $("recbar").classList.remove("hidden");
     $("rectime").textContent = "0:00";
+    $("mic").classList.add("recording");
     let stream;
-    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: REC_AUDIO }); }
     catch {
-      $("recbar").classList.add("hidden");
+      $("recbar").classList.add("hidden"); $("mic").classList.remove("recording");
       $("footer").classList.remove("hidden");
       startRecording.busy = false;
       notice("Microphone is blocked", "Allow the microphone, or attach an audio file.", { error: true });
@@ -4152,7 +4573,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     }
     if (recWantStop) {
       stream.getTracks().forEach(t => t.stop());
-      $("recbar").classList.add("hidden");
+      $("recbar").classList.add("hidden"); $("mic").classList.remove("recording");
       $("footer").classList.remove("hidden");
       startRecording.busy = false;
       recWantStop = false;
@@ -4164,7 +4585,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     recAnalyser.fftSize = 256;
     audioCtx.createMediaStreamSource(stream).connect(recAnalyser);
     const type = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find(t => MediaRecorder.isTypeSupported(t)) || "";
-    rec = new MediaRecorder(stream, { ...(type ? { mimeType: type } : {}), audioBitsPerSecond: 32000 });
+    rec = new MediaRecorder(stream, { ...(type ? { mimeType: type } : {}), audioBitsPerSecond: 64000 });
     recChunks = [];
     rec.ondataavailable = (e) => { if (e.data.size) recChunks.push(e.data); };
     rec.start();
@@ -4189,7 +4610,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     rec = null;
     cancelAnimationFrame(recRAF);
     clearInterval(recTimer);
-    $("recbar").classList.add("hidden");
+    $("recbar").classList.add("hidden"); $("mic").classList.remove("recording");
     $("footer").classList.remove("hidden");
     r.onstop = async () => {
       stream?.getTracks().forEach(t => t.stop());
@@ -4462,7 +4883,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   const cancelPress = () => { clearTimeout(pressTimer); pressTimer = 0; pressStart = null; };
   $("list").addEventListener("contextmenu", (e) => e.preventDefault());
   $("list").addEventListener("pointerdown", (e) => {
-    if (e.target.closest(".vplay,.vspeed,.bars,.edlabel,.unsend")) return;
+    if (e.target.closest(".vplay,.vspeed,.bars,.edlabel,.unsend,.oncegate")) return;
     const card = e.target.closest(".msg");
     if (!card || card.classList.contains("gone")) {
       if (!e.target.closest(".row") && e.button === 0) {
@@ -4585,7 +5006,6 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         } else if (view === "chat" && !wasNear) { /* reader is away: the tray shows the count */ }
         else if (view === "chat" && wasNear) { scrollBottomInstant(); markRead(); }
         else if (view === "chat") passUnread(false);
-        else if (view === "home") notice("New message", "From " + NAME[other()] + ".", { action: { label: "Open chat", run: () => openChat() } });
       }
     } else if (e.key === KEY.typing) renderPresence();
     else if (e.key === KEY.notes || e.key === KEY.nread) { if (view === "home") renderHome(); }
@@ -4663,7 +5083,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     return { id: r.id, from: r.side, kind: r.kind, text: r.text, ts: new Date(r.created_at).getTime(), edited: !!r.edited };
   }
   function memberView(row) {
-    return { status: row.status || "", tz: row.tz || "UTC", haptics: row.haptics !== false, sound: row.sound !== false, autoBlur: row.auto_blur !== false, shake: !!row.shake, blurWords: row.blur_words || [], avatar_path: row.avatar_path || "", chatTheme: row.chat_theme || "", chatStyle: row.chat_style || {} };
+    return { lens: row.lens || "scan", status: row.status || "", tz: row.tz || "UTC", haptics: row.haptics !== false, sound: row.sound !== false, autoBlur: row.auto_blur !== false, shake: !!row.shake, blurWords: row.blur_words || [], avatar_path: row.avatar_path || "", chatTheme: row.chat_theme || "", chatStyle: row.chat_style || {} };
   }
   async function reloadAll() {
     const client = cloudClient();
@@ -4688,6 +5108,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const mineRow = (members.data || []).find((r) => r.user_id === myUserId);
       myMutedUntil = mineRow && mineRow.muted_until ? Date.parse(mineRow.muted_until) || 0 : 0;
       myReadReceipts = !mineRow || mineRow.read_receipts !== false;
+      myTranscribe = !mineRow || mineRow.transcribe_voice !== false;
       const otherRow = (members.data || []).find((r) => r.user_id !== myUserId);
       otherReadReceipts = !otherRow || otherRow.read_receipts !== false;
     }
@@ -4756,11 +5177,13 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     notice("Tagline saved");
     render();
   }
+  // The badge counts the same list the thread shows, so the badge and the thread never disagree.
+  function localUnreadCount() {
+    const cut = cacheSeen[me] || 0;
+    return visibleList().filter(m => m.from !== me && !m.deleted && m.ts > cut).length;
+  }
   async function refreshUnread() {
-    const client = cloudClient();
-    if (!client) return;
-    const res = await client.rpc("unread_count");
-    if (!res.error && res.data != null) unreadN = Number(res.data) || 0;
+    unreadN = localUnreadCount();
   }
   function cameIn(prevIds) {
     return cacheThread.filter(m => m.from && m.from !== me && !m.deleted && !(m.deletedFor || []).includes(me) && !prevIds.has(m.id));
@@ -4776,7 +5199,12 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
           const m = msgFromRow(row);
           const i = cacheThread.findIndex(x => x.id === m.id || (m.clientId && x.clientId === m.clientId));
           const known = i >= 0 && cacheThread[i].id === m.id;
+          const prevHearts = (i >= 0 && cacheThread[i].hearts) || [];
           if (i >= 0) cacheThread[i] = Object.assign({}, cacheThread[i], m, { pending: false });
+          if (known && m.from === me) {
+            const newLike = (m.hearts || []).find(h => String(h).indexOf(":") < 0 && h !== me && !prevHearts.includes(h));
+            if (newLike) notice(NAME[newLike] + " liked your message", "");
+          }
           else cacheThread = cacheThread.concat([m]).sort((a, b) => a.ts - b.ts);
           const fresh = !known && m.from && m.from !== me && !m.deleted && !(m.deletedFor || []).includes(me);
           if (fresh) {
@@ -4793,7 +5221,6 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
             if (ppShouldAlert(m)) { chime(); arrivalBuzz(); }
             if (view === "chat" && !document.hidden) { if (wasNearRt) { scrollBottomInstant(); markRead(); } else passUnread(false); }
             else if (document.hidden) document.title = "(" + unreadN + ") " + baseTitle;
-            else notice("New message", "From " + NAME[other()] + ".", { action: { label: "Open chat", run: () => openChat() } });
           } else render();
         }
         clearTimeout(subscribePair._t);
@@ -4810,7 +5237,11 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "read_markers", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
       .on("postgres_changes", { event: "*", schema: "public", table: "pair_settings", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) { applyTheme(); render(); } }))
-      .on("postgres_changes", { event: "*", schema: "public", table: "pair_members", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) { applyTheme(); render(); fillAvatars(); } }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "pair_members", filter: "pair_id=eq." + pairId }, () => { if (settingsTyping()) return; reloadAll().then(() => { if (unlocked) { applyTheme(); render(); fillAvatars(); } }); })
+      .subscribe();
+    if (nudgeChannel) client.removeChannel(nudgeChannel);
+    nudgeChannel = client.channel("pair-" + pairId + "-nudge")
+      .on("broadcast", { event: "nudge" }, (msg) => receiveNudge(msg && msg.payload))
       .subscribe();
     if (presenceChannel) client.removeChannel(presenceChannel);
     presenceChannel = client.channel("presence-" + pairId, { config: { presence: { key: me } } });
@@ -5005,7 +5436,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     await client.from("pair_members").update({
       status: s.status || "", tz: s.tz || "UTC", haptics: !!s.haptics, sound: !!s.sound,
       auto_blur: !!s.autoBlur, shake: !!s.shake, blur_words: s.blurWords || [],
-      chat_theme: s.chatTheme || null, chat_style: s.chatStyle || {}
+      chat_theme: s.chatTheme || null, chat_style: s.chatStyle || {}, lens: s.lens || "scan"
     }).eq("user_id", myUserId);
   }
   async function pushRead() {
@@ -5090,11 +5521,15 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const up = await client.storage.from("media").upload(path, blob, { contentType: blob.type || (kind === "image" ? "image/jpeg" : kind === "video" ? "video/mp4" : "audio/webm"), upsert: false });
       if (up.error) throw up.error;
       const ins = await client.from("messages").insert({
-        pair_id: pairId, sender_id: myUserId, kind, text: (extra && extra.text) || null, media_path: path, dur: (extra && extra.dur) || null, effect: (extra && extra.effect) || "none", client_id: clientId, once: !!(extra && extra.once), quiet: !!(extra && extra.quiet)
+        pair_id: pairId, sender_id: myUserId, kind, text: (extra && extra.text) || null, media_path: path, dur: (extra && extra.dur) || null, effect: (extra && extra.effect) || "none", client_id: clientId, once: !!(extra && extra.once), quiet: !!(extra && extra.quiet), undo_until: undoUntilIso()
       }).select().maybeSingle();
       if (ins.error) {
         await client.storage.from("media").remove([path]);
         throw ins.error;
+      }
+      if (ins.data && ins.data.id) {
+        offerUndo(ins.data.id, path);
+        if (extra && extra.transcript) await client.from("messages").update({ transcript: extra.transcript }).eq("id", ins.data.id);
       }
       await delBlob(localId);
       cacheThread = thread().filter(x => x.id !== localId);
@@ -5110,6 +5545,31 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       notice("Waiting to send", "It will send when you are back online.");
     }
   }
+  /* Undo send: five seconds after a send, the notice offers Undo. Undo calls undo_send (server decides,
+     it returns true only inside the window), then removes the bubble and any file. */
+  const undoUntilIso = () => new Date(Date.now() + UNDO_MS).toISOString();
+  let undoSeq = 0;
+  function offerUndo(msgId, path) {
+    const until = Date.now() + UNDO_MS, seq = ++undoSeq;
+    notice("Sent", "", { action: { label: "Undo", run: () => undoSend(msgId, path, until) } });
+    $("notice").dataset.undo = String(seq);
+    setTimeout(() => {
+      const n = $("notice");
+      if (n.dataset.undo === String(seq) && n.querySelector(".acts")) { n.dataset.undo = ""; hideNotice(); }
+    }, UNDO_MS);
+  }
+  async function undoSend(msgId, path, until) {
+    const client = cloudClient();
+    if (!client || Date.now() > until) { notice("Too late to undo", "", { error: true }); return; }
+    const r = await client.rpc("undo_send", { p_id: msgId });
+    if (r.error || r.data !== true) { notice("Too late to undo", "", { error: true }); return; }
+    if (path) await client.storage.from("media").remove([path]);
+    cacheThread = cacheThread.filter(x => x.id !== msgId);
+    await reloadAll();
+    render();
+    notice("Message removed", "");
+  }
+
   async function sendText() {
     const input = $("input");
     const text = input.value.trim();
@@ -5135,7 +5595,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const opts = { once: sendOpts.once, quiet: sendOpts.quiet };
       sendOpts = { once: false, quiet: false };
       renderHoldBar();
-      await addMedia("audio", blob, { dur, text: text || null, ...opts });
+      const tx = clip.tx && clip.tx.status === "done" ? String(clip.tx.text || "").trim() : "";
+      await addMedia("audio", blob, { dur, text: text || null, transcript: tx || null, ...opts });
       return;
     }
     if (!text) return;
@@ -5181,7 +5642,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       return;
     }
     const ins = await client.from("messages").insert({
-      pair_id: pairId, sender_id: myUserId, kind: "text", text, effect: fx, reply_to: reply, client_id: clientId
+      pair_id: pairId, sender_id: myUserId, kind: "text", text, effect: fx, reply_to: reply, client_id: clientId, undo_until: undoUntilIso()
     }).select().maybeSingle();
     if (ins.error) {
       markFailed(local.id);
@@ -5193,6 +5654,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       return;
     }
     cacheThread = thread().filter(x => x.id !== local.id);
+    if (ins.data && ins.data.id) offerUndo(ins.data.id, null);
     await reloadAll();
     haptic("send");
     render();
@@ -5981,6 +6443,6 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   })();
 })();
 </script>
-<script src="/lees-patch.js?v=10" defer></script>
+<script src="/lees-patch.js?v=13" defer></script>
 </body>
 </html>
