@@ -2,6 +2,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const ALERT = "New message from Mrs Lees. Open The Lees to read it.";
+// Used when the recipient has a chat lock: no sender name, no preview.
+const LOCKED_ALERT = "New message";
 
 async function sameSecret(got: string, expected: string) {
   if (!expected) return false;
@@ -31,6 +33,8 @@ Deno.serve(async (req) => {
   const createdAt = record?.created_at;
   if (!id || !senderId || !pairId || !createdAt) return new Response(null, { status: 200 });
   if (record.deleted === true) return new Response(null, { status: 200 });
+  // A quiet message sends no alert at all. The recipient still sees it in the chat.
+  if (record.quiet === true) return new Response(null, { status: 200 });
 
   const url = Deno.env.get("SUPABASE_URL") ?? "";
   const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -46,6 +50,24 @@ Deno.serve(async (req) => {
     return new Response(null, { status: 500 });
   }
   if (!member.data || member.data.side !== "Agnes") return new Response(null, { status: 200 });
+
+  // If the recipient has a chat lock, the alert is generic and names no sender.
+  const recipient = await admin
+    .from("pair_members")
+    .select("user_id")
+    .eq("pair_id", pairId)
+    .neq("user_id", senderId)
+    .maybeSingle();
+  let alertText = ALERT;
+  if (!recipient.error && recipient.data?.user_id) {
+    const lock = await admin
+      .from("chat_locks")
+      .select("user_id")
+      .eq("pair_id", pairId)
+      .eq("user_id", recipient.data.user_id)
+      .maybeSingle();
+    if (!lock.error && lock.data) alertText = LOCKED_ALERT;
+  }
 
   const chatId = Deno.env.get("TELEGRAM_CHAT_ID");
   if (!chatId) {
@@ -76,7 +98,7 @@ Deno.serve(async (req) => {
     const sent = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text: ALERT }),
+      body: JSON.stringify({ chat_id: chatId, text: alertText }),
     });
     await sent.body?.cancel();
     if (!sent.ok) {
