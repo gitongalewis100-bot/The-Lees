@@ -83,3 +83,11 @@ New files: lees-v9.js, lees-v9.css, supabase/migrations/2026-11-19_tagline_rotat
   protected viewer, 10-minute auto sign-out.
 - Letters can be edited while sealed; tic-tac-toe "Not now" declines and tells the inviter.
 - Lock-screen lines: one line or several that take turns.
+
+## v9.1 (2026-11-19)
+- The + menu is a small two-step menu: Attach (then Photos & videos, Take a photo, Record a video, Audio file),
+  Draw, Stickers & emoji, Send later. Draw moved here from the message long-press menu.
+- Draw rebuilt as a card laid over the chat: see-through, paper, white, night, colours, grid or lined card; pen,
+  marker, highlighter, arrow, text, paint bucket and eraser; size, glow, any colour, undo and redo; Add space grows
+  the card and slides the new room into view. A see-through drawing floats in the chat; a card is sent whole,
+  trimmed to what was used.

@@ -1089,17 +1089,62 @@
       draw();
     });
   }
-  // The + pop-out in the composer: photos and files, stickers and emoji, send later.
+  // The + menu: small and quiet. Each row is an icon and a name. Attach opens a second step that asks what to attach.
+  var MENU_I = {
+    attach: I.clip, photos: I.image, camera: "M4 8h3l2-3h6l2 3h3v11H4zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z", audio: "M9 18V6l10-2v12M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM16 19a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
+    video: "M3 6h12v12H3zM15 10l6-3v10l-6-3", draw: "M3 21l3.5-1 11-11-2.5-2.5-11 11zM14.5 6.5l3 3", sticker: I.smile, later: I.clock, back: I.back, chev: I.next
+  };
+  function pickFiles(accept, capture) {
+    var f = $("file");
+    f.accept = accept; f.multiple = !capture;
+    if (capture) f.setAttribute("capture", capture); else f.removeAttribute("capture");
+    f.click();
+  }
   function composerExtras() {
     var pop = document.querySelector("#footer .lp-pop");
-    if (!pop || pop.dataset.v9) return;
+    var plus = document.querySelector("#footer .lp-plus");
+    if (!pop || !plus || pop.dataset.v9) return;
     pop.dataset.v9 = "1";
     pop.classList.add("v9-pop");
+    pop.setAttribute("role", "menu");
     var att = $("attach");
-    if (att) { att.classList.add("v9-pop-b"); att.innerHTML = svg(I.clip) + "<span>Photos & files</span>"; }
-    var stk = btn("tool v9-pop-b", "", function () { pop.classList.add("lp-closed"); openPicker(); }, "Stickers and emoji"); stk.innerHTML = svg(I.smile) + "<span>Stickers & emoji</span>";
-    var later = btn("tool v9-pop-b", "", function () { pop.classList.add("lp-closed"); openSchedule(); }, "Send later"); later.innerHTML = svg(I.clock) + "<span>Send later</span>";
-    pop.append(stk, later);
+    if (att) att.classList.add("hidden");
+    var close = function () { pop.classList.add("lp-closed"); plus.setAttribute("aria-expanded", "false"); };
+    var item = function (key, label, sub, fn, chev) {
+      var b = btn("v9-mi", "", function () { A().haptic("press"); fn(); });
+      b.setAttribute("role", "menuitem");
+      b.innerHTML = '<span class="v9-mi-ic">' + svg(MENU_I[key]) + '</span><span class="v9-mi-t"><b></b>' + (sub ? "<small></small>" : "") + "</span>" + (chev ? '<span class="v9-mi-ch">' + svg(MENU_I.chev) + "</span>" : "");
+      b.querySelector("b").textContent = label;
+      if (sub) b.querySelector("small").textContent = sub;
+      return b;
+    };
+    var main = function () {
+      [].slice.call(pop.children).forEach(function (n) { if (n !== att) n.remove(); });
+      var box = el("div", "v9-menu");
+      box.append(
+        item("attach", "Attach", "Photos, camera, audio", function () { attachStep(); }, true),
+        item("draw", "Draw", "Sketch on a card and send it", function () { close(); A().openDraw(); }),
+        item("sticker", "Stickers & emoji", "", function () { close(); openPicker(); }),
+        item("later", "Send later", "", function () { close(); openSchedule(); })
+      );
+      pop.appendChild(box);
+    };
+    var attachStep = function () {
+      [].slice.call(pop.children).forEach(function (n) { if (n !== att) n.remove(); });
+      var box = el("div", "v9-menu step");
+      var head = btn("v9-mhead", "", function () { main(); });
+      head.innerHTML = svg(MENU_I.back) + "<span>Attach</span>";
+      box.append(
+        head,
+        item("photos", "Photos & videos", "Several at once", function () { close(); pickFiles("image/*,video/*"); }),
+        item("camera", "Take a photo", "", function () { close(); pickFiles("image/*", "environment"); }),
+        item("video", "Record a video", "", function () { close(); pickFiles("video/*", "environment"); }),
+        item("audio", "Audio file", "Music or a recording", function () { close(); pickFiles("audio/*"); })
+      );
+      pop.appendChild(box);
+    };
+    main();
+    plus.addEventListener("click", function () { main(); });
   }
 
   /* ======================= Wiring ======================= */
