@@ -283,3 +283,4 @@ grant execute on function public.clear_conversation(text, timestamptz, timestamp
 alter table public.pair_members drop constraint if exists pair_members_lens_check;
 alter table public.pair_members add constraint pair_members_lens_check check (lens in ('auto','scan','prism','ripple','orbit','pulse','constellation','bars','ink','aurora','round','small','square','drop','star'));
 alter table public.pair_members alter column lens set default 'auto';
+alter function public._ttt_winner(jsonb) set search_path = public;
