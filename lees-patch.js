@@ -155,8 +155,8 @@
         var from = m.querySelector("#lpFrom").value;
         var to = m.querySelector("#lpTo").value;
         if (!all && (!from || !to)) { toast("Choose a range", "Pick From and To dates, or All."); return false; }
-        if (!hooks.clearConversation) { toast("Not connected yet", "Grok must wire hooks.clearConversation."); return false; }
-        hooks.clearConversation({ scope: scope, all: all, from: all ? null : from, to: all ? null : to });
+        if (!hooks.doClear) { toast("Not ready", "Try again in a moment."); return false; }
+        hooks.doClear({ scope: scope, all: all, from: all ? null : from, to: all ? null : to });
         return true;
       }
     });
@@ -440,147 +440,169 @@
     n.addEventListener("pointercancel", end);
   }
 
-  /* ---------- 8. Sign-in: the passphrase is never shown. A lens travels over the blinded marks. ---------- */
+  /* ---------- 8. Sign-in: the passphrase is never shown. A scanner sweeps the blinded marks. ----------
+     Twelve scanners. On "Surprise me" (the default) each sign-in deals the next one from a shuffled deck,
+     so none repeats until every one has played; then the deck is reshuffled. */
   var loadTok = 0, loadDone = true, loadOk = null, lensRun = null;
-  var LENS = {
-    round:  { w: 46, h: 46, cls: "" },
-    small:  { w: 34, h: 34, cls: "" },
-    square: { w: 42, h: 42, cls: "sq" },
-    drop:   { w: 40, h: 40, cls: "dr" },
-    star:   { w: 42, h: 42, cls: "st" }
-  };
+  var SCANNERS = ["scan", "prism", "ripple", "orbit", "pulse", "constellation", "bars", "ink", "aurora", "star", "round", "square"];
   var STAR_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.8 6.2 6.7.7-5 4.5 1.5 6.6L12 17.2l-6 3.4 1.5-6.6-5-4.5 6.7-.7z" fill="currentColor"/></svg>';
-  var LENS_STEP_MS = 170;
-  function lensKind() { try { var k = localStorage.getItem("pp-lens"); return (k === "scan" || LENS[k]) ? k : "scan"; } catch (e) { return "scan"; } }
+  function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  function nextScanner() {
+    var pref = "auto";
+    try { pref = localStorage.getItem("pp-lens") || "auto"; } catch (e) {}
+    if (pref === "small") pref = "round";
+    if (pref === "drop") pref = "ink";
+    if (pref !== "auto" && SCANNERS.indexOf(pref) >= 0) return pref;
+    var deck = store.get("pp-scan-deck", null);
+    if (!deck || !Array.isArray(deck.order) || deck.order.length !== SCANNERS.length || deck.i >= deck.order.length || deck.order.some(function (k) { return SCANNERS.indexOf(k) < 0; })) {
+      var last = deck && deck.order ? deck.order[deck.order.length - 1] : null;
+      var order = shuffle(SCANNERS.slice());
+      if (order[0] === last) { order.push(order.shift()); }
+      deck = { order: order, i: 0 };
+    }
+    var k = deck.order[deck.i];
+    deck.i += 1;
+    store.set("pp-scan-deck", deck);
+    return k;
+  }
   function setArt(on) { var art = document.getElementById("lpArt"); if (art) art.classList.toggle("checking", !!on); }
-  function setBehind(on) { var lk = document.getElementById("lock"); if (lk) lk.classList.toggle("lp-behind", !!on); }
+  function setBehind(on) { var lk = document.getElementById("lock"); if (lk) { lk.classList.toggle("lp-behind", !!on); lk.classList.toggle("lp-checking", !!on); } }
   function clearLens() {
     if (!lensRun) return;
     var r = lensRun; lensRun = null;
     r.timers.forEach(function (t) { clearTimeout(t); });
-    if (r.anim) { try { r.anim.cancel(); } catch (e) {} }
-    if (r.lens) r.lens.remove();
-    if (r.status) r.status.remove();
-    if (r.marks) r.marks.remove();
-    if (r.input) r.input.classList.remove("lp-blind");
+    (r.anims || []).forEach(function (a) { try { a.cancel(); } catch (e) {} });
+    (r.nodes || []).forEach(function (n) { n.remove(); });
+    if (r.input) { r.input.classList.remove("lp-blind"); r.input.readOnly = false; if (r.ph != null) r.input.placeholder = r.ph; }
   }
-  function tf(x, y, s) { return "translate(" + x.toFixed(1) + "px," + y.toFixed(1) + "px) scale(" + s + ")"; }
   // Returns how long the check should take, in ms.
   function startLens() {
     clearLens();
     var input = document.getElementById("pass"), field = input && input.parentNode;
-    if (!input || !field) return 900;
-    var n = Math.max(1, Math.min(32, (input.value || "").length || 4));
+    if (!input || !field) return 700;
+    var n = Math.max(1, Math.min(24, (input.value || "").length || 4));
     var fr = field.getBoundingClientRect(), ir = input.getBoundingClientRect(), cs = getComputedStyle(input);
+    var kind = nextScanner();
     var marks = document.createElement("div");
-    marks.className = "lp-marks";
+    marks.className = "lp-marks lp-k-" + kind;
     marks.style.left = (ir.left - fr.left) + "px";
     marks.style.top = (ir.top - fr.top) + "px";
     marks.style.width = ir.width + "px";
     marks.style.height = ir.height + "px";
     marks.style.paddingLeft = cs.paddingLeft;
-    marks.style.fontSize = cs.fontSize;
-    marks.style.fontFamily = cs.fontFamily;
     var spans = [];
-    for (var i = 0; i < n; i++) { var s = document.createElement("span"); s.textContent = "\u2022"; marks.appendChild(s); spans.push(s); }
+    for (var i = 0; i < n; i++) { var s = document.createElement("span"); s.textContent = "•"; marks.appendChild(s); spans.push(s); }
     field.appendChild(marks);
+    var run = { input: input, ph: input.placeholder, nodes: [marks], anims: [], timers: [], kind: kind };
+    input.placeholder = "";
+    input.readOnly = true;
     input.classList.add("lp-blind");
-    var kind = lensKind();
-    if (kind === "scan") return runScan(field, fr, spans, n, marks, input);
-    var L = LENS[kind];
-    var lens = document.createElement("div");
-    lens.className = "lp-lens";
-    lens.style.width = L.w + "px"; lens.style.height = L.h + "px";
-    var shape = document.createElement("div");
-    shape.className = "lp-shape " + L.cls;
-    if (kind === "star") shape.innerHTML = STAR_SVG;
-    lens.appendChild(shape);
-    field.appendChild(lens);
-    var run = { input: input, marks: marks, lens: lens, anim: null, timers: [] };
     lensRun = run;
-    var reduce = reduceMq && reduceMq.matches;
-    if (reduce) return 300;
-    var xs = spans.map(function (sp) { var r = sp.getBoundingClientRect(); return r.left - fr.left + r.width / 2 - L.w / 2; });
-    var yTop = (fr.height - L.h) / 2;
-    var total = Math.max(900, n * LENS_STEP_MS);
-    var f0 = 0.08, f1 = 0.92;
-    var frames = [
-      { transform: tf(xs[0], yTop, 0.5), opacity: 0, offset: 0 },
-      { transform: tf(xs[0], yTop, 1), opacity: 1, offset: f0 }
-    ];
-    for (var k = 0; k < n; k++) {
-      var off = n === 1 ? (f0 + f1) / 2 : f0 + (f1 - f0) * k / (n - 1);
-      frames.push({ transform: tf(xs[k], yTop, 1), opacity: 1, offset: off });
-      (function (sp, at) {
-        run.timers.push(setTimeout(function () { sp.classList.add("lp-mag"); }, at - 60));
-        run.timers.push(setTimeout(function () { sp.classList.remove("lp-mag"); }, at + 340));
-      })(spans[k], off * total);
+    field.dataset.scanner = kind;
+    if (reduceMq && reduceMq.matches) { spans.forEach(function (sp) { sp.classList.add("lp-seen"); }); marks.classList.add("lp-ok"); return 250; }
+    var H = fr.height;
+    var xs = spans.map(function (sp) { var r = sp.getBoundingClientRect(); return r.left - fr.left + r.width / 2; });
+    var cy = (ir.top - fr.top) + ir.height / 2;
+    var total = Math.min(1100, Math.max(620, n * 60));
+    var f0 = 0.08, f1 = 0.9;
+    var at = function (k) { return (n === 1 ? (f0 + f1) / 2 : f0 + (f1 - f0) * k / (n - 1)) * total; };
+    var mk = function (cls, html) { var d = document.createElement("div"); d.className = "lp-sc " + cls; if (html) d.innerHTML = html; field.appendChild(d); run.nodes.push(d); return d; };
+    var light = function (k, cls) {
+      run.timers.push(setTimeout(function () { spans[k].classList.add(cls || "lp-lit"); }, at(k)));
+      run.timers.push(setTimeout(function () { spans[k].classList.remove(cls || "lp-lit"); spans[k].classList.add("lp-seen"); }, at(k) + 260));
+    };
+    var sweep = function (node, w, extra) {
+      var fr2 = [{ transform: "translateX(" + (xs[0] - w / 2 - 14) + "px)", opacity: 0 }, { opacity: 1, offset: f0 }, { opacity: 1, offset: f1 + 0.04 }, { transform: "translateX(" + (xs[n - 1] - w / 2 + 14) + "px)", opacity: 0 }];
+      run.anims.push(node.animate(fr2, Object.assign({ duration: total, easing: "cubic-bezier(.45,.05,.35,1)", fill: "forwards" }, extra || {})));
+    };
+    var hop = function (node, w, h, scale) {
+      var frames = [{ transform: "translate(" + (xs[0] - w / 2) + "px," + (cy - h / 2) + "px) scale(.4)", opacity: 0, offset: 0 }];
+      for (var k = 0; k < n; k++) frames.push({ transform: "translate(" + (xs[k] - w / 2) + "px," + (cy - h / 2) + "px) scale(" + (scale || 1) + ")", opacity: 1, offset: at(k) / total });
+      frames.push({ transform: "translate(" + (xs[n - 1] - w / 2) + "px," + (cy - h / 2) + "px) scale(.6)", opacity: 0, offset: 1 });
+      run.anims.push(node.animate(frames, { duration: total, easing: "ease-in-out", fill: "forwards" }));
+    };
+    var k2;
+    switch (kind) {
+      case "scan": { var b = mk("lp-beam"); b.style.height = H + "px"; sweep(b, 3); for (k2 = 0; k2 < n; k2++) light(k2); break; }
+      case "prism": { var p = mk("lp-prism"); p.style.height = H + "px"; sweep(p, 46); for (k2 = 0; k2 < n; k2++) light(k2, "lp-tint"); break; }
+      case "aurora": { var au = mk("lp-aurora"); au.style.height = H + "px"; sweep(au, 90); for (k2 = 0; k2 < n; k2++) light(k2, "lp-rise"); break; }
+      case "bars": {
+        var v = mk("lp-vbar"); v.style.height = H + "px"; sweep(v, 2);
+        var hz = mk("lp-hbar"); hz.style.width = fr.width + "px";
+        run.anims.push(hz.animate([{ transform: "translateY(4px)", opacity: 0 }, { opacity: 1, offset: .15 }, { transform: "translateY(" + (H - 6) + "px)", opacity: 1, offset: .5 }, { transform: "translateY(4px)", opacity: 1, offset: .85 }, { transform: "translateY(" + (H / 2) + "px)", opacity: 0 }], { duration: total, easing: "ease-in-out", fill: "forwards" }));
+        for (k2 = 0; k2 < n; k2++) light(k2); break;
+      }
+      case "ripple": {
+        for (k2 = 0; k2 < n; k2++) (function (k) {
+          run.timers.push(setTimeout(function () {
+            var r = mk("lp-ring"); r.style.left = (xs[k] - 14) + "px"; r.style.top = (cy - 14) + "px";
+            run.anims.push(r.animate([{ transform: "scale(.2)", opacity: .9 }, { transform: "scale(1.6)", opacity: 0 }], { duration: 520, easing: "ease-out", fill: "forwards" }));
+          }, at(k)));
+          light(k);
+        })(k2);
+        break;
+      }
+      case "orbit": {
+        var o = mk("lp-orbit", "<i></i>"); hop(o, 30, 30, 1);
+        for (k2 = 0; k2 < n; k2++) light(k2); break;
+      }
+      case "ink": case "round": case "square": case "star": {
+        var cls = kind === "square" ? "sq" : kind === "ink" ? "dr" : kind === "star" ? "st" : "";
+        var L = mk("lp-lens", "<div class='lp-shape " + cls + "'>" + (kind === "star" ? STAR_SVG : "") + "</div>");
+        L.style.width = L.style.height = "40px"; L.style.left = "0"; L.style.top = "0";
+        hop(L, 40, 40, 1);
+        for (k2 = 0; k2 < n; k2++) light(k2, "lp-mag"); break;
+      }
+      case "pulse": {
+        var W = Math.max(40, xs[n - 1] - xs[0] + 28), x0 = xs[0] - 14;
+        var pts = "M0 " + (H / 2);
+        for (k2 = 0; k2 < n; k2++) { var px = xs[k2] - x0; pts += " L" + (px - 6) + " " + (H / 2) + " L" + (px - 2) + " " + (H / 2 - 12) + " L" + (px + 2) + " " + (H / 2 + 10) + " L" + (px + 6) + " " + (H / 2); }
+        pts += " L" + W + " " + (H / 2);
+        var svg = mk("lp-ecg", "<svg width='" + W + "' height='" + H + "' viewBox='0 0 " + W + " " + H + "'><path d='" + pts + "'/></svg>");
+        svg.style.left = x0 + "px"; svg.style.top = "0";
+        var path = svg.querySelector("path"), len = 0;
+        try { len = path.getTotalLength(); } catch (e) { len = W * 2; }
+        path.style.strokeDasharray = len; path.style.strokeDashoffset = len;
+        run.anims.push(path.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], { duration: total, easing: "linear", fill: "forwards" }));
+        run.anims.push(svg.animate([{ opacity: 1, offset: .85 }, { opacity: 0 }], { duration: total + 120, fill: "forwards" }));
+        for (k2 = 0; k2 < n; k2++) light(k2); break;
+      }
+      case "constellation": {
+        var W2 = fr.width, lines = "";
+        for (k2 = 1; k2 < n; k2++) lines += "<line x1='" + xs[k2 - 1] + "' y1='" + cy + "' x2='" + xs[k2] + "' y2='" + cy + "' style='--d:" + Math.round(at(k2 - 1)) + "ms'/>";
+        var cs2 = mk("lp-const", "<svg width='" + W2 + "' height='" + H + "'>" + lines + "</svg>");
+        cs2.style.left = "0"; cs2.style.top = "0";
+        for (k2 = 0; k2 < n; k2++) light(k2, "lp-starlit"); break;
+      }
     }
-    frames.push({ transform: tf(xs[n - 1], yTop, 0.85), opacity: 0, offset: 1 });
-    run.anim = lens.animate(frames, { duration: total, easing: "ease-in-out", fill: "forwards" });
-    return total + 120;
+    run.timers.push(setTimeout(function () { marks.classList.add("lp-ok"); }, total * 0.96));
+    return total + 80;
   }
-  /* Scan verification: a thin light moves across the blinded marks. Each mark lights as the beam passes it. */
-  function runScan(field, fr, spans, n, marks, input) {
-    var beam = document.createElement("div");
-    beam.className = "lp-beam";
-    beam.style.height = fr.height + "px";
-    var status = document.createElement("div");
-    status.className = "lp-status";
-    status.textContent = "Verifying";
-    field.parentNode.insertBefore(status, field.nextSibling);
-    field.appendChild(beam);
-    var run = { input: input, marks: marks, lens: beam, anim: null, timers: [], status: status };
-    lensRun = run;
-    if (reduceMq && reduceMq.matches) {
-      spans.forEach(function (sp) { sp.classList.add("lp-seen"); });
-      marks.classList.add("lp-ok"); status.textContent = "Verified";
-      return 300;
-    }
-    var xs = spans.map(function (sp) { var r = sp.getBoundingClientRect(); return r.left - fr.left + r.width / 2 - 1; });
-    var total = Math.max(1000, n * LENS_STEP_MS);
-    var f0 = 0.06, f1 = 0.94;
-    var frames = [
-      { transform: "translateX(" + xs[0].toFixed(1) + "px)", opacity: 0, offset: 0 },
-      { transform: "translateX(" + xs[0].toFixed(1) + "px)", opacity: 1, offset: f0 }
-    ];
-    for (var k = 0; k < n; k++) {
-      var off = n === 1 ? (f0 + f1) / 2 : f0 + (f1 - f0) * k / (n - 1);
-      frames.push({ transform: "translateX(" + xs[k].toFixed(1) + "px)", opacity: 1, offset: off });
-      (function (sp, at) {
-        run.timers.push(setTimeout(function () { sp.classList.add("lp-lit"); }, at));
-        run.timers.push(setTimeout(function () { sp.classList.remove("lp-lit"); sp.classList.add("lp-seen"); }, at + 360));
-      })(spans[k], off * total);
-    }
-    frames.push({ transform: "translateX(" + (xs[n - 1] + 12).toFixed(1) + "px)", opacity: 1, offset: 0.98 });
-    frames.push({ transform: "translateX(" + (xs[n - 1] + 12).toFixed(1) + "px)", opacity: 0, offset: 1 });
-    run.anim = beam.animate(frames, { duration: total, easing: "ease-in-out", fill: "forwards" });
-    run.timers.push(setTimeout(function () {
-      marks.classList.add("lp-ok");
-      status.textContent = "Verified";
-    }, total * 0.96));
-    return total + 160;
-  }
-  // Welcome state. Its blur uses the class lp-wel-on, separate from the scan blur (lp-behind).
+  // Welcome: shows as soon as the passphrase is verified and the home screen loads behind it.
+  // It leaves the moment home is on screen (at least 650 ms, at most 2.4 s), so there is no dead pause.
   function showWelcome(name) {
     clearLens();
-    setBehind(false);
     var o = document.createElement("div");
     o.className = "lp-welcome"; o.id = "lpWelcome";
-    o.innerHTML = "<div class='lp-stack'><div class='lp-tick'><svg viewBox='0 0 24 24'><path d='M5 12.5l4.5 4.5L19 7.5'/></svg></div><h2></h2></div>";
+    o.innerHTML = "<div class='lp-stack'><div class='lp-tick'><svg viewBox='0 0 24 24'><path d='M5 12.5l4.5 4.5L19 7.5'/></svg></div><h2></h2><p class='lp-wsub'>Opening your journal</p></div>";
     o.querySelector("h2").textContent = "Welcome, " + name;
-    document.body.classList.add("lp-wel-on");
     document.body.appendChild(o);
-    confetti();
-    var timer = null, gone = false;
+    var shownAt = Date.now(), gone = false;
     function dismiss() {
       if (gone) return; gone = true;
-      clearTimeout(timer);
+      setBehind(false);
       o.classList.add("lp-out");
-      setTimeout(function () { o.remove(); document.body.classList.remove("lp-wel-on"); }, 320);
+      setTimeout(function () { o.remove(); }, 360);
+    }
+    function homeUp() { var h = document.getElementById("home"); return h && !h.classList.contains("hidden"); }
+    function check() {
+      if (gone) return;
+      var dt = Date.now() - shownAt;
+      if ((homeUp() && dt >= 650) || dt >= 2400) { dismiss(); return; }
+      setTimeout(check, 60);
     }
     o.addEventListener("click", dismiss);
-    timer = setTimeout(dismiss, 1200);
+    check();
   }
   hooks.signInStart = function () {
     loadTok++;
@@ -595,11 +617,9 @@
     }, wait);
   };
   hooks.signInOk = function (name, done) {
-    var tok = loadTok;
-    if (tok !== loadTok) return;
     setArt(false);
+    // When the sweep finishes: the welcome appears and the journal opens behind it at the same moment.
     var show = function () { showWelcome(name); if (typeof done === "function") done(); };
-    // The server has verified, but the welcome and the unlock wait until the scan has walked the whole passphrase.
     if (!loadDone) { loadOk = show; return; }
     loadOk = null;
     show();
@@ -672,7 +692,9 @@
     if (!banner) return;
     if (st.unread > (st.lastUnread || 0)) st.bannerOff = false;
     st.lastUnread = st.unread;
-    var show = signedIn() && !st.bannerOff && (st.typing || st.unread > 0) && !st.inChat;
+    // Home only: on a panel the banner would sit over the Back button.
+    var onHome = window.LeesApp ? window.LeesApp.view === "home" : true;
+    var show = signedIn() && onHome && !st.bannerOff && (st.typing || st.unread > 0) && !st.inChat;
     clearTimeout(st.bannerTimer);
     if (show && !st.typing) st.bannerTimer = setTimeout(function () { st.bannerOff = true; syncBanner(); }, 3200);
     banner.classList.toggle("lp-show", show);
@@ -735,14 +757,14 @@
     if (chip) chip.classList.toggle("hidden", savedTop === null);
     if (!on) return;
     trayLabel.textContent = "";
-    if (showUnread) trayLabel.textContent = receipt(st.unread);
-    else if (showTyping) {
+    if (showTyping) {
       var mini = document.createElement("span");
       mini.className = "lp-mini";
       mini.innerHTML = "<i></i><i></i><i></i>";
       trayLabel.appendChild(mini);
-      trayLabel.appendChild(document.createTextNode((st.name || "They") + " is typing"));
+      trayLabel.appendChild(document.createTextNode((st.name || "They") + " is typing" + (showUnread ? " · " : "")));
     }
+    if (showUnread) trayLabel.appendChild(document.createTextNode(showTyping ? st.unread + " new" : receipt(st.unread)));
     trayCount.textContent = st.unread;
     trayCount.classList.toggle("hidden", !showUnread);
   }
@@ -766,87 +788,18 @@
   };
   hooks.afterArrival = function (fn) { if (morphActive) afterFx.push(fn); else fn(); };
 
+  // The arrived bubble grows out of where the typing dots were. Only transform and opacity move:
+  // the bubble's size and its words are never touched, so text can't be clipped mid-animation.
   function morphOne(job, done) {
     var card = document.querySelector("#list .msg[data-id='" + job.id + "']");
-    var txt = card && card.querySelector(".txt");
     var reduced = reduceMq && reduceMq.matches;
-    if (!card || !txt || !st.inChat || reduced || !job.from || !job.from.width) { done(); return; }
-    var wasNear = nearBottom();
-    var W = job.from.width, H = job.from.height;
-    var plain = (txt.childNodes.length === 1 && txt.firstChild.nodeType === 3) ? txt.firstChild.nodeValue : null;
-    var timers = [], ended = false, waved = false, dots = null;
-
-    function cleanup() {
-      card.classList.remove("lp-morphing", "lp-zoom", "lp-reshape", "lp-showing", "lp-msettle");
-      card.style.width = ""; card.style.height = "";
-      if (dots) { dots.remove(); dots = null; }
-      if (waved && plain !== null) txt.textContent = plain;
-      waved = false;
-    }
-    function end() {
-      if (ended) return;
-      ended = true;
-      timers.forEach(clearTimeout); timers = [];
-      cleanup();
-      if (wasNear && st.inChat) { var l = listEl(); if (l) l.scrollTop = l.scrollHeight; }
-      done();
-    }
-    function at(ms, fn) {
-      timers.push(setTimeout(function () {
-        if (ended) return;
-        if (!st.inChat) { end(); return; }   // the chat was closed mid-morph: show the final state
-        fn();
-      }, ms));
-    }
-
-    // 1. the dots' size; the typing bubble zooms to 1.14 and its dots fade (240 ms)
-    card.classList.add("lp-morphing");
-    card.style.width = W + "px"; card.style.height = H + "px";
-    dots = document.createElement("span"); dots.className = "lp-mdots";
-    dots.innerHTML = "<i></i><i></i><i></i>";
-    card.appendChild(dots);
-    card.getBoundingClientRect();
-    card.classList.add("lp-zoom");
-    dots.classList.add("lp-dfade");
-
-    // 2. measure the natural size; reshape from the dots' size to it (470 ms); text fades in
-    at(240, function () {
-      card.style.width = ""; card.style.height = "";
-      var toW = card.offsetWidth, toH = card.offsetHeight;
-      card.classList.remove("lp-zoom");
-      if (toW && toH) {                       // a zero measurement (hidden or not laid out) skips the reshape
-        card.style.width = W + "px"; card.style.height = H + "px";
-        card.getBoundingClientRect();
-        card.classList.add("lp-reshape");
-        card.style.width = toW + "px"; card.style.height = toH + "px";
-      }
-      card.classList.add("lp-showing");
-      timers.push(setTimeout(function () { if (dots && !ended) { dots.remove(); dots = null; } }, 200));
-    });
-
-    // 3. release to natural layout, settle bounce (600 ms)
-    at(710, function () {
-      card.classList.remove("lp-reshape", "lp-morphing", "lp-zoom");
-      card.style.width = ""; card.style.height = "";
-      card.classList.add("lp-msettle");
-    });
-
-    // 4. words wave in one by one (only for plain text; rich text skips the wave)
-    at(1310, function () {
-      card.classList.remove("lp-msettle");
-      if (plain === null || !plain.trim()) { end(); return; }
-      var parts = plain.split(/(\s+)/), i = 0;
-      txt.textContent = "";
-      for (var k = 0; k < parts.length; k++) {
-        var part = parts[k];
-        if (/^\s+$/.test(part)) { txt.appendChild(document.createTextNode(part)); continue; }
-        var s = document.createElement("span");
-        s.className = "lp-mw"; s.style.setProperty("--i", String(i++)); s.textContent = part;
-        txt.appendChild(s);
-      }
-      waved = true;
-      timers.push(setTimeout(end, 80 + i * 70 + 950));
-    });
+    if (!card || !st.inChat || reduced) { done(); return; }
+    var finished = false;
+    function end() { if (finished) return; finished = true; card.classList.remove("lp-pop-in"); done(); }
+    card.classList.remove("lp-pop-in"); void card.offsetWidth;
+    card.classList.add("lp-pop-in");
+    card.addEventListener("animationend", end, { once: true });
+    setTimeout(end, 700);
   }
 
   /* detect partner messages that are new since the last check */
@@ -907,6 +860,8 @@
       if (e.key !== "End" || !st.inChat || /INPUT|TEXTAREA/.test(e.target.tagName)) return;
       e.preventDefault(); goLatest();
     });
+    var homeV = document.getElementById("home");
+    ["home", "panel", "chat"].forEach(function (id) { var v = document.getElementById(id); if (v) new MutationObserver(function () { syncBanner(); }).observe(v, { attributes: true, attributeFilter: ["class"] }); });
     var lock = document.getElementById("lock");
     if (lock) new MutationObserver(function () {
       if (!signedIn()) { st.typing = false; st.unread = 0; st.bannerOff = false; st.trayOff = false; }
@@ -990,8 +945,8 @@
     bindBin();
     bindNotice();
     var pb = $("panelBody");
-    if (pb) new MutationObserver(injectSettings).observe(pb, { childList: true });
-    injectSettings();
+    hooks.soundsBlock = soundsBlock;
+    hooks.clearConversation = clearModal;
     buildLive();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
