@@ -494,7 +494,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
 <link rel="stylesheet" href="/lees-v8.css?v=4">
-<link rel="stylesheet" href="/lees-v9.css?v=4">
+<link rel="stylesheet" href="/lees-v9.css?v=6">
 </head>
 <body>
 
@@ -6814,56 +6814,63 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     ["eraser", "Eraser", "M7 21h10M5.6 15.4l8.5-8.5a2 2 0 0 1 2.8 0l2.8 2.8a2 2 0 0 1 0 2.8L13 19H8.2a2 2 0 0 1-1.4-.6l-1.2-1.2a2 2 0 0 1 0-1.8z"]
   ];
   let drawUi = null;
-  const draw = { tool: "pen", color: "#ff2d55", size: 6, glow: false, extra: 0, strokes: [], redo: [], current: null, card: "clear", baseH: 0 };
+  const draw = { tool: "pen", color: "#ff2d55", size: 6, glow: false, strokes: [], redo: [], current: null, card: "clear", scroll: 0 };
   function dIcon(d) { return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '"/></svg>'; }
+  /* Layout follows Instagram: you draw straight on the conversation. Bottom bar: close, undo, the current
+     brush, colours, send. The brush button opens a floating pill of brushes. Size is a handle on the left edge.
+     Add space pushes the conversation up and the drawing moves with it, leaving clean room below.
+     Points are kept in page coordinates: draw.scroll is how far the page has been pushed up. */
   function ensureDraw() {
     if (drawUi) return drawUi;
-    const layer = el("div", "dw9 hidden");
+    const layer = el("div", "dw9 ig hidden");
     layer.id = "drawLayer";
     layer.setAttribute("role", "dialog");
-    layer.setAttribute("aria-label", "Draw");
-    // Top: close, title, undo, redo, send
-    const top = el("div", "dw9-top");
-    const close = el("button", "dw9-ib"); close.type = "button"; close.setAttribute("aria-label", "Close"); close.innerHTML = dIcon("M18 6L6 18M6 6l12 12");
-    close.addEventListener("click", async () => { if (draw.strokes.length && !(await centredBanner({ title: "Discard this drawing?", desc: "It hasn't been sent.", okLabel: "Discard" }))) return; closeDraw(); });
-    const undo = el("button", "dw9-ib"); undo.type = "button"; undo.setAttribute("aria-label", "Undo"); undo.innerHTML = dIcon("M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11");
-    undo.addEventListener("click", () => { const s = draw.strokes.pop(); if (s) { draw.redo.push(s); haptic("press"); } rebuildDraw(); syncDrawUi(); });
-    const redo = el("button", "dw9-ib"); redo.type = "button"; redo.setAttribute("aria-label", "Redo"); redo.innerHTML = dIcon("M15 14l5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13");
-    redo.addEventListener("click", () => { const s = draw.redo.pop(); if (s) draw.strokes.push(s); rebuildDraw(); syncDrawUi(); });
-    const title = el("b", "dw9-title", "Draw");
-    const send = el("button", "dw9-send"); send.type = "button"; send.innerHTML = dIcon("M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z") + "<span>Send</span>";
-    send.addEventListener("click", () => { void sendDraw(); });
-    top.append(close, title, undo, redo, send);
-    // Stage: the card
-    const stage = el("div", "dw9-stage"); stage.id = "drawStage";
-    const card = el("div", "dw9-card");
+    layer.setAttribute("aria-label", "Draw on the chat");
     const canvas = el("canvas", ""); canvas.id = "drawCanvas";
-    card.appendChild(canvas);
-    const more = el("button", "dw9-more"); more.type = "button";
-    more.innerHTML = dIcon("M12 5v14M5 12h14") + "<span>Add space</span>";
-    more.addEventListener("click", () => addDrawSpace());
-    stage.append(card, more);
-    // Bottom: tools, size, colours, card
-    const bottom = el("div", "dw9-bottom");
-    const tools = el("div", "dw9-tools");
+    const pill = el("div", "dw9-pill hidden");
+    pill.setAttribute("role", "toolbar"); pill.setAttribute("aria-label", "Brushes");
     DRAW_TOOLS.forEach(([id, label, d]) => {
-      const b = el("button", "dw9-tool"); b.type = "button"; b.dataset.tool = id; b.setAttribute("aria-label", label);
-      b.innerHTML = dIcon(d) + "<small>" + label + "</small>";
-      b.addEventListener("click", () => { draw.tool = id; haptic("press"); syncDrawUi(); });
-      tools.appendChild(b);
+      const b = el("button", "dw9-pb"); b.type = "button"; b.dataset.tool = id; b.setAttribute("aria-label", label); b.title = label;
+      b.innerHTML = dIcon(d);
+      b.addEventListener("click", () => { draw.tool = id; if (id === "neon") draw.glow = true; haptic("press"); pill.classList.add("hidden"); syncDrawUi(); });
+      pill.appendChild(b);
     });
-    const row = el("div", "dw9-row");
-    const size = el("input", "dw9-size"); size.type = "range"; size.min = "2"; size.max = "40"; size.value = String(draw.size);
-    size.setAttribute("aria-label", "Size");
-    const dot = el("span", "dw9-dot");
+    const glowB = el("button", "dw9-pb glow"); glowB.type = "button"; glowB.setAttribute("aria-label", "Neon glow"); glowB.title = "Neon glow";
+    glowB.innerHTML = dIcon("M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z");
+    glowB.addEventListener("click", () => { draw.glow = !draw.glow; haptic("press"); syncDrawUi(); });
+    const cardB = el("button", "dw9-pb"); cardB.type = "button"; cardB.setAttribute("aria-label", "Background"); cardB.title = "Background";
+    cardB.innerHTML = dIcon("M4 4h16v16H4zM4 15l5-5 4 4 3-3 4 4");
+    cardB.addEventListener("click", () => { cards.classList.toggle("hidden"); });
+    pill.append(glowB, cardB);
+    const cards = el("div", "dw9-cardrow hidden");
+    DRAW_CARDS.forEach(([id, label, bg]) => {
+      const c = el("button", "dw9-cardb"); c.type = "button"; c.dataset.card = id; c.setAttribute("aria-label", label + " background"); c.title = label;
+      const sw = el("span", "dw9-sw " + id); sw.style.background = bg;
+      c.append(sw);
+      c.addEventListener("click", () => { draw.card = id; syncDrawUi(); });
+      cards.appendChild(c);
+    });
+    // Size: a handle on the left edge, drag up for thicker.
+    const sizeWrap = el("div", "dw9-vsize");
+    const size = el("input"); size.type = "range"; size.min = "2"; size.max = "40"; size.value = String(draw.size);
+    size.setAttribute("aria-label", "Brush size");
+    size.setAttribute("orient", "vertical");
     size.addEventListener("input", () => { draw.size = Number(size.value) || 6; syncDrawUi(); });
-    const glow = el("button", "dw9-chip"); glow.type = "button"; glow.textContent = "Glow";
-    glow.addEventListener("click", () => { draw.glow = !draw.glow; syncDrawUi(); });
-    row.append(dot, size, glow);
-    const colors = el("div", "dw9-colors");
+    const dot = el("span", "dw9-dot");
+    sizeWrap.append(size, dot);
+    const more = el("button", "dw9-more ig"); more.type = "button"; more.textContent = "Add space";
+    more.addEventListener("click", () => addDrawSpace());
+    const bar = el("div", "dw9-bar");
+    const close = el("button", "dw9-rb"); close.type = "button"; close.setAttribute("aria-label", "Close"); close.innerHTML = dIcon("M18 6L6 18M6 6l12 12");
+    close.addEventListener("click", async () => { if (draw.strokes.length && !(await centredBanner({ title: "Discard this drawing?", desc: "It hasn't been sent.", okLabel: "Discard" }))) return; closeDraw(); });
+    const undo = el("button", "dw9-rb"); undo.type = "button"; undo.setAttribute("aria-label", "Undo last stroke"); undo.innerHTML = dIcon("M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11");
+    undo.addEventListener("click", () => { const s = draw.strokes.pop(); if (s) { draw.redo.push(s); haptic("press"); } rebuildDraw(); syncDrawUi(); });
+    const toolB = el("button", "dw9-toolb"); toolB.type = "button"; toolB.setAttribute("aria-label", "Brushes");
+    toolB.addEventListener("click", () => { pill.classList.toggle("hidden"); cards.classList.add("hidden"); haptic("press"); });
+    const colors = el("div", "dw9-colors ig");
     DRAW_COLORS.forEach((c) => {
       const d = el("button", "dw9-col"); d.type = "button"; d.style.background = c; d.dataset.c = c; d.setAttribute("aria-label", "Colour " + c);
-      d.addEventListener("click", () => { draw.color = c; syncDrawUi(); });
+      d.addEventListener("click", () => { draw.color = c; if (draw.tool === "eraser") draw.tool = "pen"; syncDrawUi(); });
       colors.appendChild(d);
     });
     const pick = el("label", "dw9-col dw9-pick"); pick.setAttribute("aria-label", "Any colour");
@@ -6871,30 +6878,17 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     pin.addEventListener("input", () => { draw.color = pin.value; syncDrawUi(); });
     pick.appendChild(pin);
     colors.appendChild(pick);
-    const cards = el("div", "dw9-cards");
-    DRAW_CARDS.forEach(([id, label, bg]) => {
-      const c = el("button", "dw9-cardb"); c.type = "button"; c.dataset.card = id; c.setAttribute("aria-label", label + " card");
-      const sw = el("span", "dw9-sw " + id); sw.style.background = bg;
-      c.append(sw, el("small", "", label));
-      c.addEventListener("click", () => { draw.card = id; syncDrawUi(); });
-      cards.appendChild(c);
-    });
-    const tabs = el("div", "dw9-tabs");
-    const panes = { draw: el("div", "dw9-pane"), card: el("div", "dw9-pane hidden") };
-    panes.draw.append(tools, row, colors);
-    panes.card.append(cards);
-    [["draw", "Brush"], ["card", "Card"]].forEach(([k, t]) => {
-      const b = el("button", "dw9-tab" + (k === "draw" ? " on" : ""), t); b.type = "button";
-      b.addEventListener("click", () => { tabs.querySelectorAll(".dw9-tab").forEach(x => x.classList.toggle("on", x === b)); panes.draw.classList.toggle("hidden", k !== "draw"); panes.card.classList.toggle("hidden", k !== "card"); });
-      tabs.appendChild(b);
-    });
-    bottom.append(tabs, panes.draw, panes.card);
-    layer.append(top, stage, bottom);
+    const send = el("button", "dw9-go"); send.type = "button"; send.setAttribute("aria-label", "Send drawing");
+    send.innerHTML = dIcon("M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z");
+    send.addEventListener("click", () => { void sendDraw(); });
+    bar.append(close, undo, toolB, colors, send);
+    layer.append(canvas, pill, cards, sizeWrap, more, bar);
     document.body.appendChild(layer);
-    const pos = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    const pos = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top + draw.scroll }; };
     canvas.addEventListener("pointerdown", (e) => {
       if (e.button != null && e.button !== 0) return;
       e.preventDefault();
+      pill.classList.add("hidden"); cards.classList.add("hidden");
       const p = pos(e);
       if (draw.tool === "fill") { const s = { tool: "fill", color: draw.color, points: [p] }; draw.strokes.push(s); draw.redo = []; commitStroke(s); syncDrawUi(); return; }
       if (draw.tool === "text") { placeText(p); return; }
@@ -6902,6 +6896,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       if (pen) p.w = 0.35 + e.pressure * 1.3;
       draw.current = { tool: draw.tool, color: draw.color, size: draw.size, pen, glow: draw.glow && draw.tool !== "eraser" && draw.tool !== "highlight", points: [p] };
       try { canvas.setPointerCapture(e.pointerId); } catch {}
+      layer.classList.add("drawing");
       queuePaint();
     });
     canvas.addEventListener("pointermove", (e) => {
@@ -6916,6 +6911,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       queuePaint();
     });
     const lift = () => {
+      layer.classList.remove("drawing");
       if (!draw.current) return;
       if (draw.current.points.length === 1) draw.current.points.push({ x: draw.current.points[0].x + 0.1, y: draw.current.points[0].y + 0.1, w: draw.current.points[0].w });
       const s = draw.current;
@@ -6925,20 +6921,23 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     };
     canvas.addEventListener("pointerup", lift);
     canvas.addEventListener("pointercancel", lift);
-    drawUi = { layer, stage, card, canvas, tools, colors, cards, size, dot, glow, undo, redo, send, pin };
+    drawUi = { layer, canvas, pill, cards, size, dot, toolB, colors, undo, send, pin, glowB, more };
     return drawUi;
   }
   function syncDrawUi() {
     const ui = drawUi; if (!ui) return;
-    ui.tools.querySelectorAll(".dw9-tool").forEach(b => b.classList.toggle("on", b.dataset.tool === draw.tool));
+    ui.pill.querySelectorAll(".dw9-pb[data-tool]").forEach(b => b.classList.toggle("on", b.dataset.tool === draw.tool));
+    ui.glowB.classList.toggle("on", draw.glow);
     ui.colors.querySelectorAll(".dw9-col[data-c]").forEach(b => b.classList.toggle("on", b.dataset.c === draw.color));
     ui.cards.querySelectorAll(".dw9-cardb").forEach(b => b.classList.toggle("on", b.dataset.card === draw.card));
-    ui.glow.classList.toggle("on", draw.glow);
+    const t = DRAW_TOOLS.find(x => x[0] === draw.tool) || DRAW_TOOLS[0];
+    ui.toolB.innerHTML = dIcon(t[2]);
+    ui.toolB.style.setProperty("--tc", draw.tool === "eraser" ? "#8e8e93" : draw.color);
+    ui.toolB.setAttribute("aria-label", "Brush: " + t[1]);
     ui.dot.style.width = ui.dot.style.height = Math.max(6, Math.min(40, draw.size)) + "px";
-    ui.dot.style.background = draw.tool === "eraser" ? "transparent" : draw.color;
-    ui.undo.disabled = !draw.strokes.length; ui.redo.disabled = !draw.redo.length;
+    ui.dot.style.background = draw.tool === "eraser" ? "#fff" : draw.color;
+    ui.undo.disabled = !draw.strokes.length;
     ui.send.disabled = !draw.strokes.length;
-    ui.card.dataset.card = draw.card;
     ui.layer.dataset.card = draw.card;
   }
   function placeText(p) {
@@ -6946,16 +6945,16 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const box = el("div", "dw9-textbox");
     const ta = el("textarea", ""); ta.rows = 1; ta.placeholder = "Type…";
     ta.style.color = draw.color;
-    ta.style.fontSize = Math.max(16, draw.size * 2.2) + "px";
-    box.style.left = p.x + "px"; box.style.top = p.y + "px";
+    ta.style.fontSize = Math.max(18, draw.size * 2.2) + "px";
+    box.style.left = p.x + "px"; box.style.top = (p.y - draw.scroll) + "px";
     box.appendChild(ta);
-    ui.card.appendChild(box);
+    ui.layer.appendChild(box);
     setTimeout(() => ta.focus(), 30);
     const commit = () => {
       const t = ta.value.trim();
       box.remove();
       if (!t) return;
-      const s = { tool: "text", color: draw.color, size: Math.max(16, draw.size * 2.2), text: t, points: [p] };
+      const s = { tool: "text", color: draw.color, size: Math.max(18, draw.size * 2.2), text: t, points: [p] };
       draw.strokes.push(s);
       draw.redo = [];
       commitStroke(s); syncDrawUi();
@@ -6964,26 +6963,39 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     ta.addEventListener("blur", commit);
     ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ta.blur(); } if (e.key === "Escape") { ta.value = ""; ta.blur(); } });
   }
-  // More space: the card grows by half a screen and slides up, so the empty room sits where you are drawing.
+  // Add space: the conversation slides up by about half a screen, the drawing slides with it,
+  // and clean room opens at the bottom.
+  let drawPad = 0;
   function addDrawSpace() {
     const ui = ensureDraw();
-    draw.extra += Math.round(Math.max(260, ui.stage.clientHeight * 0.55));
-    sizeDraw();
+    const step = Math.round(Math.max(220, ui.canvas.clientHeight * 0.5));
+    const list = $("list");
+    drawPad += step;
+    list.style.paddingBottom = "calc(22px + " + drawPad + "px)";
+    const target = list.scrollTop + step;
+    const from = draw.scroll, start = performance.now(), dur = reduceMotion() ? 0 : 320;
+    const listFrom = list.scrollTop;
+    const ease = (t) => 1 - Math.pow(1 - t, 3);
     haptic("press");
-    // Wait for the card to finish growing, then slide the new room into view.
-    setTimeout(() => ui.stage.scrollTo({ top: ui.stage.scrollHeight, behavior: reduceMotion() ? "auto" : "smooth" }), 60);
+    const step1 = (now) => {
+      const k = dur ? Math.min(1, (now - start) / dur) : 1, e = ease(k);
+      draw.scroll = from + step * e;
+      list.scrollTop = listFrom + (target - listFrom) * e;
+      growDoc();
+      paintDraw();
+      if (k < 1) requestAnimationFrame(step1);
+    };
+    requestAnimationFrame(step1);
   }
   function sizeDraw() {
     const ui = ensureDraw();
-    const w = Math.round(ui.card.clientWidth || Math.min(560, window.innerWidth - 24));
-    if (!draw.baseH) draw.baseH = Math.round(Math.max(320, (ui.stage.clientHeight || 500) - 76));
-    const h = draw.baseH + draw.extra;
+    const w = Math.round(window.innerWidth), hgt = Math.round(window.innerHeight);
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     ui.canvas.width = Math.max(1, Math.round(w * dpr));
-    ui.canvas.height = Math.max(1, Math.round(h * dpr));
+    ui.canvas.height = Math.max(1, Math.round(hgt * dpr));
     ui.canvas.style.width = w + "px";
-    ui.canvas.style.height = h + "px";
-    ui.card.style.height = h + "px";
+    ui.canvas.style.height = hgt + "px";
+    inkCache = null;
     rebuildDraw();
   }
   function paintCard(ctx, W, H, dpr, forExport) {
@@ -7111,25 +7123,32 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     renderInk(ink.getContext("2d", { willReadFrequently: true }), W, H, dpr, draw.strokes);
     ctx.drawImage(ink, 0, 0);
   }
-  /* Speed: finished ink lives in a bitmap. While drawing, a frame shows that bitmap plus only the stroke in
-     progress, at most once per screen refresh. A finished stroke is added to the bitmap once, not redrawn. */
+  /* Speed: finished ink lives in a bitmap the height of the whole page drawn so far. Each frame copies the
+     visible part and draws only the stroke in progress, at most once per screen refresh. */
   let inkCache = null, paintQueued = false;
+  function drawDpr() { const c = drawUi.canvas; return c.width / (parseFloat(c.style.width) || c.width); }
+  function docH() { return drawUi.canvas.height + Math.ceil(draw.scroll * drawDpr()); }
   function inkCtx() {
     const c = drawUi.canvas;
-    if (!inkCache || inkCache.width !== c.width || inkCache.height !== c.height) { inkCache = document.createElement("canvas"); inkCache.width = c.width; inkCache.height = c.height; }
+    if (!inkCache || inkCache.width !== c.width || inkCache.height < docH()) {
+      const old = inkCache;
+      inkCache = document.createElement("canvas");
+      inkCache.width = c.width; inkCache.height = docH() + Math.round(c.height * 0.5);
+      if (old && old.width === c.width) inkCache.getContext("2d").drawImage(old, 0, 0);
+    }
     return inkCache.getContext("2d", { willReadFrequently: true });
   }
-  function drawDpr() { const c = drawUi.canvas; return c.width / (parseFloat(c.style.width) || c.width); }
+  function growDoc() { if (drawUi) inkCtx(); }
   function rebuildDraw() {
     if (!drawUi) return;
-    const c = drawUi.canvas;
-    renderInk(inkCtx(), c.width, c.height, drawDpr(), draw.strokes);
+    const ctx = inkCtx();
+    renderInk(ctx, inkCache.width, inkCache.height, drawDpr(), draw.strokes);
     paintDraw();
   }
   function commitStroke(s) {
     if (!drawUi) return;
-    const c = drawUi.canvas, ctx = inkCtx(), dpr = drawDpr();
-    if (s.tool === "fill") floodFill(ctx, c.width, c.height, s.points[0].x * dpr, s.points[0].y * dpr, s.color);
+    const ctx = inkCtx(), dpr = drawDpr();
+    if (s.tool === "fill") floodFill(ctx, inkCache.width, inkCache.height, s.points[0].x * dpr, s.points[0].y * dpr, s.color);
     else traceStroke(ctx, s, dpr);
     paintDraw();
   }
@@ -7140,63 +7159,63 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
   function paintDraw() {
     if (!drawUi) return;
-    const c = drawUi.canvas;
+    const c = drawUi.canvas, dpr = drawDpr();
     if (!drawUi.ctx) drawUi.ctx = c.getContext("2d", { desynchronized: true }) || c.getContext("2d");
-    const ctx = drawUi.ctx;
+    const ctx = drawUi.ctx, off = Math.round(draw.scroll * dpr);
     ctx.clearRect(0, 0, c.width, c.height);
-    if (inkCache) ctx.drawImage(inkCache, 0, 0);
-    if (draw.current) traceStroke(ctx, draw.current, drawDpr());
+    if (inkCache) ctx.drawImage(inkCache, 0, off, c.width, c.height, 0, 0, c.width, c.height);
+    if (draw.current) { ctx.save(); ctx.translate(0, -off); traceStroke(ctx, draw.current, dpr); ctx.restore(); }
   }
   function openDraw() {
     closeActions();
+    if (view !== "chat") { notice("Open the chat to draw", "", { kind: "info" }); return; }
     const ui = ensureDraw();
-    draw.strokes = []; draw.redo = []; draw.current = null; draw.extra = 0; draw.baseH = 0;
+    draw.strokes = []; draw.redo = []; draw.current = null; draw.scroll = 0; drawPad = 0;
+    if (!["pen", "marker", "highlight", "arrow", "text", "fill", "eraser"].includes(draw.tool)) draw.tool = "pen";
     inkCache = null;
     ui.layer.classList.remove("hidden");
+    ui.pill.classList.add("hidden"); ui.cards.classList.add("hidden");
     syncDrawUi();
-    requestAnimationFrame(() => { sizeDraw(); ui.stage.scrollTop = 0; });
+    requestAnimationFrame(() => sizeDraw());
   }
   function closeDraw() {
     if (!drawUi) return;
     drawUi.layer.classList.add("hidden");
-    drawUi.card.querySelectorAll(".dw9-textbox").forEach(n => n.remove());
-    draw.strokes = []; draw.redo = []; draw.current = null; draw.extra = 0; draw.baseH = 0;
+    drawUi.layer.querySelectorAll(".dw9-textbox").forEach(n => n.remove());
+    const list = $("list");
+    if (drawPad) {
+      const keep = list.scrollTop - drawPad;
+      list.style.paddingBottom = "";
+      list.scrollTop = Math.max(0, keep);
+    }
+    drawPad = 0;
+    draw.strokes = []; draw.redo = []; draw.current = null; draw.scroll = 0;
+    inkCache = null;
   }
   function doodleBounds() {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     draw.strokes.forEach(s => s.points.forEach(p => {
-      const ex = s.tool === "text" ? String(s.text).length * s.size * 0.62 : 0, ey = s.tool === "text" ? s.size * 1.3 * String(s.text).split("\n").length : 0;
-      minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+      const r = (s.size || 6) * (s.tool === "highlight" ? 1.4 : 1);
+      const ex = s.tool === "text" ? String(s.text).length * s.size * 0.62 : r, ey = s.tool === "text" ? s.size * 1.3 * String(s.text).split("\n").length : r;
+      minX = Math.min(minX, p.x - r); minY = Math.min(minY, p.y - r);
       maxX = Math.max(maxX, p.x + ex); maxY = Math.max(maxY, p.y + ey);
     }));
     if (!isFinite(minX)) return null;
-    const pad = 40;
+    const pad = 28;
     return { x: Math.max(0, minX - pad), y: Math.max(0, minY - pad), w: (maxX - minX) + pad * 2, h: (maxY - minY) + pad * 2 };
   }
   async function sendDraw() {
-    if (!draw.strokes.length) { notice("Draw something first", "Pick a tool and a colour, then send.", { error: true }); return; }
-    const src = drawUi.canvas;
-    const dpr = src.width / (parseFloat(src.style.width) || src.width);
-    let out;
-    if (draw.card === "clear") {
-      // See-through: send only the drawing, trimmed, so it floats in the chat.
-      const box = doodleBounds();
-      const W = src.width, H = src.height;
-      out = document.createElement("canvas");
-      const bx = Math.max(0, box.x * dpr), by = Math.max(0, box.y * dpr);
-      out.width = Math.max(1, Math.min(W - bx, Math.round(box.w * dpr)));
-      out.height = Math.max(1, Math.min(H - by, Math.round(box.h * dpr)));
-      out.getContext("2d").drawImage(src, bx, by, out.width, out.height, 0, 0, out.width, out.height);
-    } else {
-      // A card: send the whole card, trimmed to the last thing drawn, so added space that was never used is left out.
-      const box = doodleBounds();
-      const usedH = Math.min(src.height, Math.max(draw.baseH * dpr, Math.round((box.y + box.h) * dpr)));
-      out = document.createElement("canvas");
-      out.width = src.width; out.height = usedH;
-      const tmp = document.createElement("canvas"); tmp.width = src.width; tmp.height = src.height;
-      renderDrawing(tmp.getContext("2d", { willReadFrequently: true }), src.width, src.height, dpr, true);
-      out.getContext("2d").drawImage(tmp, 0, 0, out.width, usedH, 0, 0, out.width, usedH);
-    }
+    if (!draw.strokes.length) { notice("Draw something first", "Pick a brush and a colour, then send.", { error: true }); return; }
+    const dpr = drawDpr(), box = doodleBounds();
+    const W = inkCache.width, H = inkCache.height;
+    const full = document.createElement("canvas"); full.width = W; full.height = H;
+    renderDrawing(full.getContext("2d", { willReadFrequently: true }), W, H, dpr, true);
+    let sx, sy, sw, sh;
+    if (draw.card === "clear") { sx = Math.max(0, Math.floor(box.x * dpr)); sy = Math.max(0, Math.floor(box.y * dpr)); sw = Math.min(W - sx, Math.ceil(box.w * dpr)); sh = Math.min(H - sy, Math.ceil(box.h * dpr)); }
+    else { sx = 0; sy = Math.max(0, Math.floor(box.y * dpr) - 24 * dpr); sw = W; sh = Math.min(H - sy, Math.ceil((box.h + 48) * dpr)); }
+    const out = document.createElement("canvas");
+    out.width = Math.max(1, sw); out.height = Math.max(1, sh);
+    out.getContext("2d").drawImage(full, sx, sy, sw, sh, 0, 0, sw, sh);
     const blob = await new Promise(res => out.toBlob(res, "image/png"));
     const glow = draw.strokes.some(s => s.glow);
     const clear = draw.card === "clear";
