@@ -91,3 +91,6 @@ New files: lees-v9.js, lees-v9.css, supabase/migrations/2026-11-19_tagline_rotat
   marker, highlighter, arrow, text, paint bucket and eraser; size, glow, any colour, undo and redo; Add space grows
   the card and slides the new room into view. A see-through drawing floats in the chat; a card is sent whole,
   trimmed to what was used.
+- Draw speed: finished ink is kept as a bitmap; each frame draws only the stroke in progress, once per screen
+  refresh (measured 16.7 ms per frame with 40 strokes and a fill). Pen pressure changes line thickness. The card
+  colour sits behind the ink, so the eraser removes only ink. Undo removes the last stroke.

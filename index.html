@@ -494,7 +494,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
 <link rel="stylesheet" href="/lees-v8.css?v=4">
-<link rel="stylesheet" href="/lees-v9.css?v=3">
+<link rel="stylesheet" href="/lees-v9.css?v=4">
 </head>
 <body>
 
@@ -6827,9 +6827,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const close = el("button", "dw9-ib"); close.type = "button"; close.setAttribute("aria-label", "Close"); close.innerHTML = dIcon("M18 6L6 18M6 6l12 12");
     close.addEventListener("click", async () => { if (draw.strokes.length && !(await centredBanner({ title: "Discard this drawing?", desc: "It hasn't been sent.", okLabel: "Discard" }))) return; closeDraw(); });
     const undo = el("button", "dw9-ib"); undo.type = "button"; undo.setAttribute("aria-label", "Undo"); undo.innerHTML = dIcon("M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11");
-    undo.addEventListener("click", () => { const s = draw.strokes.pop(); if (s) draw.redo.push(s); paintDraw(); syncDrawUi(); });
+    undo.addEventListener("click", () => { const s = draw.strokes.pop(); if (s) { draw.redo.push(s); haptic("press"); } rebuildDraw(); syncDrawUi(); });
     const redo = el("button", "dw9-ib"); redo.type = "button"; redo.setAttribute("aria-label", "Redo"); redo.innerHTML = dIcon("M15 14l5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13");
-    redo.addEventListener("click", () => { const s = draw.redo.pop(); if (s) draw.strokes.push(s); paintDraw(); syncDrawUi(); });
+    redo.addEventListener("click", () => { const s = draw.redo.pop(); if (s) draw.strokes.push(s); rebuildDraw(); syncDrawUi(); });
     const title = el("b", "dw9-title", "Draw");
     const send = el("button", "dw9-send"); send.type = "button"; send.innerHTML = dIcon("M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z") + "<span>Send</span>";
     send.addEventListener("click", () => { void sendDraw(); });
@@ -6876,7 +6876,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const c = el("button", "dw9-cardb"); c.type = "button"; c.dataset.card = id; c.setAttribute("aria-label", label + " card");
       const sw = el("span", "dw9-sw " + id); sw.style.background = bg;
       c.append(sw, el("small", "", label));
-      c.addEventListener("click", () => { draw.card = id; paintDraw(); syncDrawUi(); });
+      c.addEventListener("click", () => { draw.card = id; syncDrawUi(); });
       cards.appendChild(c);
     });
     const tabs = el("div", "dw9-tabs");
@@ -6896,28 +6896,32 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       if (e.button != null && e.button !== 0) return;
       e.preventDefault();
       const p = pos(e);
-      if (draw.tool === "fill") { draw.strokes.push({ tool: "fill", color: draw.color, points: [p] }); draw.redo = []; paintDraw(); syncDrawUi(); return; }
+      if (draw.tool === "fill") { const s = { tool: "fill", color: draw.color, points: [p] }; draw.strokes.push(s); draw.redo = []; commitStroke(s); syncDrawUi(); return; }
       if (draw.tool === "text") { placeText(p); return; }
-      draw.current = { tool: draw.tool, color: draw.color, size: draw.size, glow: draw.glow && draw.tool !== "eraser" && draw.tool !== "highlight", points: [p] };
+      const pen = e.pointerType === "pen" && e.pressure > 0;
+      if (pen) p.w = 0.35 + e.pressure * 1.3;
+      draw.current = { tool: draw.tool, color: draw.color, size: draw.size, pen, glow: draw.glow && draw.tool !== "eraser" && draw.tool !== "highlight", points: [p] };
       try { canvas.setPointerCapture(e.pointerId); } catch {}
-      paintDraw();
+      queuePaint();
     });
     canvas.addEventListener("pointermove", (e) => {
       if (!draw.current) return;
       const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
       for (const ev of evs) {
         const p = pos(ev), pts = draw.current.points, last = pts[pts.length - 1];
+        if (draw.current.pen) p.w = 0.35 + (ev.pressure || 0.5) * 1.3;
         if (draw.current.tool === "arrow") pts[1] = p;
-        else if (!last || Math.hypot(p.x - last.x, p.y - last.y) > 0.7) pts.push(p);
+        else if (!last || Math.hypot(p.x - last.x, p.y - last.y) > 0.5) pts.push(p);
       }
-      paintDraw();
+      queuePaint();
     });
     const lift = () => {
       if (!draw.current) return;
-      if (draw.current.points.length === 1) draw.current.points.push({ x: draw.current.points[0].x + 0.1, y: draw.current.points[0].y + 0.1 });
-      draw.strokes.push(draw.current); draw.redo = [];
+      if (draw.current.points.length === 1) draw.current.points.push({ x: draw.current.points[0].x + 0.1, y: draw.current.points[0].y + 0.1, w: draw.current.points[0].w });
+      const s = draw.current;
+      draw.strokes.push(s); draw.redo = [];
       draw.current = null;
-      paintDraw(); syncDrawUi();
+      commitStroke(s); syncDrawUi();
     };
     canvas.addEventListener("pointerup", lift);
     canvas.addEventListener("pointercancel", lift);
@@ -6951,9 +6955,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const t = ta.value.trim();
       box.remove();
       if (!t) return;
-      draw.strokes.push({ tool: "text", color: draw.color, size: Math.max(16, draw.size * 2.2), text: t, points: [p] });
+      const s = { tool: "text", color: draw.color, size: Math.max(16, draw.size * 2.2), text: t, points: [p] };
+      draw.strokes.push(s);
       draw.redo = [];
-      paintDraw(); syncDrawUi();
+      commitStroke(s); syncDrawUi();
     };
     ta.addEventListener("input", () => { ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; });
     ta.addEventListener("blur", commit);
@@ -6979,7 +6984,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     ui.canvas.style.width = w + "px";
     ui.canvas.style.height = h + "px";
     ui.card.style.height = h + "px";
-    paintDraw();
+    rebuildDraw();
   }
   function paintCard(ctx, W, H, dpr, forExport) {
     const c = DRAW_CARDS.find(x => x[0] === draw.card) || DRAW_CARDS[0];
@@ -7039,7 +7044,14 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       }
       ctx.stroke();
     };
-    strokeMain();
+    if (s.pen && s.tool !== "arrow" && s.tool !== "highlight") {
+      // Apple Pencil and other pens: the line thickens with pressure, segment by segment.
+      for (let i = 1; i < pts.length; i++) {
+        const p0 = pts[i - 1], p1 = pts[i];
+        ctx.lineWidth = w * ((p0.w || 1) + (p1.w || 1)) / 2 * dpr;
+        ctx.beginPath(); ctx.moveTo(p0.x * dpr, p0.y * dpr); ctx.lineTo(p1.x * dpr, p1.y * dpr); ctx.stroke();
+      }
+    } else strokeMain();
     if (s.tool === "arrow") {
       const a = pts[0], b = pts[pts.length - 1];
       const ang = Math.atan2(b.y - a.y, b.x - a.x);
@@ -7083,25 +7095,63 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     }
     ctx.putImageData(img, 0, 0);
   }
-  function renderDrawing(ctx, W, H, dpr, forExport) {
+  // Ink only (no card): every finished stroke, in order. Fills run on the ink that's there.
+  function renderInk(ctx, W, H, dpr, list) {
     ctx.clearRect(0, 0, W, H);
-    paintCard(ctx, W, H, dpr, forExport);
-    const all = draw.current ? draw.strokes.concat([draw.current]) : draw.strokes;
-    all.forEach(st => {
+    list.forEach(st => {
       if (st.tool === "fill") floodFill(ctx, W, H, st.points[0].x * dpr, st.points[0].y * dpr, st.color);
       else traceStroke(ctx, st, dpr);
     });
   }
+  // Export: the card, then the ink on top.
+  function renderDrawing(ctx, W, H, dpr, forExport) {
+    ctx.clearRect(0, 0, W, H);
+    paintCard(ctx, W, H, dpr, forExport);
+    const ink = document.createElement("canvas"); ink.width = W; ink.height = H;
+    renderInk(ink.getContext("2d", { willReadFrequently: true }), W, H, dpr, draw.strokes);
+    ctx.drawImage(ink, 0, 0);
+  }
+  /* Speed: finished ink lives in a bitmap. While drawing, a frame shows that bitmap plus only the stroke in
+     progress, at most once per screen refresh. A finished stroke is added to the bitmap once, not redrawn. */
+  let inkCache = null, paintQueued = false;
+  function inkCtx() {
+    const c = drawUi.canvas;
+    if (!inkCache || inkCache.width !== c.width || inkCache.height !== c.height) { inkCache = document.createElement("canvas"); inkCache.width = c.width; inkCache.height = c.height; }
+    return inkCache.getContext("2d", { willReadFrequently: true });
+  }
+  function drawDpr() { const c = drawUi.canvas; return c.width / (parseFloat(c.style.width) || c.width); }
+  function rebuildDraw() {
+    if (!drawUi) return;
+    const c = drawUi.canvas;
+    renderInk(inkCtx(), c.width, c.height, drawDpr(), draw.strokes);
+    paintDraw();
+  }
+  function commitStroke(s) {
+    if (!drawUi) return;
+    const c = drawUi.canvas, ctx = inkCtx(), dpr = drawDpr();
+    if (s.tool === "fill") floodFill(ctx, c.width, c.height, s.points[0].x * dpr, s.points[0].y * dpr, s.color);
+    else traceStroke(ctx, s, dpr);
+    paintDraw();
+  }
+  function queuePaint() {
+    if (paintQueued) return;
+    paintQueued = true;
+    requestAnimationFrame(() => { paintQueued = false; paintDraw(); });
+  }
   function paintDraw() {
     if (!drawUi) return;
-    const canvas = drawUi.canvas;
-    const dpr = canvas.width / (parseFloat(canvas.style.width) || canvas.width);
-    renderDrawing(canvas.getContext("2d", { willReadFrequently: draw.strokes.some(s => s.tool === "fill") }), canvas.width, canvas.height, dpr, false);
+    const c = drawUi.canvas;
+    if (!drawUi.ctx) drawUi.ctx = c.getContext("2d", { desynchronized: true }) || c.getContext("2d");
+    const ctx = drawUi.ctx;
+    ctx.clearRect(0, 0, c.width, c.height);
+    if (inkCache) ctx.drawImage(inkCache, 0, 0);
+    if (draw.current) traceStroke(ctx, draw.current, drawDpr());
   }
   function openDraw() {
     closeActions();
     const ui = ensureDraw();
     draw.strokes = []; draw.redo = []; draw.current = null; draw.extra = 0; draw.baseH = 0;
+    inkCache = null;
     ui.layer.classList.remove("hidden");
     syncDrawUi();
     requestAnimationFrame(() => { sizeDraw(); ui.stage.scrollTop = 0; });
@@ -7153,7 +7203,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     closeDraw();
     await addMedia("image", blob, clear ? { effect: glow ? "doodle-glow" : "doodle" } : {});
   }
-  window.addEventListener("resize", () => { if (drawUi && !drawUi.layer.classList.contains("hidden")) { const keep = draw.strokes; sizeDraw(); draw.strokes = keep; paintDraw(); } });
+  window.addEventListener("resize", () => { if (drawUi && !drawUi.layer.classList.contains("hidden")) sizeDraw(); });
 
   /* ---- Typing bubble, drawn inside the thread on the partner's side ---- */
   const TYPING_GRACE_MS = 2400;

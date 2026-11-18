@@ -557,3 +557,10 @@
 .dw9-cardb.on .dw9-sw{box-shadow:0 0 0 2.5px var(--accent)}
 .dw9-cardb.on{color:var(--ink);font-weight:600}
 .dw9-pane.hidden{display:none}
+
+/* The card colour sits behind the ink, so the eraser only ever removes ink. */
+.dw9-card[data-card="paper"]{background:#fbf5e6}.dw9-card[data-card="white"]{background:#fff}.dw9-card[data-card="night"]{background:#16141f}
+.dw9-card[data-card="blush"]{background:#fbe3e8}.dw9-card[data-card="sky"]{background:#e3eefb}.dw9-card[data-card="sage"]{background:#e5f0e4}
+.dw9-card[data-card="grid"]{background-color:#fff;background-image:linear-gradient(rgba(70,110,180,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(70,110,180,.16) 1px,transparent 1px);background-size:24px 24px}
+.dw9-card[data-card="lines"]{background:#fffdf6 linear-gradient(transparent 31px,rgba(120,90,50,.16) 32px) 0 0/100% 32px}
+#drawCanvas{will-change:contents}
