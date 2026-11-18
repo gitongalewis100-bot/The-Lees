@@ -61,3 +61,25 @@ supabase/migrations/2026-11-18_letters_games_awards.sql.
   send-now); voice preview with waveform seek and speed.
 - Offline: on-device copy of the data after each sync (paints instantly next sign-in), service worker app shell,
   photo prefetch.
+
+## v9 (2026-11-19)
+New files: lees-v9.js, lees-v9.css, supabase/migrations/2026-11-19_tagline_rotation.sql (applied live).
+- Rebuilt screens: Notifications (messages, letters, games, nudges, awards, journal in one feed, filters, ready
+  letters pinned), Journal (paper pages, search, filters, letter-style composer with prompts and autosave),
+  Calendar (activity heat, photo/journal/letter dots, month stats, day detail, "on this day", swipe), Media
+  (photo/video grid by month, full-screen viewer with swipe, save, moment, delete; voice list with players),
+  Blurred words, Send later, Clear conversation (scope cards, ranges, live count, hold to confirm),
+  passphrase change (strength meter; recovery is separate).
+- Chat style studio on long-press: theme previews, wallpaper from the device with brightness and blur, bubbles,
+  text size, corners.
+- Home: six extras in the Settings column: streak, moods, daily question, closeness score, best time to talk,
+  on this day.
+- One alert pipeline for everything from the other person (toast, sound, buzz, feed, system notification in the
+  background), respecting mute and Quiet. Premium toasts.
+- Thinking of you: full-screen heartbeat, hearts, heartbeat buzz, "Send one back".
+- Chat: several photos/videos per send, attach opens the picker directly, photo and video cards with overlay time,
+  captions shown, new voice card (real waveform, progress ring, seek, speed, transcript), built-in animated stickers
+  and emoji picker, on-device live transcription with review, view once enforced by the server answer and
+  protected viewer, 10-minute auto sign-out.
+- Letters can be edited while sealed; tic-tac-toe "Not now" declines and tells the inviter.
+- Lock-screen lines: one line or several that take turns.

@@ -694,7 +694,8 @@
     st.lastUnread = st.unread;
     // Home only: on a panel the banner would sit over the Back button.
     var onHome = window.LeesApp ? window.LeesApp.view === "home" : true;
-    var show = signedIn() && onHome && !st.bannerOff && (st.typing || st.unread > 0) && !st.inChat;
+    // The banner is for typing only; new messages arrive through the app's toast pipeline.
+    var show = signedIn() && onHome && !st.bannerOff && st.typing && !st.inChat;
     clearTimeout(st.bannerTimer);
     if (show && !st.typing) st.bannerTimer = setTimeout(function () { st.bannerOff = true; syncBanner(); }, 3200);
     banner.classList.toggle("lp-show", show);

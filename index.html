@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="The Lees">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="icon" href="/icon-192.png">
-<link rel="stylesheet" href="/lees-patch.css?v=29">
+<link rel="stylesheet" href="/lees-patch.css?v=30">
 <style>
 :root{
   --bg:#f8f4ee;--surface:#fffdf9;--ink:#2a2420;--muted:#8c8179;--line:#ebe2d7;--line-strong:#dcd0c2;
@@ -493,7 +493,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 .fx{position:fixed;bottom:-30px;z-index:95;pointer-events:none;color:var(--accent);animation:fxrise 4.4s ease-out forwards}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
-<link rel="stylesheet" href="/lees-v8.css?v=2">
+<link rel="stylesheet" href="/lees-v8.css?v=4">
+<link rel="stylesheet" href="/lees-v9.css?v=2">
 </head>
 <body>
 
@@ -634,7 +635,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   </div>
   <div id="recbar" class="hidden" role="group" aria-label="Recording a voice note">
     <button id="recCancel" class="rb-ic" type="button" aria-label="Discard recording">Cancel</button>
-    <div class="rb-mid"><span class="dot"></span><span id="rectime" class="mono">0:00</span><canvas id="wave"></canvas></div>
+    <div class="rb-mid"><span class="dot"></span><span id="rectime" class="mono">0:00</span><canvas id="wave"></canvas><span id="recLive" aria-live="polite"></span></div>
     <button id="recSend" class="rb-ic rb-done" type="button" aria-label="Stop and preview"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg></button>
     <button id="recSendNow" class="rb-send" type="button" aria-label="Send now"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
   </div>
@@ -708,9 +709,35 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
     play: '<path d="M7 4l13 8-13 8z"/>',
     trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 21h8l-1-4H9z"/>',
-    letter: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>'
+    letter: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+    text: '<path d="M4 7V5h16v2M9 19h6M12 5v14"/>'
   };
   const ic = (n, cls) => `<svg class="i ${cls || ""}" viewBox="0 0 24 24" aria-hidden="true">${ICON[n] || ""}</svg>`;
+
+  /* ================= Stickers: built-in animated reactions, no downloads ================= */
+  const STICKERS = {
+    love: { e: "❤️", fx: "beat", bits: "💕", label: "Love" }, kiss: { e: "😘", fx: "tilt", bits: "💋", label: "Kiss" },
+    hug: { e: "🫂", fx: "squeeze", bits: "✨", label: "Hug" }, miss: { e: "🥺", fx: "bob", bits: "💭", label: "Miss you" },
+    laugh: { e: "😂", fx: "shake", bits: "😆", label: "Haha" }, party: { e: "🥳", fx: "bounce", bits: "🎉", label: "Party" },
+    sleep: { e: "😴", fx: "breathe", bits: "💤", label: "Good night" }, morning: { e: "☀️", fx: "spin", bits: "🌤", label: "Good morning" },
+    coffee: { e: "☕", fx: "steam", bits: "♨️", label: "Coffee" }, flowers: { e: "💐", fx: "sway", bits: "🌸", label: "Flowers" },
+    fire: { e: "🔥", fx: "flicker", bits: "✨", label: "Fire" }, wave: { e: "👋", fx: "wave", bits: "", label: "Hi" },
+    star: { e: "🌟", fx: "twinkle", bits: "✨", label: "Proud" }, hugs2: { e: "🤗", fx: "bounce", bits: "💛", label: "Big hug" },
+    cry: { e: "😭", fx: "bob", bits: "💧", label: "Sad" }, ring: { e: "💍", fx: "twinkle", bits: "✨", label: "Forever" }
+  };
+  const STICKER_RE = /^\[\[sticker:([a-z0-9]+)\]\]$/;
+  function stickerOf(text) { const m = STICKER_RE.exec(String(text || "").trim()); return m && STICKERS[m[1]] ? m[1] : null; }
+  function stickerNode(id) {
+    const s = STICKERS[id];
+    const w = document.createElement("div");
+    w.className = "stk9 fx-" + s.fx;
+    w.setAttribute("role", "img");
+    w.setAttribute("aria-label", s.label + " sticker");
+    const main = document.createElement("span"); main.className = "stk9-e"; main.textContent = s.e;
+    w.appendChild(main);
+    if (s.bits) for (let i = 0; i < 3; i++) { const b = document.createElement("span"); b.className = "stk9-b b" + i; b.textContent = s.bits; w.appendChild(b); }
+    return w;
+  }
 
   /* ================= Constants ================= */
   const NAME = { Lewis: "Mr Lees", Agnes: "Mrs Lees" };
@@ -730,7 +757,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   const ZONES = ["Africa/Nairobi", "Europe/London", "America/New_York", "America/Los_Angeles", "Asia/Dubai", "Asia/Tokyo", "Australia/Sydney", "UTC"];
   const ARCHIVE = [[0, "Never"], [1, "After 1 day"], [7, "After 7 days"], [30, "After 30 days"]];
   const PATTERNS = { send: [8], recv: [8, 40, 8], heart: [20, 30, 20], press: [12], error: [40, 60, 40, 60, 40], schedule: [10, 20, 10], pin: [15, 25, 15] };
-  const IDLE_MS = 5 * 60 * 1000, UNSEND_MS = 5 * 60 * 1000, DELETE_ALL_MS = 24 * 60 * 60 * 1000, UNDO_MS = 5000;
+  const IDLE_MS = 10 * 60 * 1000, UNSEND_MS = 5 * 60 * 1000, DELETE_ALL_MS = 24 * 60 * 60 * 1000, UNDO_MS = 5000;
   const REC_MAX_MS = 90 * 1000, IMG_MAX = 1600, MAX_TRIES = 5, LOCK_MS = 30 * 1000, NOTE_MAX = 280;
   const EFFECT_RE = /\b(i love you|love you|miss you|missing you|darling|honey|thinking of you)\b/i;
   const SENSITIVE_BUILTIN = "love you,i love you,miss you,missing you,darling,honey,dear,babe,baby,sweetheart,sweetie,my love,my heart,beautiful,gorgeous,handsome,cutie,princess,prince,angel,kiss,kisses,hug,hugs,cuddle,cuddles,snuggle,hold you,hold your hand,holding hands,thinking of you,think about you,dream about you,dreaming of you,forever,always yours,yours,mine,only you,you're mine,my everything,my world,my person,soulmate,proposal,propose,marry,marriage,wedding,ring,engagement,promise,future,together,our future,move in,meet my family,my mum,my mom,my dad,my family,your family,parents,relationship,girlfriend,boyfriend,partner,wife,husband,fiance,fiancee,crush,butterflies,blush,shy,nervous,secret,our secret,don't tell,between us,nobody knows,hide,private,personal,cry,crying,tears,sad,lonely,scared,afraid,worried,hurt,hurting,sorry,forgive,apologize,fight,argument,upset,jealous,jealousy,trust,cheat,lie,lied,ex,exes,past,rumour,rumor,gossip,pregnant,body,nude,naked,undress,sexy,hot,turn me on,miss your touch,your voice,your smile,your eyes,your laugh,i dream,i need you,need you,want you,wish you were here,come home,home soon,i'm coming,visit,visa,flight,airport,goodbye,bye love,good night,goodnight,sleep well,sweet dreams,morning love,good morning my,i'm proud,proud of you,so proud,you're amazing,you're special,special,precious,treasure,cherish,adore,adorable,cute,lovely,pretty,stunning,my queen,my king,queen,king,mine forever,yes i do,i'm yours,hold me,miss your hugs,sweet,my sweet,my darling,my honey,my babe,my dear,dearest,beloved,love of my life,my star,my moon,my sunshine,sunshine,sugar,pumpkin,sweetness,bae,boo,hun,luv,ily,ilysm,xoxo,mwah,smooch,flirt,flirting,date,dating,romance,romantic,candle,candlelight,dinner for two,just us,our night,our day,alone with you,you and me,just you and me,secret love,crush on you,your touch,your kiss,your hug,your arms,your lips,lips,arms,shoulder,neck,hair,bed,bedroom,shower,bath,lingerie,tease,teasing,naughty,wink,wicked";
@@ -775,7 +802,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const fmtDateTime = (ts) => new Date(ts).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   const fmtDur = (s) => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
-  const previewOf = (m) => m.deleted ? "Deleted" : (m.effect === "doodle" || m.effect === "doodle-glow") ? "Doodle" : m.kind === "image" ? "Photo" : m.kind === "video" ? "Video" : m.kind === "audio" ? ((m.text || "").trim() || "Voice note") : (m.text || "").slice(0, 60);
+  const previewOf = (m) => (m.kind === "text" && stickerOf(m.text)) ? "Sticker" : m.deleted ? "Deleted" : (m.effect === "doodle" || m.effect === "doodle-glow") ? "Doodle" : m.kind === "image" ? "Photo" : m.kind === "video" ? "Video" : m.kind === "audio" ? ((m.text || "").trim() || "Voice note") : (m.text || "").slice(0, 60);
   const hash = (s) => { let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
   const normAnswer = (a) => a.trim().toLowerCase().replace(/\s+/g, " ");
   const firstName = (side) => NAME[side];
@@ -800,32 +827,123 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   /* ================= Notices (structured system messages) ================= */
   let noticeTimer = 0;
+  // Toasts: one premium card. Kind sets the icon and colour: message, letter, game, love, award, success, info, error.
+  const NOTICE_ICONS = {
+    message: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    letter: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+    game: '<path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>',
+    love: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>',
+    award: '<circle cx="12" cy="9" r="6"/><path d="M8.5 14L7 22l5-3 5 3-1.5-8"/>',
+    success: '<path d="M20 6L9 17l-5-5"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
+    error: '<circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/>',
+    journal: '<path d="M2 5.5C4.5 4 7.5 4 11 5.5V20c-3.5-1.5-6.5-1.5-9 0z"/><path d="M22 5.5C19.5 4 16.5 4 13 5.5V20c3.5-1.5 6.5-1.5 9 0z"/>'
+  };
+  function guessKind(title, opts) {
+    if (opts && opts.error) return "error";
+    const t = String(title || "").toLowerCase();
+    if (/letter/.test(t)) return "letter";
+    if (/game|move|challeng|play/.test(t)) return "game";
+    if (/thinking of you|liked|love/.test(t)) return "love";
+    if (/award|earned|trophy/.test(t)) return "award";
+    if (/saved|sent|done|changed|updated|cleared|archived|copied|sealed|on$|off$/.test(t)) return "success";
+    return "info";
+  }
   function notice(title, detail, opts) {
+    opts = opts || {};
     if (!unlocked && /new message|is typing|unread/i.test(String(title || ""))) return;
     const n = $("notice");
-    n.className = (opts && opts.error) ? "err" : "";
+    const kind = opts.kind || guessKind(title, opts);
+    n.className = "nt9 k-" + kind + (opts.error ? " err" : "");
     n.textContent = "";
-    n.appendChild(el("span", "rule"));
+    n.setAttribute("role", opts.error ? "alert" : "status");
+    const iconWrap = el("div", "nt9-ic");
+    if (opts.side) {
+      const av = el("div", "avatar " + String(opts.side).toLowerCase(), opts.side === "Lewis" ? "L" : "A");
+      av.dataset.side = opts.side;
+      iconWrap.appendChild(av);
+      iconWrap.classList.add("has-av");
+      const badge = el("span", "nt9-badge");
+      badge.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + (NOTICE_ICONS[kind] || NOTICE_ICONS.info) + '</svg>';
+      iconWrap.appendChild(badge);
+    } else iconWrap.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + (NOTICE_ICONS[kind] || NOTICE_ICONS.info) + '</svg>';
     const body = el("div", "body");
     body.appendChild(el("p", "t", title));
     if (detail) body.appendChild(el("p", "d", detail));
-    if (opts && opts.action) {
-      const acts = el("div", "acts");
-      const b = el("button", "btn sm", opts.action.label);
-      b.addEventListener("click", () => { hideNotice(); opts.action.run(); });
-      acts.appendChild(b);
-      body.appendChild(acts);
+    const acts = [];
+    if (opts.action) acts.push(opts.action);
+    if (opts.actions) acts.push(...opts.actions);
+    if (acts.length) {
+      const row = el("div", "acts");
+      acts.forEach((ac, i) => {
+        const b = el("button", "nt9-btn" + (i === 0 ? " primary" : ""), ac.label);
+        b.type = "button";
+        b.addEventListener("click", (e) => { e.stopPropagation(); hideNotice(); ac.run(); });
+        row.appendChild(b);
+      });
+      body.appendChild(row);
     }
-    n.appendChild(body);
     const x = el("button", "x");
+    x.type = "button";
+    x.setAttribute("aria-label", "Dismiss");
     x.innerHTML = ic("close", "sm");
     x.addEventListener("click", hideNotice);
-    n.appendChild(x);
+    const life = opts.duration || (acts.length ? 7000 : (opts.error ? 5200 : 3600));
+    const bar = el("i", "nt9-life");
+    bar.style.animationDuration = life + "ms";
+    n.append(iconWrap, body, x, bar);
+    if (opts.side) setTimeout(() => fillAvatars(), 0);
     n.classList.remove("hidden");
+    void n.offsetWidth;
+    n.classList.add("in");
     clearTimeout(noticeTimer);
-    if (!(opts && opts.action)) noticeTimer = setTimeout(hideNotice, 4200);
+    if (!opts.sticky) noticeTimer = setTimeout(hideNotice, life);
   }
-  function hideNotice() { $("notice").classList.add("hidden"); clearTimeout(noticeTimer); }
+  /* The one pipeline for everything from the other person: messages, letters, game invites and answers, nudges,
+     awards, journal entries. Each event is logged for Notifications, makes a sound and buzz unless muted or the
+     sender chose Quiet, shows a toast, and becomes a system notification when the app is in the background. */
+  const FEED_MAX = 250;
+  function feedKey() { return "pp-feed-" + (me || "x"); }
+  function feedAll() { return store.get(feedKey(), []); }
+  function feedAdd(ev) {
+    const list = feedAll();
+    if (ev.ref && list.some(x => x.ref === ev.ref && x.kind === ev.kind)) return;
+    list.push({ id: uid(), at: Date.now(), read: false, ...ev });
+    try { store.set(feedKey(), list.slice(-FEED_MAX)); } catch (e) {}
+    document.dispatchEvent(new CustomEvent("lees:feed"));
+  }
+  function alertMe(kind, title, detail, opts) {
+    opts = opts || {};
+    if (!unlocked) return;
+    if (!opts.noFeed) feedAdd({ kind, title, detail: detail || "", ref: opts.ref || null, side: opts.side || other(), nav: opts.nav || null });
+    const quiet = !!opts.quiet || !ppShouldAlert({});
+    if (!quiet) {
+      try { chime(); } catch (e) {}
+      if (opts.priority) { try { navigator.vibrate?.([30, 80, 30, 80, 60]); } catch (e) {} } else arrivalBuzz();
+    }
+    if (document.hidden && !quiet && "Notification" in window && Notification.permission === "granted" && store.get("pp-sysnotify", true)) {
+      try { const sys = new Notification(title, { body: detail || "", tag: opts.ref || kind, icon: "/icon-192.png", silent: false }); sys.onclick = () => { window.focus(); if (opts.action) opts.action.run(); sys.close(); }; } catch (e) {}
+    }
+    if (opts.toast !== false) notice(title, detail, { kind, side: opts.side || other(), action: opts.action, actions: opts.actions, duration: opts.priority ? 9000 : undefined });
+    renderBellCount();
+  }
+  function feedUnread() { return feedAll().filter(x => !x.read).length; }
+  function renderBellCount() {
+    const tile = document.querySelector('.navbtn[data-key="bell"]');
+    if (!tile) return;
+    const n = feedUnread() + (unreadN || 0);
+    let b = tile.querySelector(".notif-count");
+    if (n && !b) { b = el("span", "notif-count"); tile.appendChild(b); }
+    if (b) { if (n) b.textContent = String(n > 99 ? "99+" : n); else b.remove(); }
+  }
+  function hideNotice() {
+    const n = $("notice");
+    clearTimeout(noticeTimer);
+    if (n.classList.contains("hidden")) return;
+    n.classList.remove("in");
+    n.classList.add("out");
+    setTimeout(() => { n.classList.add("hidden"); n.classList.remove("out"); }, 220);
+  }
 
   function haptic(name) {
     if (!S(me || "Lewis").haptics) return;
@@ -840,31 +958,49 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
      One send per 5 minutes per sender, remembered on this device. */
   const NUDGE_GAP_MS = 5 * 60 * 1000;
   let nudgeChannel = null;
+  const NUDGE_GAP = 60 * 1000;
   function sendNudge() {
     const client = cloudClient();
     if (!unlocked || !client || !pairId) return;
-    const wait = Number(store.get("pp-nudge-at", 0)) + NUDGE_GAP_MS - Date.now();
-    if (wait > 0) { notice("Already sent", "You can send another in " + Math.ceil(wait / 60000) + " min."); return; }
+    const wait = Number(store.get("pp-nudge-at", 0)) + NUDGE_GAP - Date.now();
+    if (wait > 0) { notice("Just sent one", "You can send another in " + Math.ceil(wait / 1000) + " s.", { kind: "love" }); return; }
     if (!nudgeChannel) { notice("Can't send right now", "Check your connection and try again.", { error: true }); return; }
     store.set("pp-nudge-at", Date.now());
-    haptic("press");
-    nudgeChannel.send({ type: "broadcast", event: "nudge", payload: { from: me } });
-    notice("Sent", "Thinking of " + NAME[other()] + ".");
+    const day = new Date().toDateString(), log = store.get("pp-nudge-log", {});
+    log[day] = (log[day] || 0) + 1; store.set("pp-nudge-log", log);
+    try { navigator.vibrate?.([12, 40, 12]); } catch (e) {}
+    nudgeChannel.send({ type: "broadcast", event: "nudge", payload: { from: me, at: Date.now() } });
+    loveBurst(false);
+    notice("Sent with love", NAME[other()] + " will feel it now." + (log[day] > 1 ? " " + log[day] + " today." : ""), { kind: "love" });
+  }
+  // The strongest moment in the app: a heartbeat glow over everything, hearts rising, a heartbeat buzz,
+  // and a card that stays until it's answered or closed.
+  function loveBurst(received) {
+    if (reduceMotion()) return;
+    const layer = el("div", "love9" + (received ? " big" : ""));
+    layer.setAttribute("aria-hidden", "true");
+    layer.innerHTML = '<div class="love9-glow"></div><svg class="love9-heart" viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.6-9.3C.8 8 3 4.5 6.6 4.5c2.1 0 3.6 1.1 5.4 3.1 1.8-2 3.3-3.1 5.4-3.1 3.6 0 5.8 3.5 4.2 7.2C19.5 16.4 12 21 12 21z"/></svg>';
+    for (let i = 0; i < (received ? 26 : 12); i++) {
+      const s = el("span", "love9-bit", ["❤", "♥", "❤", "💕"][i % 4]);
+      s.style.left = (6 + Math.random() * 88) + "%";
+      s.style.animationDelay = (Math.random() * (received ? 1.4 : .6)) + "s";
+      s.style.fontSize = (14 + Math.random() * (received ? 26 : 14)) + "px";
+      s.style.setProperty("--dx", (Math.random() * 80 - 40) + "px");
+      layer.appendChild(s);
+    }
+    document.body.appendChild(layer);
+    setTimeout(() => layer.remove(), received ? 4600 : 2600);
   }
   function receiveNudge(payload) {
     if (!unlocked || !payload || payload.from === me) return;
     const s = S(me);
-    if (s.haptics && s.vibrate !== false) { try { navigator.vibrate?.([20, 60, 20]); } catch {} }
-    notice(NAME[payload.from] + " is thinking of you", "");
-    const wave = el("div", "lp-wave");
-    wave.setAttribute("aria-hidden", "true");
-    document.body.appendChild(wave);
-    setTimeout(() => wave.remove(), 4200);
-    if (reduceMotion()) return;
-    const bloom = el("div", "nudge-bloom");
-    bloom.setAttribute("aria-hidden", "true");
-    document.body.appendChild(bloom);
-    setTimeout(() => bloom.remove(), 1400);
+    if (s.haptics !== false && s.vibrate !== false) { try { navigator.vibrate?.([60, 120, 60, 420, 60, 120, 60]); } catch {} }
+    loveBurst(true);
+    alertMe("love", NAME[payload.from] + " is thinking of you", "Right now, " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + ".", {
+      priority: true, side: payload.from, ref: "nudge-" + (payload.at || Date.now()),
+      action: { label: "Send one back", run: () => sendNudge() },
+      actions: [{ label: "Open chat", run: () => openChat() }]
+    });
   }
 
   function burst(glyph, n) {
@@ -1251,36 +1387,97 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     node.append(text.slice(pos));
   }
 
+  // Real waveforms: each voice note is decoded once (one at a time, in the background) and its shape kept on this device.
+  const PEAKS_KEY = "pp-peaks", peakQueue = [];
+  let peakBusy = false;
+  function cachedPeaks(id) { const all = store.get(PEAKS_KEY, {}); return all[id] || null; }
+  function savePeaks(id, arr) {
+    const all = store.get(PEAKS_KEY, {});
+    all[id] = arr;
+    const keys = Object.keys(all);
+    if (keys.length > 300) keys.slice(0, keys.length - 300).forEach(k => delete all[k]);
+    try { store.set(PEAKS_KEY, all); } catch (e) {}
+  }
+  function queuePeaks(id, url, cb) { peakQueue.push({ id, url, cb }); runPeaks(); }
+  async function runPeaks() {
+    if (peakBusy || !peakQueue.length) return;
+    peakBusy = true;
+    const job = peakQueue.shift();
+    try {
+      const blob = await (await fetch(job.url)).blob();
+      const peaks = await clipPeaks(blob, 40);
+      const q = peaks.map(v => Math.round(v * 20) / 20);
+      savePeaks(job.id, q);
+      job.cb(q);
+    } catch (e) {}
+    peakBusy = false;
+    setTimeout(runPeaks, 60);
+  }
   function voiceNode(m) {
     if (voiceCache.has(m.id)) return voiceCache.get(m.id);
-    const wrap = el("div", "voice");
+    const N = 40;
+    const wrap = el("div", "voice vc9");
     const audio = new Audio();
     audio.preload = "metadata";
-    mediaURL(m.mid).then(u => { if (u) audio.src = u; });
-    const btn = el("button", "vplay");
-    btn.innerHTML = ic("play");
-    const bars = el("div", "bars");
-    const N = 34, seed = hash(m.id);
-    for (let i = 0; i < N; i++) {
-      const b = el("i");
-      b.style.height = (8 + (((seed * (i + 7) * 2654435761) >>> 0) % 20)) + "px";
-      bars.appendChild(b);
-    }
+    const btn = el("button", "vplay vc9-play");
+    btn.type = "button";
+    btn.setAttribute("aria-label", "Play voice note");
+    btn.innerHTML = '<svg class="vc9-ring" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22"/></svg><svg class="vc9-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>';
+    const mid = el("div", "vc9-mid");
+    const bars = el("div", "bars vc9-wave");
+    bars.setAttribute("role", "slider");
+    bars.setAttribute("aria-label", "Seek");
+    const seed = hash(m.id);
+    const paintBars = (peaks) => {
+      bars.textContent = "";
+      for (let i = 0; i < N; i++) {
+        const b = el("i");
+        const v = peaks ? peaks[i] : 0.18 + 0.5 * (((seed * (i + 7) * 2654435761) >>> 0) % 100) / 100;
+        b.style.height = Math.max(10, Math.round(v * 100)) + "%";
+        bars.appendChild(b);
+      }
+    };
+    paintBars(cachedPeaks(m.id));
+    const foot = el("div", "vc9-foot");
     const time = el("span", "vt mono", fmtDur(m.dur || 0));
-    const speed = el("button", "vspeed", "1×");
-    // The speed a listener chose for this voice note is remembered on this device.
+    const speed = el("button", "vspeed vc9-speed", "1×");
+    speed.type = "button";
+    speed.setAttribute("aria-label", "Playback speed");
+    foot.append(time, speed);
+    let txBtn = null, txBox = null;
+    if (m.transcript) {
+      txBtn = el("button", "vc9-tx", "Aa");
+      txBtn.type = "button";
+      txBtn.setAttribute("aria-label", "Show transcript");
+      foot.appendChild(txBtn);
+    }
+    mid.append(bars, foot);
+    wrap.append(btn, mid);
+    if (m.transcript) {
+      txBox = el("div", "vc9-text hidden", m.transcript);
+      wrap.appendChild(txBox);
+      txBtn.addEventListener("click", (e) => { e.stopPropagation(); const on = txBox.classList.toggle("hidden") === false; txBtn.classList.toggle("on", on); txBtn.setAttribute("aria-label", on ? "Hide transcript" : "Show transcript"); });
+    }
+    mediaURL(m.mid).then(u => {
+      if (!u) { wrap.classList.add("vc9-missing"); return; }
+      audio.src = u;
+      if (!cachedPeaks(m.id)) queuePeaks(m.id, u, paintBars);
+    });
     let rate = Number(((store.get("pp-speed", {}) || {})[m.id])) || 1;
     if (![1, 1.5, 2].includes(rate)) rate = 1;
     speed.textContent = rate + "×";
-    wrap.append(btn, bars, time, speed);
     audio.playbackRate = rate;
     wrap._audio = audio;
     const dur = () => (isFinite(audio.duration) && audio.duration > 0 ? audio.duration : (m.dur || 0));
+    const ringC = 138.2;
     const update = () => {
       const d = dur();
-      const n = d ? Math.floor((audio.currentTime / d) * N) : 0;
+      const f = d ? Math.min(1, audio.currentTime / d) : 0;
+      const n = Math.floor(f * N);
       [...bars.children].forEach((b, i) => b.classList.toggle("on", i < n));
-      time.textContent = fmtDur(audio.paused && audio.currentTime === 0 ? d : audio.currentTime);
+      btn.querySelector("circle").style.strokeDashoffset = String(ringC * (1 - f));
+      time.textContent = audio.paused && audio.currentTime === 0 ? fmtDur(d) : fmtDur(audio.currentTime) + " / " + fmtDur(d);
+      wrap.classList.toggle("playing", !audio.paused);
     };
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -1293,9 +1490,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         });
       } else audio.pause();
     });
-    audio.addEventListener("play", () => { btn.innerHTML = ic("pause"); });
-    audio.addEventListener("pause", () => { btn.innerHTML = ic("play"); update(); });
-    audio.addEventListener("ended", () => { btn.innerHTML = ic("play"); audio.currentTime = 0; update(); });
+    const icon = (playing) => { btn.querySelector(".vc9-ic path").setAttribute("d", playing ? "M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" : "M8 5.5v13l11-6.5z"); btn.setAttribute("aria-label", playing ? "Pause" : "Play voice note"); };
+    audio.addEventListener("play", () => { icon(true); update(); });
+    audio.addEventListener("pause", () => { icon(false); update(); });
+    audio.addEventListener("ended", () => { icon(false); audio.currentTime = 0; update(); });
     audio.addEventListener("timeupdate", update);
     audio.addEventListener("loadedmetadata", update);
     speed.addEventListener("click", (e) => {
@@ -1307,10 +1505,14 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       sp[m.id] = rate;
       store.set("pp-speed", sp);
     });
-    bars.addEventListener("click", (e) => {
+    const seekTo = (x) => { const r = bars.getBoundingClientRect(), d = dur(); if (d && r.width) { audio.currentTime = Math.max(0, Math.min(1, (x - r.left) / r.width)) * d; update(); } };
+    bars.addEventListener("pointerdown", (e) => {
       e.stopPropagation();
-      const r = bars.getBoundingClientRect(), d = dur();
-      if (d) { audio.currentTime = ((e.clientX - r.left) / r.width) * d; update(); }
+      try { bars.setPointerCapture(e.pointerId); } catch (err) {}
+      seekTo(e.clientX);
+      const mv = (ev) => seekTo(ev.clientX);
+      bars.addEventListener("pointermove", mv);
+      bars.addEventListener("pointerup", () => bars.removeEventListener("pointermove", mv), { once: true });
     });
     voiceCache.set(m.id, wrap);
     return wrap;
@@ -1338,15 +1540,28 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
 
   function videoNode(m) {
-    const frame = el("div", "phframe");
+    const frame = el("div", "phframe vframe");
     const vid = document.createElement("video");
     vid.className = "photo";
-    vid.controls = true;
+    vid.controls = false;
     vid.playsInline = true;
+    vid.muted = true;
     vid.preload = "metadata";
     vid.setAttribute("aria-label", "Video");
-    frame.appendChild(vid);
-    mediaURL(m.mid).then(u => { if (u) vid.src = u; });
+    const play = el("button", "vf-play");
+    play.type = "button";
+    play.setAttribute("aria-label", "Play video");
+    play.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>';
+    const len = el("span", "vf-len mono", m.dur ? fmtDur(m.dur) : "Video");
+    frame.append(vid, play, len);
+    mediaURL(m.mid).then(u => { if (u) vid.src = u + "#t=0.1"; });
+    vid.addEventListener("loadedmetadata", () => { if (isFinite(vid.duration)) len.textContent = fmtDur(vid.duration); });
+    play.addEventListener("click", (e) => {
+      e.stopPropagation();
+      frame.classList.add("playing");
+      vid.muted = false; vid.controls = true;
+      vid.play().catch(() => { vid.muted = true; vid.play().catch(() => {}); });
+    });
     return frame;
   }
 
@@ -1599,26 +1814,80 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (!client || !m.mid || String(m.mid).startsWith("local-")) { notice("Couldn't open that", "Try again in a moment.", { error: true }); return; }
     const r = await client.rpc("mark_opened_once", { p_id: m.id });
     if (r.error) { notice("Couldn't open that", "Refresh and try again.", { error: true }); return; }
-    const signed = await client.storage.from("media").createSignedUrl(m.mid, 60);
+    // The database returns true only for the first opening on this side. Anything else is a second look.
+    if (r.data !== true) { openedOnce.add(m.id); render(); notice("Already viewed", "View-once media opens a single time.", { kind: "info" }); return; }
+    const signed = await client.storage.from("media").createSignedUrl(m.mid, 20);
     if (signed.error || !signed.data || !signed.data.signedUrl) { notice("Couldn't open that", "The file could not be loaded.", { error: true }); return; }
     openedOnce.add(m.id);
     render();
     showOnceViewer(m.kind, signed.data.signedUrl);
   }
-  function showOnceViewer(kind, url) {
-    const wrap = el("div", "once-viewer");
+  // One look only. The file is shown from memory (no link to keep), it blurs the moment the app loses focus
+  // (app switcher, screenshot shortcut on desktop, screen recording overlays), carries a name and time watermark,
+  // and closes by itself. A web page can't block a phone's screenshot, so the sender is told when it was opened.
+  async function showOnceViewer(kind, url) {
+    const wrap = el("div", "once-viewer ov9");
+    wrap.setAttribute("role", "dialog");
+    wrap.setAttribute("aria-label", "View once");
+    let blobUrl = null;
+    try { const b = await (await fetch(url)).blob(); blobUrl = URL.createObjectURL(b); } catch (e) { blobUrl = url; }
     let node;
-    if (kind === "video") { node = el("video"); node.controls = true; node.playsInline = true; node.autoplay = true; }
-    else if (kind === "audio") { node = el("audio"); node.controls = true; node.autoplay = true; }
-    else { node = el("img"); node.alt = "One-time photo"; }
-    node.src = url;
-    const close = el("button", "once-close", "Close");
-    close.type = "button";
-    const done = () => { try { node.pause && node.pause(); } catch (e) {} node.removeAttribute("src"); wrap.remove(); };
-    close.addEventListener("click", done);
-    wrap.addEventListener("click", (e) => { if (e.target === wrap) done(); });
-    wrap.append(node, close);
+    if (kind === "video") { node = el("video"); node.playsInline = true; node.autoplay = true; node.controls = false; node.disablePictureInPicture = true; node.setAttribute("controlsList", "nodownload noplaybackrate noremoteplayback"); }
+    else if (kind === "audio") { node = el("audio"); node.autoplay = true; }
+    else { node = el("img"); node.alt = "One-time photo"; node.draggable = false; }
+    node.src = blobUrl;
+    node.classList.add("ov9-media");
+    const top = el("div", "ov9-top");
+    const ring = el("div", "ov9-ring");
+    ring.innerHTML = '<svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="16"/></svg><span>1</span>';
+    top.append(ring, el("span", "ov9-label", kind === "audio" ? "Listen once" : "View once"));
+    const close = el("button", "ov9-close");
+    close.type = "button"; close.setAttribute("aria-label", "Close");
+    close.innerHTML = ic("close");
+    top.appendChild(close);
+    const mark = el("div", "ov9-mark", NAME[me] + " · " + new Date().toLocaleString([], { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" }));
+    const shade = el("div", "ov9-shade", "Hidden while the app isn't in front");
+    const stage = el("div", "ov9-stage");
+    if (kind === "audio") {
+      const card = el("div", "ov9-audio");
+      card.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+      card.append(el("b", "", "Voice note"), el("small", "", "Plays once, then it's gone"));
+      stage.append(card, node);
+    } else stage.appendChild(node);
+    wrap.append(top, stage, mark, shade);
     document.body.appendChild(wrap);
+    const limit = kind === "image" ? 12000 : 0;
+    let left = limit, gone = false, tick = 0;
+    const hide = () => wrap.classList.add("veiled");
+    const show = () => wrap.classList.remove("veiled");
+    const vis = () => { if (document.hidden) hide(); };
+    const done = () => {
+      if (gone) return; gone = true;
+      clearInterval(tick);
+      try { node.pause && node.pause(); } catch (e) {}
+      node.removeAttribute("src");
+      if (blobUrl && blobUrl !== url) URL.revokeObjectURL(blobUrl);
+      document.removeEventListener("visibilitychange", vis);
+      window.removeEventListener("blur", hide); window.removeEventListener("focus", show);
+      wrap.remove();
+    };
+    document.addEventListener("visibilitychange", vis);
+    window.addEventListener("blur", hide); window.addEventListener("focus", show);
+    wrap.addEventListener("contextmenu", (e) => e.preventDefault());
+    wrap.addEventListener("keydown", (e) => { if (e.key === "Escape") done(); if (e.key === "PrintScreen") hide(); });
+    close.addEventListener("click", done);
+    if (kind !== "image") node.addEventListener("ended", () => setTimeout(done, 400));
+    if (limit) {
+      const circ = 100.5;
+      tick = setInterval(() => {
+        if (wrap.classList.contains("veiled")) return;
+        left -= 100;
+        ring.querySelector("circle").style.strokeDashoffset = String(circ * (1 - left / limit));
+        ring.querySelector("span").textContent = String(Math.ceil(left / 1000));
+        if (left <= 0) done();
+      }, 100);
+    } else ring.querySelector("span").textContent = "1";
+    close.focus();
   }
   function buildRow(m, seen, isLastMine) {
     const mine = m.from === me;
@@ -1653,7 +1922,12 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       return row;
     }
     const scratchIt = privatelyHidden(m);
-    if (m.kind === "text") {
+    const stk = m.kind === "text" && !scratchIt && stickerOf(m.text);
+    if (stk) {
+      card.classList.add("sticker-msg");
+      card.appendChild(stickerNode(stk));
+      if (shield) card.classList.add("blurred");
+    } else if (m.kind === "text") {
       const t = el("div", "text");
       if (scratchIt) t.textContent = m.text || "";
       else if (shield) { card.classList.add("blurred"); t.textContent = "Hidden message"; }
@@ -1669,22 +1943,27 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         if (photo) photo.alt = "Doodle";
         if (m.effect === "doodle-glow") card.classList.add("glowing");
       }
+      card.classList.add("media");
       card.appendChild(frame);
+      if (m.text && !scratchIt) { const t = el("div", "text cap9"); if (shield) t.textContent = "Hidden message"; else hiText(t, m.text); card.appendChild(t); card.classList.add("has-cap"); }
       if (scratchIt) attachScratch(card, "");
       else if (shield && m.effect !== "doodle-glow") card.classList.add("blurred");
     } else if (m.kind === "audio") {
+      card.classList.add("audio9");
       if (m.text && !scratchIt && !shield) { const t = el("div", "text"); hiText(t, m.text); card.appendChild(t); }
       else if (m.text && shield) { card.classList.add("blurred"); card.appendChild(el("div", "text", "Hidden message")); }
       card.appendChild(voiceNode(m));
       if (scratchIt) attachScratch(card, "");
       else if (shield) card.classList.add("blurred");
     } else if (m.kind === "video") {
+      card.classList.add("media");
       card.appendChild(videoNode(m));
+      if (m.text && !scratchIt) { const t = el("div", "text cap9"); if (shield) t.textContent = "Hidden message"; else hiText(t, m.text); card.appendChild(t); card.classList.add("has-cap"); }
       if (scratchIt) attachScratch(card, "");
       else if (shield) card.classList.add("blurred");
     }
     card.addEventListener("pointerup", (e) => {
-      if (e.target.closest(".scratch,.heartbtn,.vplay,.vspeed,.bars,.edlabel,.oncegate")) return;
+      if (e.target.closest(".scratch,.heartbtn,.vplay,.vspeed,.bars,.edlabel,.oncegate,.vf-play,.vc9-tx,video")) return;
       const now = Date.now();
       const live = thread().find(x => x.id === card.dataset.id) || m;
       if (card._tap && now - card._tap < 300) {
@@ -2283,6 +2562,29 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (st.bubble && st.bubble !== "default") chat.dataset.bubble = st.bubble; else delete chat.dataset.bubble;
     if (st.size) chat.dataset.size = st.size; else delete chat.dataset.size;
     if (st.corners) chat.dataset.corners = st.corners; else delete chat.dataset.corners;
+    applyWallpaper(st);
+  }
+  // Chat wallpaper: a photo chosen on this device (kept on the device), with brightness and blur.
+  let wallUrl = null;
+  async function applyWallpaper(st) {
+    const list = $("chat");
+    if (!list || !me) return;
+    list.style.setProperty("--wall-dim", String(st.dim != null ? st.dim : 0.25));
+    list.style.setProperty("--wall-blur", (st.wblur || 0) + "px");
+    if (st.wall === "photo") {
+      try {
+        const blob = await getBlob("wall-" + me);
+        if (blob) {
+          if (wallUrl) URL.revokeObjectURL(wallUrl);
+          wallUrl = URL.createObjectURL(blob);
+          list.style.setProperty("--wall-img", 'url("' + wallUrl + '")');
+          list.classList.add("has-wall");
+          return;
+        }
+      } catch (e) {}
+    }
+    list.classList.remove("has-wall");
+    list.style.removeProperty("--wall-img");
   }
   function openChatLook() {
     const st = { bubble: "default", size: "medium", corners: "round", ...(S(me).chatStyle || {}) };
@@ -2302,7 +2604,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
             c.type = "button";
             c.addEventListener("click", () => {
               st[key] = id;
-              setS(me, { chatStyle: { bubble: st.bubble, size: st.size, corners: st.corners } });
+              setS(me, { chatStyle: { ...(S(me).chatStyle || {}), bubble: st.bubble, size: st.size, corners: st.corners } });
               applyTheme();
               paint();
             });
@@ -2368,6 +2670,22 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
             });
             slot.append(i, peek);
             wrap.appendChild(slot);
+            if (f.meter) {
+              const meter = el("div", "pw9");
+              meter.innerHTML = "<i></i><i></i><i></i><i></i><span></span>";
+              const rate = () => {
+                const s = i.value;
+                let score = 0;
+                if (s.length >= 6) score++;
+                if (s.length >= 10) score++;
+                if (/[A-Z]/.test(s) && /[a-z]/.test(s)) score++;
+                if (/[0-9]/.test(s) || /[^A-Za-z0-9]/.test(s) || /\s/.test(s.trim())) score++;
+                meter.dataset.s = String(s ? Math.max(1, score) : 0);
+                meter.querySelector("span").textContent = !s ? "" : ["", "Weak", "Fair", "Good", "Strong"][Math.max(1, score)];
+              };
+              i.addEventListener("input", rate);
+              wrap.appendChild(meter);
+            }
           } else wrap.appendChild(i);
           body.appendChild(wrap);
         }
@@ -2596,6 +2914,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     return [...TERMS.filter(t => !off.has(t)), ...list.filter(w => !w.startsWith("~"))];
   }
   function openWordManager() {
+    if (window.LeesV9 && LeesV9.openWords) return LeesV9.openWords();
     const OFF = "~";
     const yours = () => (S(me).blurWords || []).filter(w => !w.startsWith(OFF));
     const offSet = () => new Set((S(me).blurWords || []).filter(w => w.startsWith(OFF)).map(w => w.slice(1)));
@@ -2690,6 +3009,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     });
   }
   function openJournal() {
+    if (window.LeesV9 && LeesV9.openJournal) return LeesV9.openJournal();
     openPanel("Journal", "Kept", async (body) => {
       await reloadJournal();
       const add = el("button", "journal-plus");
@@ -3026,12 +3346,18 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     add("profile", { id: "tz", label: "Time zone", keywords: "clock local time", build: () => choiceRow({ id: "tz", icon: "globe", label: "Time zone", sub: "Shown as your local time", get: () => S(me).tz, options: () => ZONES.concat(ZONES.includes(S(me).tz) ? [] : [S(me).tz]).map(z => [z, z.replace(/_/g, " ")]), set: (v) => setS(me, { tz: v }) }) });
     add("profile", { id: "names", label: "Names shown to us", keywords: "labels mr mrs nickname", build: () => inputRow({ id: "names", label: "Names shown to us", sub: shared, fields: [{ value: NAME.Lewis, max: 30, aria: "First name" }, { value: NAME.Agnes, max: 30, aria: "Second name" }], set: (a, b) => { if (!a || !b) { notice("Names can't be empty", "", { error: true }); return false; } return saveSideLabels(a, b); } }) });
     add("profile", { id: "tagline", label: "Lock-screen tagline", keywords: "quote motto sign-in text", build: () => inputRow({ id: "tagline", label: "Lock-screen tagline", sub: shared, get: () => { try { return localStorage.getItem("pp-tagline") || "Do what you love, love what you do."; } catch (e) { return ""; } }, max: 80, set: (v) => { if (!v) return false; return saveTagline(v); } }) });
+    add("profile", { id: "taglines", label: "Lock-screen lines", keywords: "tagline rotate auto quotes sign-in text extras", build: () => setRow({ id: "taglines", icon: "text", label: "Lock-screen lines", sub: "One line, or several that take turns", value: (() => { try { return localStorage.getItem("pp-tagline-mode") === "rotate" ? "Rotating" : "One line"; } catch (e) { return ""; } })(), onClick: () => { if (window.LeesV9) LeesV9.openTaglines(); } }) });
     add("profile", { id: "appicon", label: "App icon", keywords: "home screen icon logo", build: () => setRow({ id: "appicon", icon: "image", label: "App icon", sub: shared, onClick: () => pickImage(setAppIcon) }) });
     // Appearance
     add("look", { id: "theme", label: "Theme", keywords: "colour color dark light night", build: () => setRow({ id: "theme", icon: "palette", label: "Theme", sub: shared, value: (THEMES.find(t => t.id === SH().theme) || THEMES[0]).name, onClick: () => openThemeSheet() }) });
     add("look", { id: "chatlook", label: "Chat look", keywords: "bubbles text size corners wallpaper font", build: () => setRow({ id: "chatlook", icon: "chat", label: "Chat look", sub: "Bubbles, text size and corners on your side", onClick: () => openChatLook() }) });
     // Notifications
     add("alerts", { id: "mute", label: "Mute notifications", keywords: "silent quiet do not disturb", build: () => choiceRow({ id: "mute", icon: "bell", label: "Mute notifications", sub: "Silences sound and buzz for you", get: () => ppMuteChoice(), options: () => [["off", "Not muted"], ["8h", "For 8 hours"], ["1w", "For 1 week"]], set: (v) => ppSetMute(v) }) });
+    add("alerts", { id: "sysnotify", label: "Phone and desktop alerts", keywords: "push notification system banner background lock screen", build: () => switchRow({ id: "sysnotify", icon: "bell", label: "Phone and desktop alerts", sub: "Alerts when The Lees is open but in the background", get: () => "Notification" in window && Notification.permission === "granted" && store.get("pp-sysnotify", true), set: async (v) => {
+      if (!("Notification" in window)) { notice("Not supported here", "Add The Lees to your home screen first, then try again.", { error: true }); return false; }
+      if (v && Notification.permission !== "granted") { const r = await Notification.requestPermission(); if (r !== "granted") { notice("Alerts are blocked", "Allow notifications for this site in your settings.", { error: true }); return false; } }
+      store.set("pp-sysnotify", v);
+    } }) });
     add("alerts", { id: "sound", label: "Sounds", keywords: "chime tone audio", build: () => switchRow({ id: "sound", icon: "sound", label: "Sounds", sub: "A soft chime when a message arrives", get: () => S(me).sound, set: (v) => { setS(me, { sound: v }); } }) });
     add("alerts", { id: "tones", label: "Notification tones", keywords: "sounds ringtone preset volume preview", build: () => { const w = el("div", "sblock"); w.dataset.sid = "tones"; const blk = window.LeesHooks && LeesHooks.soundsBlock ? LeesHooks.soundsBlock() : null; if (blk) w.appendChild(blk); else w.appendChild(el("p", "fp-desc", "Tones load with the app.")); return w; } });
     add("alerts", { id: "haptics", label: "Haptics", keywords: "vibration feel buzz taps", build: () => switchRow({ id: "haptics", icon: "sparkle", label: "Haptics", sub: "Gentle feedback on taps", get: () => S(me).haptics, set: (v) => { setS(me, { haptics: v }); if (v) haptic("press"); } }) });
@@ -3040,7 +3366,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     add("privacy", { id: "receipts", label: "Read receipts", keywords: "seen ticks read", build: () => switchRow({ id: "receipts", icon: "check", label: "Read receipts", sub: "Let " + NAME[other()] + " see when you've read", get: () => myReadReceipts, set: (v) => ppSetReadReceipts(v).then(() => myReadReceipts === v) }) });
     add("privacy", { id: "autoblur", label: "Auto-blur sensitive words", keywords: "blur hide words", build: () => switchRow({ id: "autoblur", icon: "eyeoff", label: "Auto-blur sensitive words", sub: "Blurs " + TERMS.length + " built-in words until you reveal them", get: () => S(me).autoBlur, set: (v) => { setS(me, { autoBlur: v }); render(); } }) });
     add("privacy", { id: "words", label: "Blurred words", keywords: "add remove manage list phrases", build: () => setRow({ id: "words", icon: "edit", label: "Blurred words", sub: "Add your own, switch built-in ones off", value: String((S(me).blurWords || []).filter(z => !z.startsWith("~")).length || ""), onClick: () => openWordManager() }) });
-    add("privacy", { id: "transcribe", label: "Transcribe my voice notes", keywords: "voice text speech transcript", build: () => switchRow({ id: "transcribe", icon: "mic", label: "Transcribe my voice notes", sub: "Clips go to a third-party speech service", get: () => myTranscribe, set: (v) => ppSetTranscribe(v).then(() => myTranscribe === v) }) });
+    add("privacy", { id: "transcribe", label: "Transcribe my voice notes", keywords: "voice text speech transcript dictation", build: () => switchRow({ id: "transcribe", icon: "mic", label: "Transcribe my voice notes", sub: SpeechRec ? "Done by this device's own speech recognition while you record. You review it before sending." : "This browser has no speech recognition. You can still type a transcript.", get: () => liveTxOn(), set: (v) => { if (v && !SpeechRec) { notice("Not available here", "This browser can't transcribe speech.", { error: true }); return false; } try { localStorage.setItem("pp-live-tx", v ? "on" : "off"); } catch (e) {} } }) });
     // Security
     add("security", { id: "lens", label: "Sign-in scanner", keywords: "lens animation login scan passphrase", build: () => choiceRow({ id: "lens", icon: "sparkle", label: "Sign-in scanner", sub: "What sweeps over the passphrase while it checks", get: () => S(me).lens || "auto", options: () => LENS_OPTS, set: (v) => { try { localStorage.setItem("pp-lens", v); } catch (e) {} setS(me, { lens: v }); } }) });
     add("security", { id: "pass", label: "Change passphrase", keywords: "password login", build: () => setRow({ id: "pass", icon: "key", label: "Change passphrase", onClick: () => changePassphrase() }) });
@@ -3062,7 +3388,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     add("data", { id: "pdf", label: "Print or save as PDF", keywords: "print pdf paper", build: () => setRow({ id: "pdf", icon: "download", label: "Print or save as PDF", onClick: () => exportAs("pdf") }) });
     add("data", { id: "backup", label: "Encrypted backup", keywords: "save secure file", build: () => setRow({ id: "backup", icon: "lock", label: "Encrypted backup", onClick: () => makeBackup() }) });
     add("data", { id: "restore", label: "Restore from backup", keywords: "import load file", build: () => setRow({ id: "restore", icon: "undo", label: "Restore from backup", onClick: async () => { if (await confirmAct("Restore from a backup?", "Messages in the backup are added back. Nothing current is removed.", "Choose file")) pickRestore(); } }) });
-    add("data", { id: "clear", label: "Clear conversation", keywords: "delete erase wipe all messages", build: () => setRow({ id: "clear", icon: "trash", label: "Clear conversation", sub: "Asks before anything is removed", danger: true, onClick: () => { if (window.LeesHooks && LeesHooks.clearConversation) LeesHooks.clearConversation(); } }) });
+    add("data", { id: "clear", label: "Clear conversation", keywords: "delete erase wipe all messages", build: () => setRow({ id: "clear", icon: "trash", label: "Clear conversation", sub: "Asks before anything is removed", danger: true, onClick: () => { if (window.LeesV9 && LeesV9.openClear) LeesV9.openClear(); else if (window.LeesHooks && LeesHooks.clearConversation) LeesHooks.clearConversation(); } }) });
     // Extras from other modules (letters, games, awards).
     const extra = (window.LeesSettingsExtra && window.LeesSettingsExtra()) || [];
     for (const e of extra) add(e.cat || "play", { id: e.id, label: e.label, keywords: e.keywords || "", build: () => setRow({ id: e.id, icon: e.icon || "sparkle", label: e.label, sub: e.sub, value: e.value, onClick: e.run }) });
@@ -3230,6 +3556,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
 
   function openMedia() {
+    if (window.LeesV9 && LeesV9.openMedia) return LeesV9.openMedia();
     const scopes = [
       ["image", "Pictures", "Photos shared in the chat", "image"],
       ["audio", "Audio", "Voice notes and sound files", "mic"],
@@ -3437,6 +3764,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   /* ================= Home (journal) ================= */
   function openCalendar() {
+    if (window.LeesV9 && LeesV9.openCalendar) return LeesV9.openCalendar();
     if (!calCursor || Number.isNaN(calCursor.getTime())) calCursor = new Date();
     openPanel("Calendar", "Messages by day", (body) => {
       const nav = el("div", "calnav");
@@ -3599,6 +3927,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     }
   }
   function openNotifications() {
+    if (window.LeesV9 && LeesV9.openNotifications) return LeesV9.openNotifications();
     openPanel("Notifications", "Messages from " + NAME[other()], (body) => {
       body.textContent = "";
       let tab = "all";
@@ -3662,7 +3991,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     out.addEventListener("click", () => confirmSignOut("this"));
     const outWrap = el("div", "signout-wrap");
     outWrap.append(out);
-    bucket.append(main, outWrap);
+    const extras = el("div", "hx9");
+    if (window.LeesV9 && LeesV9.homeExtras) { try { LeesV9.homeExtras(extras); } catch (e) {} }
+    bucket.append(main, extras, outWrap);
     const tools = el("div", "fnbox");
     const grid = el("div", "tools2");
     const items = [
@@ -3687,7 +4018,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       b.dataset.key = icon;
       applyTileSize(b, store.get("pp-home-sizes", {})[icon] || "s");
       b.innerHTML = ic(icon, "sm") + `<span>${label}</span>`;
-      if (icon === "bell" && unreadN) b.insertAdjacentHTML("beforeend", `<span class="notif-count">${unreadN}</span>`);
+      if (icon === "bell" && (unreadN + feedUnread())) b.insertAdjacentHTML("beforeend", `<span class="notif-count">${unreadN + feedUnread()}</span>`);
       if (icon === "plus") { b.setAttribute("aria-label", "Create: sealed letters and games"); if (badge) b.insertAdjacentHTML("beforeend", `<span class="notif-count">${badge}</span>`); }
       b.addEventListener("click", fn);
       grid.appendChild(b);
@@ -3909,21 +4240,49 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     typeTagline();
   }
 
+  // The lock-screen line types itself. In Rotate mode it cycles through several lines: types one, holds it,
+  // erases it and types the next, forever.
   function typeTagline() {
     const DEFAULT_TAGLINE = "Do what you love, love what you do.";
-    let target = DEFAULT_TAGLINE;
-    try { target = localStorage.getItem("pp-tagline") || DEFAULT_TAGLINE; } catch (e) { target = DEFAULT_TAGLINE; }
+    let lines = [DEFAULT_TAGLINE], mode = "one";
+    try {
+      const one = localStorage.getItem("pp-tagline") || DEFAULT_TAGLINE;
+      mode = localStorage.getItem("pp-tagline-mode") || "one";
+      const many = JSON.parse(localStorage.getItem("pp-taglines") || "[]").filter(Boolean);
+      lines = mode === "rotate" && many.length ? many : [one];
+    } catch (e) {}
     const t = $("tagline");
-    clearInterval(typeTagline.h);
+    clearTimeout(typeTagline.h);
     t.classList.remove("done");
-    if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) { t.textContent = target; t.classList.add("done"); return; }
+    if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      let k = 0;
+      t.textContent = lines[0]; t.classList.add("done");
+      if (lines.length > 1) { const step = () => { k = (k + 1) % lines.length; t.textContent = lines[k]; typeTagline.h = setTimeout(step, 5000); }; typeTagline.h = setTimeout(step, 5000); }
+      return;
+    }
+    let li = 0, i = 0, dir = 1;
+    const step = () => {
+      const target = lines[li];
+      if (dir > 0) {
+        t.classList.remove("done");
+        t.textContent = target.slice(0, ++i);
+        if (i >= target.length) {
+          t.classList.add("done");
+          if (lines.length < 2) return;
+          dir = -1; typeTagline.h = setTimeout(step, 3400); return;
+        }
+        typeTagline.h = setTimeout(step, 55);
+      } else {
+        t.classList.remove("done");
+        t.textContent = target.slice(0, --i);
+        if (i <= 0) { dir = 1; li = (li + 1) % lines.length; typeTagline.h = setTimeout(step, 380); return; }
+        typeTagline.h = setTimeout(step, 22);
+      }
+    };
     t.textContent = "";
-    let i = 0;
-    typeTagline.h = setInterval(() => {
-      t.textContent = target.slice(0, ++i);
-      if (i >= target.length) { clearInterval(typeTagline.h); t.classList.add("done"); }
-    }, 60);
+    step();
   }
+
 
   function addSession() {
     const s = store.get(KEY.sessions, []).filter(x => x.id !== sessionId);
@@ -3974,7 +4333,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     $("navrow").textContent = "";
     if (me) store.set(KEY.typing, null);
     closeMediaPreview(true);
-    if (stagedMedia && stagedMedia.thumb) URL.revokeObjectURL(stagedMedia.thumb);
+    releaseStaged(stagedMedia);
     stagedMedia = null;
     sendOpts = { once: false, quiet: false };
     dropHeld();
@@ -4398,19 +4757,47 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
   function showHeld(blob, dur) {
     dropHeld();
-    heldClip = { blob, dur, mime: blob.type || "audio/webm", url: URL.createObjectURL(blob) };
+    heldClip = { blob, dur, mime: blob.type || "audio/webm", url: URL.createObjectURL(blob), liveText: pendingLiveText || "" };
+    pendingLiveText = "";
     renderHoldBar();
     autosize();
     transcribeHeld(blob);
   }
-  function stageMedia(kind, blob, extra, label) {
+  // A staged set: one or more photos, videos or audio files sent together with one tap.
+  // The getters point at the item on screen in the preview, so the editing code works on it unchanged.
+  const STAGE_MAX = 10;
+  function makeItem(kind, blob, extra, label) {
+    return { kind, blob, extra: extra || {}, label, thumb: kind === "audio" ? null : URL.createObjectURL(blob), source: (extra && extra.source) || null, ed: null };
+  }
+  function makeStaged(items) {
+    return {
+      items, idx: 0,
+      get cur() { return this.items[Math.min(this.idx, this.items.length - 1)]; },
+      get kind() { return this.cur.kind; }, get blob() { return this.cur.blob; }, set blob(v) { this.cur.blob = v; },
+      get thumb() { return this.cur.thumb; }, get source() { return this.cur.source; }, get extra() { return this.cur.extra; },
+      get label() { return this.items.length > 1 ? this.items.length + " items ready to send" : this.cur.label; }
+    };
+  }
+  function releaseStaged(s) { if (s) s.items.forEach(it => { if (it.thumb) URL.revokeObjectURL(it.thumb); }); }
+  function stageItems(list) {
+    if (!list.length) return;
     dropHeld();
-    if (stagedMedia && stagedMedia.thumb) URL.revokeObjectURL(stagedMedia.thumb);
-    stagedMedia = { kind, blob, extra: extra || {}, label, thumb: kind === "audio" ? null : URL.createObjectURL(blob), source: (extra && extra.source) || null };
+    if (stagedMedia && $("mediaPreview")) {
+      const room = STAGE_MAX - stagedMedia.items.length;
+      list.slice(0, room).forEach(it => stagedMedia.items.push(it));
+      list.slice(room).forEach(it => { if (it.thumb) URL.revokeObjectURL(it.thumb); });
+      paintPreview(true);
+      return;
+    }
+    releaseStaged(stagedMedia);
+    stagedMedia = makeStaged(list.slice(0, STAGE_MAX));
+    list.slice(STAGE_MAX).forEach(it => { if (it.thumb) URL.revokeObjectURL(it.thumb); });
+    if (list.length > STAGE_MAX) notice("Up to " + STAGE_MAX + " at a time", "The first " + STAGE_MAX + " are ready to send.");
     renderHoldBar();
     autosize();
     openMediaPreview();
   }
+  function stageMedia(kind, blob, extra, label) { stageItems([makeItem(kind, blob, extra, label)]); }
   // One bar above the composer for a held voice note or a staged photo, video or audio file.
   // It lets you choose View once and Quiet before Send. Nothing sends until you tap Send.
   // The held recording's audio element. Chrome reports Infinity for recorded clips, so the real length is read by seeking to the end.
@@ -4468,37 +4855,70 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
   /* Voice transcription: the held clip goes to the transcribe-voice function after Done. The text is
      editable in the player and is saved with the message on Send. Off when the Settings switch is off. */
-  async function transcribeHeld(blob) {
-    const client = cloudClient();
-    if (!client || !pairId || !myTranscribe || !heldClip || heldClip.blob !== blob) return;
-    const still = () => heldClip && heldClip.blob === blob;
-    if (blob.size > 5 * 1024 * 1024) { heldClip.tx = { status: "failed", text: "" }; renderHoldBar(); return; }
-    heldClip.tx = { status: "pending", text: "" };
-    renderHoldBar();
+  /* Transcription with no third-party service: the browser's own speech recognition listens while you record.
+     The text is shown for review (and editing) before Send. Where the browser has none, you can type one. */
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  function liveTxOn() {
+    if (!SpeechRec) return false;
+    let v = null;
+    try { v = localStorage.getItem("pp-live-tx"); } catch (e) {}
+    if (v === "on") return true;
+    if (v === "off") return false;
+    return !isIOS && myTranscribe;
+  }
+  let recog = null, recogText = "", recogInterim = "";
+  function startRecog() {
+    recogText = ""; recogInterim = "";
+    if (!liveTxOn()) return;
     try {
-      if (!navigator.onLine) throw new Error("offline");
-      const fd = new FormData();
-      const ext = (blob.type || "").includes("mp4") ? "m4a" : (blob.type || "").includes("ogg") ? "ogg" : "webm";
-      fd.append("audio", blob, "voice-note." + ext);
-      const res = await client.functions.invoke("transcribe-voice", { body: fd });
-      if (!still()) return;
-      if (res.error || !res.data || typeof res.data.text !== "string") throw new Error("transcribe failed");
-      heldClip.tx = { status: "done", text: res.data.text.trim() };
-    } catch {
-      if (still()) heldClip.tx = { status: "failed", text: "" };
-    }
-    if (still()) renderHoldBar();
+      recog = new SpeechRec();
+      recog.continuous = true;
+      recog.interimResults = true;
+      recog.lang = navigator.language || "en-US";
+      recog.onresult = (e) => {
+        recogInterim = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) recogText += (recogText ? " " : "") + r[0].transcript.trim();
+          else recogInterim += r[0].transcript;
+        }
+        const live = $("recLive");
+        if (live) live.textContent = (recogText + " " + recogInterim).trim().slice(-90);
+      };
+      recog.onerror = () => {};
+      recog.onend = () => { if (rec && recog) { try { recog.start(); } catch (e) {} } };
+      recog.start();
+    } catch (e) { recog = null; }
+  }
+  function stopRecog() {
+    const r = recog;
+    recog = null;
+    if (r) { try { r.stop(); } catch (e) {} }
+    const txt = (recogText + " " + recogInterim).trim();
+    const live = $("recLive");
+    if (live) live.textContent = "";
+    return txt;
+  }
+  async function transcribeHeld(blob) {
+    if (!heldClip || heldClip.blob !== blob) return;
+    const txt = heldClip.liveText || "";
+    if (txt) heldClip.tx = { status: "done", text: txt };
+    else heldClip.tx = { status: SpeechRec && liveTxOn() ? "empty" : "none", text: "" };
+    renderHoldBar();
   }
   function heldTranscript(tx) {
-    if (tx.status === "pending") return el("p", "htx", "Transcribing...");
-    if (tx.status === "failed") return el("p", "htx", "Couldn't turn this clip into text. You can still send it.");
+    const wrap = el("div", "htx9");
+    const head = el("div", "htx9-h");
+    head.append(el("span", "mono", tx.status === "done" ? "Transcript · check it before sending" : "Transcript · optional"));
     const ta = el("textarea", "htx-text");
     ta.rows = 2;
     ta.value = tx.text || "";
-    ta.placeholder = "Transcript";
+    ta.placeholder = tx.status === "empty" ? "Nothing was heard clearly. Type what you said, or leave it empty." : tx.status === "none" ? "This browser can't transcribe. Type what you said, or leave it empty." : "Transcript";
     ta.setAttribute("aria-label", "Transcript, you can edit it");
-    ta.addEventListener("input", () => { tx.text = ta.value; });
-    return ta;
+    ta.addEventListener("input", () => { tx.text = ta.value; tx.status = ta.value.trim() ? "done" : tx.status; });
+    wrap.append(head, ta);
+    return wrap;
   }
 
   /* Staged photo, video or audio: thumbnail above the composer, full-screen preview on tap. */
@@ -4558,7 +4978,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function openMediaPreview() {
     if (!stagedMedia) return;
     closeMediaPreview(true);
-    ped = { rot: 0, flip: false, ratio: null, cropIdx: 0, hd: false };
+    ped = stagedMedia.cur.ed ? { ...stagedMedia.cur.ed } : { rot: 0, flip: false, ratio: null, cropIdx: 0, hd: false };
     if (stagedMedia.kind !== "image") pvUrl = URL.createObjectURL(stagedMedia.blob);
     const ov = document.createElement("div");
     ov.id = "mediaPreview";
@@ -4571,7 +4991,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     paintPreview(true);
     history.pushState && history.pushState({ lp: "preview" }, "");
   }
-  window.addEventListener("popstate", () => { if ($("mediaPreview")) { if (stagedMedia && stagedMedia.thumb) URL.revokeObjectURL(stagedMedia.thumb); stagedMedia = null; closeMediaPreview(false, true); renderHoldBar(); } });
+  window.addEventListener("popstate", () => { if ($("mediaPreview")) { releaseStaged(stagedMedia); stagedMedia = null; closeMediaPreview(false, true); renderHoldBar(); } });
   function closeMediaPreview(silent, fromPop) {
     const ov = $("mediaPreview");
     if (ov) { ov.remove(); if (!fromPop && history.state && history.state.lp === "preview") { try { history.back(); } catch (e) {} } }
@@ -4634,6 +5054,33 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const mb = mpIcon(m && m.muted ? PV_ICONS.mute : PV_ICONS.sound, "Preview sound", () => { if (!m) return; m.muted = !m.muted; mb.querySelector("path").setAttribute("d", m.muted ? PV_ICONS.mute : PV_ICONS.sound); });
       top.append(mb);
     }
+    let strip = ov.querySelector(".mp-strip");
+    if (!strip) { strip = el("div", "mp-strip"); ov.insertBefore(strip, opts); }
+    strip.textContent = "";
+    {
+      stagedMedia.items.forEach((it, i) => {
+        const t = el("button", "mp-th" + (i === stagedMedia.idx ? " on" : ""));
+        t.type = "button";
+        t.setAttribute("aria-label", "Item " + (i + 1));
+        if (it.kind === "image") { const im = new Image(); im.src = it.thumb; im.alt = ""; t.appendChild(im); }
+        else if (it.kind === "video") { const v = document.createElement("video"); v.src = it.thumb; v.muted = true; v.preload = "metadata"; v.playsInline = true; t.appendChild(v); t.insertAdjacentHTML("beforeend", '<span class="mp-th-play"></span>'); }
+        else t.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></svg>';
+        if (stagedMedia.items.length > 1) {
+          const x = el("span", "mp-th-x"); x.setAttribute("role", "button"); x.setAttribute("aria-label", "Remove item " + (i + 1)); x.textContent = "×";
+          x.addEventListener("click", (e) => { e.stopPropagation(); const [gone] = stagedMedia.items.splice(i, 1); if (gone.thumb) URL.revokeObjectURL(gone.thumb); stagedMedia.idx = Math.min(stagedMedia.idx, stagedMedia.items.length - 1); switchItem(stagedMedia.idx, true); });
+          t.appendChild(x);
+        }
+        t.addEventListener("click", () => switchItem(i));
+        strip.appendChild(t);
+      });
+      if (stagedMedia.items.length < STAGE_MAX) {
+        const more = el("button", "mp-th add");
+        more.type = "button"; more.setAttribute("aria-label", "Add more");
+        more.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+        more.addEventListener("click", () => { const f = $("file"); f.accept = "image/*,video/*,audio/*"; f.multiple = true; f.click(); });
+        strip.appendChild(more);
+      }
+    }
     opts.textContent = "";
     const pill = (label, on, fn, d) => {
       const b = el("button", "mp-pill" + (on ? " on" : ""));
@@ -4663,6 +5110,16 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     bar.querySelector(".mp-compose").append(cap, send);
     setTimeout(fit, 0);
   }
+  function switchItem(i, force) {
+    if (!stagedMedia) return;
+    if (!force && i === stagedMedia.idx) return;
+    if (stagedMedia.items[stagedMedia.idx]) stagedMedia.items[stagedMedia.idx].ed = ped ? { ...ped } : null;
+    stagedMedia.idx = i;
+    if (pvUrl) { URL.revokeObjectURL(pvUrl); pvUrl = null; }
+    ped = stagedMedia.cur.ed ? { ...stagedMedia.cur.ed } : { rot: 0, flip: false, ratio: null, cropIdx: 0, hd: false };
+    if (stagedMedia.kind !== "image") pvUrl = URL.createObjectURL(stagedMedia.blob);
+    paintPreview(true);
+  }
   async function refreshPreviewImg() {
     const token = ++pvSeq;
     if (!stagedMedia || !ped || stagedMedia.kind !== "image") return;
@@ -4682,17 +5139,21 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const btn = document.querySelector("#mediaPreview .mp-send");
     if (btn) btn.classList.add("busy");
     try {
-      if (stagedMedia.kind === "image") {
-        const out = await exportEditedPhoto(stagedMedia.source || stagedMedia.blob, { ...ped }, ped.hd ? 2560 : 1600);
-        if (!out) { notice("Couldn't prepare that photo", "Try again or choose another.", { error: true }); return; }
-        stagedMedia.blob = out;
+      stagedMedia.cur.ed = { ...ped };
+      for (const it of stagedMedia.items) {
+        if (it.kind !== "image" || !it.ed) continue;
+        const e = it.ed;
+        if (!e.rot && !e.flip && !e.ratio && !e.hd) continue;
+        const out = await exportEditedPhoto(it.source || it.blob, { ...e }, e.hd ? 2560 : 1600);
+        if (!out) { notice("Couldn't prepare a photo", "Try again or remove it.", { error: true }); return; }
+        it.blob = out;
       }
       closeMediaPreview();
       await sendText();
     } finally { pvSending = false; }
   }
   function removeFromPreview() {
-    if (stagedMedia && stagedMedia.thumb) URL.revokeObjectURL(stagedMedia.thumb);
+    releaseStaged(stagedMedia);
     stagedMedia = null;
     sendOpts = { once: false, quiet: false };
     closeMediaPreview();
@@ -4770,7 +5231,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const mkIcon = (d, label, fn, cls) => { const x = el("button", "hv8-ic" + (cls ? " " + cls : "")); x.type = "button"; x.setAttribute("aria-label", label); x.title = label; x.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '"/></svg>'; x.addEventListener("click", fn); return x; };
     const toggles = el("div", "hv8-opts");
     const pill = (label, key) => { const p = el("button", "hv8-pill" + (sendOpts[key] ? " on" : ""), label); p.type = "button"; p.setAttribute("aria-pressed", String(!!sendOpts[key])); p.addEventListener("click", () => { sendOpts[key] = !sendOpts[key]; p.classList.toggle("on", sendOpts[key]); p.setAttribute("aria-pressed", String(sendOpts[key])); haptic("press"); }); return p; };
-    toggles.append(pill("View once", "once"), pill("Quiet", "quiet"));
+    toggles.append(pill(heldClip ? "Listen once" : "View once", "once"), pill("Quiet", "quiet"));
     if (heldClip) {
       const head = el("div", "hv8-head");
       head.append(el("span", "hv8-dot"), el("span", "hv8-label", "Voice note · ready"), toggles);
@@ -4780,7 +5241,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       if (heldClip.tx) b.append(heldTranscript(heldClip.tx));
     } else if (stagedMedia) {
       const row = el("div", "hv8-row");
-      row.append(stageThumb(), el("span", "hv8-label", stagedMedia.label + " · tap to preview"), toggles, mkIcon(PV_ICONS.trash, "Remove", () => { if (stagedMedia && stagedMedia.thumb) URL.revokeObjectURL(stagedMedia.thumb); stagedMedia = null; renderHoldBar(); autosize(); }, "danger"));
+      row.append(stageThumb(), el("span", "hv8-label", stagedMedia.label + " · tap to preview"), toggles, mkIcon(PV_ICONS.trash, "Remove", () => { releaseStaged(stagedMedia); stagedMedia = null; renderHoldBar(); autosize(); }, "danger"));
       b.append(row);
     }
     if (old) old.replaceWith(b); else $("footer").before(b);
@@ -4811,14 +5272,16 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
 
   async function handleFiles(files) {
+    const items = [];
     for (const f of [...files]) {
       try {
-        if (f.type.startsWith("image/")) { const blob = await compressImage(f); if (!blob) { notice("Couldn't save that photo", "Try a different image.", { error: true }); continue; } stageMedia("image", blob, { source: f }, "Photo ready to send"); }
-        else if (f.type.startsWith("video/")) stageMedia("video", f, { dur: await audioDuration(f), mime: f.type }, "Video ready to send");
-        else if (f.type.startsWith("audio/")) stageMedia("audio", f, { dur: await audioDuration(f), mime: f.type }, "Audio ready to send");
+        if (f.type.startsWith("image/")) { const blob = await compressImage(f); if (!blob) { notice("Couldn't add that photo", "Try a different image.", { error: true }); continue; } items.push(makeItem("image", blob, { source: f }, "Photo ready to send")); }
+        else if (f.type.startsWith("video/")) items.push(makeItem("video", f, { dur: await audioDuration(f), mime: f.type }, "Video ready to send"));
+        else if (f.type.startsWith("audio/")) items.push(makeItem("audio", f, { dur: await audioDuration(f), mime: f.type }, "Audio ready to send"));
         else notice("That file type isn't supported", "Choose a picture, a video, or an audio file.", { error: true });
       } catch { notice("Couldn't add " + (f.name || "that file"), "", { error: true }); }
     }
+    stageItems(items);
   }
 
   // "ideal" values: a device that can't do mono 48 kHz still records instead of failing with OverconstrainedError.
@@ -4845,7 +5308,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     }
   }
 
-  let recSendNow = false;
+  let recSendNow = false, pendingLiveText = "";
   async function startRecording() {
     if (rec || startRecording.busy) return;
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) { notice("Recording isn't available here", "Attach an audio file instead."); return; }
@@ -4880,6 +5343,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       rec.onerror = () => { notice("Recording stopped", "The microphone was interrupted. What was recorded is kept.", { error: true }); stopRecording(true); };
       // A timeslice keeps data flowing, so a recording is never lost if the stop event is late.
       rec.start(250);
+      startRecog();
       recStart = Date.now();
       recHistory = [];
       haptic("press");
@@ -4907,6 +5371,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const r = rec;
     const stream = recStream;
     const dur = Math.max(1, Math.round((Date.now() - recStart) / 1000));
+    const liveText = stopRecog();
     rec = null;
     cancelAnimationFrame(recRAF);
     clearInterval(recTimer);
@@ -4921,6 +5386,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       if (!sendIt) return;
       if (!chunks.length) { notice("Nothing was recorded", "Check the microphone and try again.", { error: true }); return; }
       try {
+        pendingLiveText = liveText;
         showHeld(new Blob(chunks, { type: r.mimeType || "audio/webm" }), dur);
         if (recSendNow) { recSendNow = false; sendText(); }
       } catch (err) {
@@ -5003,6 +5469,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
 
   function openSchedulePicker() {
+    if (window.LeesV9 && LeesV9.openSchedule) return LeesV9.openSchedule();
     const now = new Date();
     const at = (h, m, addDays) => { const d = new Date(now); d.setDate(d.getDate() + (addDays || 0)); d.setHours(h, m, 0, 0); return d.getTime(); };
     let effect = "hearts";
@@ -5081,7 +5548,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }));
   $("fdate").addEventListener("change", () => { dateFilter = $("fdate").value; renderChat(); });
 
-  $("lookBtn").addEventListener("click", () => { if (unlocked) openChatLook(); });
+  $("lookBtn").addEventListener("click", () => { if (!unlocked) return; if (window.LeesV9 && LeesV9.openStudio) LeesV9.openStudio(); else openChatLook(); });
   $("shieldBtn").addEventListener("click", () => {
     shield = !shield;
     $("shieldBtn").classList.toggle("shieldon", shield);
@@ -5151,7 +5618,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     });
     $("sheetScrim").onclick = () => sheetClose();
   }
-  $("attach").addEventListener("click", () => openAttachMenu());
+  // Attach opens the picker at once: photos, videos and audio, several at a time.
+  $("attach").addEventListener("click", () => { const f = $("file"); f.accept = "image/*,video/*,audio/*"; f.multiple = true; f.click(); });
   $("file").addEventListener("change", (e) => { handleFiles(e.target.files); e.target.value = ""; });
   let homeHold = 0;
   $("home").addEventListener("pointerdown", (e) => {
@@ -5193,12 +5661,12 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   const cancelPress = () => { clearTimeout(pressTimer); pressTimer = 0; pressStart = null; };
   $("list").addEventListener("contextmenu", (e) => e.preventDefault());
   $("list").addEventListener("pointerdown", (e) => {
-    if (e.target.closest(".vplay,.vspeed,.bars,.edlabel,.unsend,.oncegate")) return;
+    if (e.target.closest(".vplay,.vspeed,.bars,.edlabel,.unsend,.oncegate,.vf-play,.vc9-tx")) return;
     const card = e.target.closest(".msg");
     if (!card || card.classList.contains("gone")) {
       if (!e.target.closest(".row") && e.button === 0) {
         pressStart = [e.clientX, e.clientY];
-        pressTimer = setTimeout(() => { pressTimer = 0; haptic("press"); openThemeBar("chat"); }, 500);
+        pressTimer = setTimeout(() => { pressTimer = 0; haptic("press"); if (window.LeesV9 && LeesV9.openStudio) LeesV9.openStudio(); else openThemeBar("chat"); }, 520);
       }
       return;
     }
@@ -5242,7 +5710,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const hist = e.target.closest("[data-hist]");
     if (hist) { const m = thread().find(x => x.id === hist.dataset.hist); if (m) openHistory(m); return; }
     const img = e.target.closest("img.photo");
-    if (img && img.src && !img.closest(".blurred:not(.revealed)")) { $("lbImg").src = img.src; $("lightbox").classList.remove("hidden"); }
+    if (img && img.src && !img.closest(".blurred:not(.revealed)")) { if (window.LeesV9 && LeesV9.viewPhoto) { const row = img.closest("[data-row]"); LeesV9.viewPhoto(row ? row.dataset.row : null, img.src); } else { $("lbImg").src = img.src; $("lightbox").classList.remove("hidden"); } }
   });
   document.addEventListener("pointerdown", (e) => {
     if (!e.target.closest("#vmenu") && !e.target.closest(".msg") && !$("vmenu").classList.contains("hidden")) closeActions();
@@ -5386,7 +5854,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       replyTo: r.reply_to || null, effect: r.effect || "none", hiddenBy: r.hidden_for || [],
       deletedFor: r.deleted_for || [], deleted: !!r.deleted, moment: !!r.moment,
       history: r.history || [], edited: !!r.edited, editedAt: r.edited_at ? new Date(r.edited_at).getTime() : null,
-      late: !!r.late, dur: r.dur || 0, noArchive: !!r.no_archive, archived: !!r.archived, pending: false, clientId: r.client_id || null, once: !!r.once, openedBy: r.opened_by || [], quiet: !!r.quiet
+      late: !!r.late, dur: r.dur || 0, transcript: r.transcript || "", noArchive: !!r.no_archive, archived: !!r.archived, pending: false, clientId: r.client_id || null, once: !!r.once, openedBy: r.opened_by || [], quiet: !!r.quiet
     };
   }
   function noteFromRow(r) {
@@ -5461,6 +5929,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (settings.data) {
       cacheShared = { theme: settings.data.theme || "warm", archiveDays: settings.data.archive_days || 0, appIcon: settings.data.app_icon || null, pinnedId: settings.data.pinned_message_id || null };
       if (settings.data.tagline) { try { localStorage.setItem("pp-tagline", settings.data.tagline); } catch (e) {} }
+      try {
+        if (Array.isArray(settings.data.taglines)) localStorage.setItem("pp-taglines", JSON.stringify(settings.data.taglines));
+        if (settings.data.tagline_mode) localStorage.setItem("pp-tagline-mode", settings.data.tagline_mode);
+      } catch (e) {}
       applySideLabels(settings.data.label_lewis, settings.data.label_agnes);
       if (cacheShared.appIcon) applyAppIcon(cacheShared.appIcon);
     }
@@ -5622,7 +6094,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
             if (window.LeesHooks && LeesHooks.arrived && dotsRect) LeesHooks.arrived(dotsRect, [m.id]);
             const runFx = () => { if (m.effect && m.effect !== "none") playEffect(m); };
             if (window.LeesHooks && LeesHooks.afterArrival) LeesHooks.afterArrival(runFx); else runFx();
-            if (ppShouldAlert(m)) { chime(); arrivalBuzz(); }
+            const watching = view === "chat" && !document.hidden;
+            if (watching) { if (ppShouldAlert(m)) { chime(); arrivalBuzz(); } }
+            else alertMe("message", NAME[m.from], previewOf(m).slice(0, 140), { quiet: !!m.quiet, ref: m.id, side: m.from, noFeed: true, action: { label: "Reply", run: () => openChat() } });
             if (view === "chat" && !document.hidden) { if (wasNearRt) { scrollBottomInstant(); markRead(); } else passUnread(false); }
             else if (document.hidden) document.title = "(" + unreadN + ") " + baseTitle;
           } else { cancelAnimationFrame(subscribePair._r); subscribePair._r = requestAnimationFrame(() => { if (unlocked) render(); }); }
@@ -5634,7 +6108,16 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
           reloadAll().then(() => { if (!unlocked) return; render(); noteDelivered(prevSched); refreshUnread(); });
         }, 280);
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "notes", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "notes", filter: "pair_id=eq." + pairId }, (p) => {
+        const r = p && p.new;
+        if (r && p.eventType === "INSERT" && r.side && r.side !== me) alertMe("journal", NAME[r.side] + " left you a note", String(r.text || "").slice(0, 120), { ref: "note-" + r.id, side: r.side, action: { label: "Read", run: () => openJournal() } });
+        reloadAll().then(() => { if (unlocked) render(); });
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "journal_entries", filter: "pair_id=eq." + pairId }, (p) => {
+        const r = p && p.new;
+        if (r && r.side && r.side !== me) alertMe("journal", NAME[r.side] + " wrote in the journal", String(r.text || "").slice(0, 120), { ref: "journal-" + r.id, side: r.side, action: { label: "Read", run: () => openJournal() } });
+        reloadJournal().then(() => { if (unlocked && view === "panel") render(); });
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "scheduled_messages", filter: "sender_id=eq." + myUserId }, () => {
         const prevSched = cacheSched.map(s => s.id);
         reloadAll().then(() => { if (!unlocked) return; render(); noteDelivered(prevSched); });
@@ -6036,7 +6519,13 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const opts = { once: sendOpts.once, quiet: sendOpts.quiet };
       sendOpts = { once: false, quiet: false };
       renderHoldBar();
-      await addMedia(sm.kind, sm.blob, { ...sm.extra, text: text || null, ...opts });
+      const items = sm.items.slice();
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        // The message goes with the last item, so it reads under the whole set.
+        await addMedia(it.kind, it.blob, { ...it.extra, text: (i === items.length - 1 && text) ? text : null, ...opts });
+      }
+      releaseStaged(sm);
       return;
     }
     if (clip && !editingId) {
@@ -6049,7 +6538,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const opts = { once: sendOpts.once, quiet: sendOpts.quiet };
       sendOpts = { once: false, quiet: false };
       renderHoldBar();
-      const tx = clip.tx && clip.tx.status === "done" ? String(clip.tx.text || "").trim() : "";
+      const tx = clip.tx ? String(clip.tx.text || "").trim() : "";
       await addMedia("audio", blob, { dur, text: text || null, transcript: tx || null, ...opts });
       return;
     }
@@ -6767,47 +7256,34 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   async function changePassphrase() {
     const client = cloudClient();
     if (!client) return;
-    let q1 = 0, q2 = 1;
-    try {
-      const prompts = await client.rpc("recovery_prompts", { p_side: me });
-      const row = (prompts.data || [])[0];
-      if (row) { q1 = row.q1; q2 = row.q2; }
-    } catch {}
     const v = await formPanel({
       title: "Change passphrase",
-      desc: "Enter the current passphrase, choose a new one, then set both recovery questions. If something is wrong, what you typed stays so you can edit it.",
+      desc: "Confirm the one you use now, then choose a new one. Recovery questions are separate, in Security.",
       fields: [
         { key: "cur", label: "Current passphrase", type: "password" },
-        { key: "next", label: "New passphrase", type: "password", placeholder: "At least 4 characters" },
-        { key: "again", label: "Repeat new passphrase", type: "password" },
-        { key: "q1", label: "First recovery question", type: "select", options: QUESTIONS, value: q1 },
-        { key: "a1", label: "First answer", placeholder: "Answer" },
-        { key: "q2", label: "Second recovery question", type: "select", options: QUESTIONS, value: q2 },
-        { key: "a2", label: "Second answer", placeholder: "Answer" }
+        { key: "next", label: "New passphrase", type: "password", placeholder: "At least 6 characters", meter: true },
+        { key: "again", label: "Repeat new passphrase", type: "password" }
       ],
-      submit: "Save passphrase",
+      submit: "Change passphrase",
       validate: (x) => {
         if (!x.cur) return "Enter your current passphrase.";
-        if (x.next.length < 4) return "Use at least 4 characters for the new passphrase.";
+        if (x.next.length < 6) return "Use at least 6 characters for the new passphrase.";
+        if (x.next === x.cur) return "The new passphrase is the same as the current one.";
         if (x.next !== x.again) return "The two new passphrases don't match.";
-        if (+x.q1 === +x.q2) return "Choose two different questions.";
-        if (normAnswer(x.a1).length < 2 || normAnswer(x.a2).length < 2) return "Write both recovery answers.";
         return null;
       },
       validateAsync: async (x) => {
         const check = await client.auth.signInWithPassword({ email: SIDE_EMAIL[me], password: x.cur });
-        if (check.error) return "Current passphrase is wrong. It is still here — edit it and try again.";
-        const rec = await client.functions.invoke("setup-recovery", { body: { q1: +x.q1, q2: +x.q2, a1: normAnswer(x.a1), a2: normAnswer(x.a2) } });
-        if (rec.error || (rec.data && rec.data.error)) return ((rec.data && rec.data.error) || "Recovery didn't save.") + " Your answers are still here.";
+        if (check.error) return "That isn't your current passphrase. It's still here, so you can fix it.";
         const upd = await client.auth.updateUser({ password: x.next });
         if (upd.error) return (upd.error.message || "Couldn't change the passphrase.") + " Your writing is still here.";
         return null;
       }
     });
     if (!v) return;
-    rememberSide(me, { known: true, qs: [{ q: QUESTIONS[+v.q1] }, { q: QUESTIONS[+v.q2] }] });
-    notice("Passphrase changed", "Recovery questions are saved. Sign-in still asks only for the passphrase.");
+    notice("Passphrase changed", "Use the new one the next time you sign in.", { kind: "success" });
   }
+
   async function editRecovery() {
     const client = cloudClient();
     if (!client) return;
@@ -6929,6 +7405,25 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     settings: (side) => S(side || me), stillPanel, ensureAudio: () => { try { ensureAudio(); } catch (e) {} return audioCtx; },
     mute: () => !ppShouldAlert({}), arrivalBuzz
   };
+  Object.assign(window.LeesApp, {
+    alert: alertMe, feedAll, feedUnread, renderBellCount,
+    feedSave: (list) => { try { store.set(feedKey(), list.slice(-FEED_MAX)); } catch (e) {} renderBellCount(); },
+    STICKERS, stickerNode, stickerOf, sendNudge, loveBurst,
+    reloadJournal, saveJournal, editJournal, deleteJournal,
+    notes: () => notesAll(), addNote, saveNoteEdit, removeNote,
+    scheduleText, sched: () => sched(), cancelScheduled, sendScheduledNow, openScheduled,
+    TERMS, S, setS, SH, setSH, THEMES, applyTheme, resolvedTheme, darkTheme, putBlob, getBlob, delBlob,
+    visibleList: () => visibleList(), mediaURL, deleteForMe, deleteForEveryone, addMedia, resendCard, previewOf,
+    reloadAll, render: () => render(), formPanel, choicePanel, saveTagline,
+    openChatAt: (start, end) => openChat(false, { day: { start, end } }), fillAvatars, archiveMessage: async (id) => { const c = cloudClient(); const r = await c.rpc("archive_message", { p_id: id }); if (!r.error) { await reloadAll(); render(); } return !r.error; },
+    setMoment, openMoments, fmtDur, store, typeTagline, nudgeReady: () => Math.max(0, Number(store.get("pp-nudge-at", 0)) + NUDGE_GAP - Date.now())
+  });
+  // Live values: real getters, so callers always see the current data.
+  Object.defineProperties(window.LeesApp, {
+    journal: { get: () => cacheJournal || [], configurable: true },
+    seen: { get: () => cacheSeen, configurable: true },
+    draft: { get: () => $("input").value, set: (v) => { $("input").value = v; autosize(); saveDraft(true); }, configurable: true }
+  });
   document.addEventListener("visibilitychange", () => { if (!document.hidden && unlocked) document.dispatchEvent(new CustomEvent("lees:resume")); });
 
   // Start.
@@ -6946,8 +7441,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   })();
 })();
 </script>
-<script src="/lees-patch.js?v=16" defer></script>
-<script src="/lees-v8.js?v=2" defer></script>
+<script src="/lees-patch.js?v=17" defer></script>
+<script src="/lees-v8.js?v=3" defer></script>
+<script src="/lees-v9.js?v=2" defer></script>
 <script>
   // Offline shell: the app opens without a connection after one visit. Data comes from the on-device copy.
   if ("serviceWorker" in navigator && location.protocol === "https:") {

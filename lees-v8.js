@@ -255,6 +255,9 @@
     var close = el("button", "v8-x"); close.type = "button"; close.setAttribute("aria-label", "Close letter"); close.innerHTML = svg("M18 6L6 18M6 6l12 12");
     var tools = el("div", "v8-rtools");
     if (e.from === a.me && !e.openedAt && e.openAt > Date.now()) {
+      var edb = el("button", "btn sm", "Edit letter"); edb.type = "button";
+      edb.addEventListener("click", function () { ov.remove(); composeLetter({ id: e.id, title: row.title || "", body: row.body, seal: row.seal, paper: row.paper, at: row.open_at }); });
+      tools.appendChild(edb);
       var wd = el("button", "btn ghost sm", "Withdraw letter"); wd.type = "button";
       wd.addEventListener("click", async function () {
         var ok = await a.centredBanner({ title: "Withdraw this letter?", desc: a.name(e.to) + " will no longer see it. This can't be undone.", okLabel: "Withdraw" });
@@ -287,13 +290,13 @@
     }
   }
   function localInput(dt) { var p = function (n) { return String(n).padStart(2, "0"); }; return dt.getFullYear() + "-" + p(dt.getMonth() + 1) + "-" + p(dt.getDate()) + "T" + p(dt.getHours()) + ":" + p(dt.getMinutes()); }
-  function composeLetter() {
+  function composeLetter(editing) {
     var a = A();
-    var draft = store.get("v8-letter-draft-" + a.me, { title: "", body: "", seal: "wax-red", paper: "cream", at: null });
-    a.openPanel("New sealed letter", "To " + a.name(a.other), stillFn(function (body) {
+    var draft = editing ? { title: editing.title, body: editing.body, seal: editing.seal || "wax-red", paper: editing.paper || "cream", at: editing.at } : store.get("v8-letter-draft-" + a.me, { title: "", body: "", seal: "wax-red", paper: "cream", at: null });
+    a.openPanel(editing ? "Edit sealed letter" : "New sealed letter", "To " + a.name(a.other), stillFn(function (body) {
       body.classList.add("v8");
       setPanel(null);
-      var save = function () { store.set("v8-letter-draft-" + a.me, draft); };
+      var save = function () { if (!editing) store.set("v8-letter-draft-" + a.me, draft); };
       var sheet = el("div", "v8-compose");
       var paper = el("div", "v8-paper edit");
       var setPaper = function () { paper.style.setProperty("--paper", (PAPERS[draft.paper] || PAPERS.cream)[0]); paper.className = "v8-paper edit p-" + draft.paper; };
@@ -357,20 +360,24 @@
       looks.appendChild(papers);
       var go = el("button", "btn wide v8-seal-btn");
       go.type = "button";
-      go.innerHTML = '<span class="v8-wax-mini"></span><span>Seal and send</span>';
+      go.innerHTML = '<span class="v8-wax-mini"></span><span>' + (editing ? "Save and reseal" : "Seal and send") + '</span>';
       go.addEventListener("click", async function () {
         var t = Date.parse(dt.value);
         if (!ta.value.trim()) { a.notice("Write the letter first", "", { error: true }); ta.focus(); return; }
         if (!(t > Date.now() + 30000)) { a.notice("Choose when it can be opened", "Pick a time at least a minute from now.", { error: true }); dt.focus(); return; }
-        var ok = await a.centredBanner({ title: "Seal this letter?", desc: a.name(a.other) + " will see the envelope now and can open it from " + fmtWhen(t) + ". You can read it any time.", okLabel: "Seal it" });
+        var ok = await a.centredBanner({ title: editing ? "Save changes?" : "Seal this letter?", desc: editing ? "The letter stays sealed until " + fmtWhen(t) + ". " + a.name(a.other) + " is told it changed." : a.name(a.other) + " will see the envelope now and can open it from " + fmtWhen(t) + ". You can read and edit it until then.", okLabel: editing ? "Save" : "Seal it" });
         if (!ok) return;
         go.disabled = true;
         var c = sb();
-        var r = await c.from("sealed_letters").insert({ pair_id: a.pairId, author_id: a.userId, author_side: a.me, recipient_side: a.other, title: title.value.trim(), body: ta.value, seal: draft.seal, paper: draft.paper, open_at: new Date(t).toISOString() }).select("id, open_at").maybeSingle();
+        var fields = { title: title.value.trim(), body: ta.value, seal: draft.seal, paper: draft.paper, open_at: new Date(t).toISOString() };
+        var r = editing
+          ? await c.from("sealed_letters").update(fields).eq("id", editing.id).select("id, open_at").maybeSingle()
+          : await c.from("sealed_letters").insert(Object.assign({ pair_id: a.pairId, author_id: a.userId, author_side: a.me, recipient_side: a.other }, fields)).select("id, open_at").maybeSingle();
+        if (editing && !r.error && !r.data) r = { error: { message: "It may already be open, so it can't be changed" } };
         go.disabled = false;
         if (r.error) { a.notice("Couldn't seal the letter", friendly(r.error) + " Your letter is still here.", { error: true }); return; }
-        store.set("v8-letter-draft-" + a.me, { title: "", body: "", seal: draft.seal, paper: draft.paper, at: null });
-        ping("letter", { kind: "sealed", id: r.data && r.data.id, open_at: new Date(t).toISOString() });
+        if (!editing) store.set("v8-letter-draft-" + a.me, { title: "", body: "", seal: draft.seal, paper: draft.paper, at: null });
+        ping("letter", { kind: editing ? "edited" : "sealed", id: r.data && r.data.id, open_at: new Date(t).toISOString() });
         await loadEnvelopes();
         sealAnimation(draft.seal, function () { a.goBack(); openLetters("out"); a.notice("Letter sealed", a.name(a.other) + " can open it " + fmtWhen(t) + "."); });
       });
@@ -393,8 +400,9 @@
     var a = A(); if (!a || !a.unlocked) return;
     loadEnvelopes().then(function () {
       rerender();
-      if (p.kind === "sealed") a.notice(a.name(a.other) + " sealed a letter for you", p.open_at ? "It can be opened " + fmtWhen(Date.parse(p.open_at)) + "." : "", { action: { label: "See it", run: function () { openLetters("in"); } } });
-      if (p.kind === "opened") a.notice(a.name(a.other) + " opened your letter", "", {});
+      if (p.kind === "sealed") alertTo("letter", a.name(a.other) + " sealed a letter for you", p.open_at ? "It can be opened " + fmtWhen(Date.parse(p.open_at)) + "." : "", "letter-sealed-" + p.id, { label: "See it", run: function () { openLetters("in"); } });
+      if (p.kind === "edited") alertTo("letter", a.name(a.other) + " changed a sealed letter", "It still opens " + (p.open_at ? fmtWhen(Date.parse(p.open_at)) : "on its day") + ".", "letter-edit-" + p.id + "-" + Date.now(), { label: "See it", run: function () { openLetters("in"); } });
+      if (p.kind === "opened") alertTo("letter", a.name(a.other) + " opened your letter", "", "letter-opened-" + p.id, { label: "See it", run: function () { openLetters("out"); } });
     });
   }
   // A letter whose day has come is announced with priority: a full-screen card, once per letter on each device.
@@ -419,7 +427,7 @@
     box.appendChild(row);
     ov.appendChild(box);
     document.body.appendChild(ov);
-    try { if (!a.mute()) { a.chime(); a.arrivalBuzz(); } } catch (err) {}
+    try { if (a.alert) a.alert("letter", "A sealed letter is ready", (e.title || "From " + a.name(e.from)), { ref: "letter-ready-" + e.id, toast: false, priority: true }); else if (!a.mute()) { a.chime(); a.arrivalBuzz(); } } catch (err) {}
     requestAnimationFrame(function () { ov.classList.add("open"); });
     later.addEventListener("click", function () { ov.remove(); refreshBadges(); });
     open.addEventListener("click", function () { ov.remove(); openLetter(e); });
@@ -459,13 +467,20 @@
     D.game = newest;
     if (D.pendingMove && row.id === D.pendingMove.g && (row.state.board || [])[D.pendingMove.cell]) D.pendingMove = null;
     refreshBadges();
-    if (row.status === "invited" && row.state.by !== a.me && (!prev || prev.status !== "invited")) checkInvite();
+    if (row.status === "invited" && row.state.by !== a.me && (!prev || prev.status !== "invited")) {
+      if (D.gameOpen) alertTo("game", a.name(row.state.by) + " wants a rematch", "", "game-inv-" + row.id, { label: "Play", run: function () { acceptAndOpen(row); } });
+      else { a.alert("game", a.name(row.state.by) + " challenged you", "Tic-tac-toe, live", { ref: "game-inv-" + row.id, toast: false, priority: true }); checkInvite(); }
+    }
     if (row.status === "active" && prev && prev.status === "invited" && row.state.by === a.me) { a.notice(a.name(a.other) + " joined the game", "", {}); if (!D.gameOpen) openGame(); }
     if (row.status === "done" && (!prev || prev.status !== "done")) onGameOver(row);
-    if (row.status === "abandoned" && prev && prev.status !== "abandoned" && row.state.quit_by && row.state.quit_by !== a.me) a.notice(a.name(a.other) + " left the game", "", {});
+    if (row.status === "abandoned" && prev && prev.status !== "abandoned" && row.state.quit_by && row.state.quit_by !== a.me) {
+      if (prev.status === "invited") alertTo("game", a.name(a.other) + " said not now", "Your tic-tac-toe invite was declined.", "game-decline-" + row.id, { label: "Invite again", run: function () { openGame(); } });
+      else alertTo("game", a.name(a.other) + " left the game", "", "game-left-" + row.id, null);
+    }
     rerenderGame();
   }
-  function onGamePing(p) { if (p && p.kind === "nudge" && A().unlocked) A().notice(A().name(A().other) + " is waiting for your move", "", { action: { label: "Play", run: openGame } }); }
+  function onGamePing(p) { if (p && p.kind === "nudge" && A().unlocked) alertTo("game", A().name(A().other) + " is waiting for your move", "", "game-nudge-" + Date.now(), { label: "Play", run: openGame }); }
+  function alertTo(kind, title, detail, ref, action) { var a = A(); if (a.alert) a.alert(kind, title, detail, { ref: ref, action: action || undefined }); else a.notice(title, detail, { kind: kind, action: action || undefined }); }
   function checkInvite() {
     var a = A(), g = pendingInvite();
     if (!g || D.gameOpen || document.querySelector(".v8-invite")) return;
@@ -480,7 +495,13 @@
     document.body.appendChild(ov);
     try { if (!a.mute()) a.chime(); } catch (e) {}
     requestAnimationFrame(function () { ov.classList.add("open"); });
-    no.addEventListener("click", function () { ov.remove(); });
+    no.addEventListener("click", async function () {
+      ov.remove();
+      var r = await sb().rpc("game_quit", { p_id: g.id });
+      ping("game", { kind: "declined", id: g.id });
+      if (r && r.data) onGameRow(Array.isArray(r.data) ? r.data[0] : r.data);
+      a.notice("Invite declined", a.name(g.state.by) + " will see you said not now.", { kind: "game" });
+    });
     yes.addEventListener("click", function () { ov.remove(); acceptAndOpen(g); });
   }
   async function acceptAndOpen(g) {
@@ -739,7 +760,7 @@
   function onAward(w) {
     var a = A(); if (!w || !a) return;
     if (!D.awards.some(function (x) { return x.id === w.id; })) D.awards.unshift(w);
-    if (w.side !== a.me) { var info = AWARDS[w.code]; if (info) a.notice(a.name(w.side) + " earned " + info.t, info.d + " · +" + (w.points || info.p) + " points", {}); }
+    if (w.side !== a.me) { var info = AWARDS[w.code]; if (info) alertTo("award", a.name(w.side) + " earned " + info.t, info.d + " · +" + (w.points || info.p) + " points", "award-" + w.id, { label: "Trophies", run: openCabinet }); }
     rerender();
   }
   function medal(code, earned) {
