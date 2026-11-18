@@ -72,7 +72,9 @@
       .subscribe();
   }
   function ping(event, payload) { try { if (D.chan) D.chan.send({ type: "broadcast", event: event, payload: payload }); } catch (e) {} }
-  function rerender() { var a = A(); if (a && a.view === "panel" && D.panel && D.panel.redraw) D.panel.redraw(); }
+  function setPanel(fn) { D.panel = fn ? { redraw: fn, title: ($("panelTitle") || {}).textContent } : null; }
+  // Only the panel that registered may redraw, and only while it is the one on screen.
+  function rerender() { var a = A(); if (a && a.view === "panel" && D.panel && D.panel.redraw && $("panelTitle").textContent === D.panel.title) D.panel.redraw(); }
 
   document.addEventListener("lees:unlocked", function () {
     D.shownReady = store.get("v8-shown-" + A().me, {});
@@ -112,7 +114,7 @@
     var a = A(); if (!a) return;
     a.openPanel("Create", "Just for the two of you", stillFn(function (body) {
       body.classList.add("v8");
-      D.panel = { redraw: function () { a.renderPanel(); } };
+      setPanel(function () { a.renderPanel(); });
       var grid = el("div", "v8-hub");
       var ready = readyForMe().length, sealedForThem = D.env.filter(function (e) { return e.from === a.me && !e.openedAt; }).length;
       grid.appendChild(hubCard("letter", "Sealed letter", "Write now, choose the day it can be opened", ready ? ready + " ready for you" : sealedForThem ? sealedForThem + " sealed for " + a.name(a.other) : "", function () { openLetters(); }, ready > 0));
@@ -167,7 +169,7 @@
     var cur = tab || (readyForMe().length || D.env.some(function (e) { return e.to === a.me; }) ? "in" : "out");
     a.openPanel("Sealed letters", "Written now, opened on the day", stillFn(function (body) {
       body.classList.add("v8");
-      D.panel = { redraw: function () { a.renderPanel(); } };
+      setPanel(function () { a.renderPanel(); });
       var tabs = el("div", "v8-tabs");
       [["in", "For you"], ["out", "From you"]].forEach(function (t) {
         var b = el("button", "v8-tab" + (cur === t[0] ? " on" : ""), t[1]);
@@ -290,7 +292,7 @@
     var draft = store.get("v8-letter-draft-" + a.me, { title: "", body: "", seal: "wax-red", paper: "cream", at: null });
     a.openPanel("New sealed letter", "To " + a.name(a.other), stillFn(function (body) {
       body.classList.add("v8");
-      D.panel = null;
+      setPanel(null);
       var save = function () { store.set("v8-letter-draft-" + a.me, draft); };
       var sheet = el("div", "v8-compose");
       var paper = el("div", "v8-paper edit");
@@ -323,7 +325,7 @@
       dt.value = localInput(initialAt);
       var hint = el("div", "v8-hint");
       var showHint = function () { var t = Date.parse(dt.value); hint.textContent = isFinite(t) ? (t <= Date.now() ? "Choose a time in the future." : until(t) + " · " + fmtWhen(t)) : ""; hint.classList.toggle("bad", !(t > Date.now())); };
-      dt.addEventListener("input", function () { draft.at = new Date(dt.value).toISOString(); save(); showHint(); markQuick(); });
+      dt.addEventListener("input", function () { var t = Date.parse(dt.value); draft.at = isFinite(t) ? new Date(t).toISOString() : null; save(); showHint(); markQuick(); });
       var quicks = [
         ["Tonight, 9 pm", function () { var d = new Date(); d.setHours(21, 0, 0, 0); if (d <= new Date()) d.setDate(d.getDate() + 1); return d; }],
         ["Tomorrow morning", function () { var d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); return d; }],
@@ -429,10 +431,14 @@
   var QUICK = ["Your move! ⏳", "Good one 👏", "Ha! 😄", "Watch this 😎", "Not fair 😤", "GG 🤝", "Rematch? 🔁", "Hurry up ⏰"];
   // Server time is read from each row: the clock is the row's deadline measured against its updated_at,
   // so a phone with the wrong time still shows the right countdown.
-  function noteClock(g) {
+  // A row that just arrived was written moments ago, so its updated_at gives the server-clock offset.
+  // Older rows (from a reload) use that offset instead of assuming they are fresh.
+  function noteClock(g, fresh) {
     if (!g || !g.state) return;
-    var dl = g.state.deadline ? Date.parse(g.state.deadline) : 0, up = Date.parse(g.updated_at || g.created_at);
-    g._localDeadline = dl ? Date.now() + Math.max(0, dl - up) : 0;
+    var up = Date.parse(g.updated_at || g.created_at);
+    if (fresh && isFinite(up)) D.offset = up - Date.now();
+    var dl = g.state.deadline ? Date.parse(g.state.deadline) : 0;
+    g._localDeadline = dl ? dl - (D.offset || 0) : 0;
   }
   function tally(side) {
     var w = 0, l = 0, d = 0, me = side;
@@ -448,7 +454,7 @@
     var i = D.games.findIndex(function (g) { return g.id === row.id; });
     var prev = i >= 0 ? D.games[i] : null;
     if (i >= 0) D.games[i] = row; else D.games.unshift(row);
-    noteClock(row);
+    noteClock(row, true);
     var newest = D.games.slice().sort(function (x, y) { return Date.parse(y.created_at) - Date.parse(x.created_at); })[0];
     D.game = newest;
     if (D.pendingMove && row.id === D.pendingMove.g && (row.state.board || [])[D.pendingMove.cell]) D.pendingMove = null;
@@ -493,17 +499,17 @@
   }
   function openGame() {
     var a = A();
-    D.gameOpen = true;
     a.openPanel("Tic-tac-toe", "Live with " + a.name(a.other), stillFn(function (body) {
       body.classList.add("v8", "v8-gamebody");
-      D.panel = { redraw: rerenderGame };
+      D.gameOpen = true;
+      clearInterval(D.tickTimer);
+      D.tickTimer = setInterval(tick, 100);
+      setPanel(rerenderGame);
       var wrap = el("div", "ttt");
       wrap.id = "tttWrap";
       body.appendChild(wrap);
       drawGame();
     }));
-    clearInterval(D.tickTimer);
-    D.tickTimer = setInterval(tick, 100);
   }
   function rerenderGame() { if (D.gameOpen && $("tttWrap")) drawGame(); }
   function boardOf(g) { var b = (g && g.state && g.state.board) || ["", "", "", "", "", "", "", "", ""]; if (D.pendingMove && g && D.pendingMove.g === g.id) { b = b.slice(); b[D.pendingMove.cell] = A().me; } return b; }
@@ -720,10 +726,15 @@
   async function grant(codes, gameId) {
     var a = A(), c = sb(); if (!codes.length || !c) return;
     var rows = codes.map(function (code) { var w = AWARDS[code]; return { pair_id: a.pairId, user_id: a.userId, side: a.me, game: "tictactoe", code: code, tier: w.tier, points: w.p, game_id: gameId, meta: { title: w.t } }; });
-    var r = await c.from("awards").insert(rows).select("*");
-    if (r.error) { if (!/duplicate|unique/i.test(r.error.message)) a.notice("Couldn't save your award", friendly(r.error), { error: true }); return; }
-    (r.data || rows).forEach(function (w) { if (!D.awards.some(function (x) { return x.id && x.id === w.id; })) D.awards.unshift(w); });
-    showAwards(codes);
+    var won = [];
+    for (var k = 0; k < rows.length; k++) {
+      var r = await c.from("awards").insert(rows[k]).select("*").maybeSingle();
+      if (r.error) { if (!/duplicate|unique/i.test(r.error.message)) a.notice("Couldn't save your award", friendly(r.error), { error: true }); continue; }
+      var w = r.data || rows[k];
+      if (!D.awards.some(function (x) { return x.id && x.id === w.id; })) D.awards.unshift(w);
+      won.push(codes[k]);
+    }
+    if (won.length) showAwards(won);
   }
   function onAward(w) {
     var a = A(); if (!w || !a) return;
@@ -759,10 +770,10 @@
   }
   function openCabinet() {
     var a = A();
-    loadAwards().then(function () { if (D.panel && D.panel.cab) a.renderPanel(); });
+    loadAwards().then(function () { if (D.panel && D.panel.cab) rerender(); });
     a.openPanel("Trophy cabinet", "Awards from every game", stillFn(function (body) {
       body.classList.add("v8");
-      D.panel = { cab: true, redraw: function () { a.renderPanel(); } };
+      setPanel(function () { a.renderPanel(); }); D.panel.cab = true;
       var top = el("div", "cab-top");
       [a.me, a.other].forEach(function (side) {
         var p = xp(side), lv = level(p), nextAt = 12 * lv * lv, prevAt = 12 * (lv - 1) * (lv - 1);

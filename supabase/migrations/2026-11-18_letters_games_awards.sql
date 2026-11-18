@@ -33,7 +33,8 @@ create policy sealed_insert on public.sealed_letters for insert with check (
 -- The author may change or withdraw a letter only while it is still sealed.
 drop policy if exists sealed_update on public.sealed_letters;
 create policy sealed_update on public.sealed_letters for update using (author_id = auth.uid() and open_at > now() and opened_at is null)
-  with check (author_id = auth.uid() and author_side = public.my_side());
+  with check (author_id = auth.uid() and author_side = public.my_side() and pair_id in (select public.my_pair_ids())
+    and recipient_side <> author_side and opened_at is null);
 drop policy if exists sealed_delete on public.sealed_letters;
 create policy sealed_delete on public.sealed_letters for delete using (author_id = auth.uid() and open_at > now() and opened_at is null);
 grant select, insert, update, delete on public.sealed_letters to authenticated;
@@ -107,6 +108,7 @@ declare pid uuid; s text := public.my_side(); g public.game_sessions;
 begin
   select pair_id into pid from public.pair_members where user_id = auth.uid();
   if pid is null then raise exception 'No pair'; end if;
+  perform pg_advisory_xact_lock(hashtext(pid::text));
   update public.game_sessions set status = 'abandoned', updated_at = now()
     where pair_id = pid and status in ('invited','active') and updated_at < now() - interval '30 minutes';
   select * into g from public.game_sessions where pair_id = pid and status in ('invited','active') order by created_at desc limit 1;
@@ -125,7 +127,8 @@ declare g public.game_sessions;
 begin
   select * into g from public.game_sessions where id = p_id and pair_id in (select public.my_pair_ids()) for update;
   if not found then raise exception 'Game not found'; end if;
-  if g.status = 'invited' then
+  -- Only the invited side can accept.
+  if g.status = 'invited' and g.state->>'by' <> public.my_side() then
     update public.game_sessions set status = 'active', updated_at = now(),
       state = g.state || jsonb_build_object('deadline', to_jsonb(now() + interval '10 seconds'), 'started_at', to_jsonb(now()))
       where id = p_id returning * into g;
@@ -208,6 +211,7 @@ declare old public.game_sessions; g public.game_sessions; s text := public.my_si
 begin
   select * into old from public.game_sessions where id = p_id and pair_id in (select public.my_pair_ids());
   if not found then raise exception 'Game not found'; end if;
+  perform pg_advisory_xact_lock(hashtext(old.pair_id::text));
   select * into g from public.game_sessions where pair_id = old.pair_id and status in ('invited','active') order by created_at desc limit 1;
   if found then return g; end if;
   starter := case
@@ -234,18 +238,19 @@ create table if not exists public.awards (
   game text not null default 'tictactoe' check (char_length(game) <= 30),
   code text not null check (char_length(code) <= 40),
   tier text not null default 'bronze' check (tier in ('bronze','silver','gold','diamond')),
-  points int not null default 10 check (points between 0 and 10000),
+  points int not null default 10 check (points between 0 and 200),
   meta jsonb not null default '{}'::jsonb,
   game_id uuid references public.game_sessions(id) on delete set null,
   created_at timestamptz not null default now()
 );
-create unique index if not exists awards_once_idx on public.awards(user_id, game, code) where (meta->>'repeat') is null;
+create unique index if not exists awards_once_idx on public.awards(user_id, game, code);
 create index if not exists awards_pair_idx on public.awards(pair_id, created_at desc);
 alter table public.awards enable row level security;
 drop policy if exists awards_read on public.awards;
 create policy awards_read on public.awards for select using (pair_id in (select public.my_pair_ids()));
 drop policy if exists awards_insert on public.awards;
-create policy awards_insert on public.awards for insert with check (pair_id in (select public.my_pair_ids()) and user_id = auth.uid() and side = public.my_side());
+create policy awards_insert on public.awards for insert with check (pair_id in (select public.my_pair_ids()) and user_id = auth.uid() and side = public.my_side()
+  and code ~ '^[a-z0-9_]{1,40}$' and (game_id is null or game_id in (select id from public.game_sessions where pair_id in (select public.my_pair_ids()) and status = 'done')));
 grant select, insert on public.awards to authenticated;
 
 -- ---------- Realtime ----------

@@ -493,7 +493,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 .fx{position:fixed;bottom:-30px;z-index:95;pointer-events:none;color:var(--accent);animation:fxrise 4.4s ease-out forwards}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
-<link rel="stylesheet" href="/lees-v8.css?v=1">
+<link rel="stylesheet" href="/lees-v8.css?v=2">
 </head>
 <body>
 
@@ -1519,9 +1519,15 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
   async function gateChat(next) {
     const client = cloudClient();
+    // No chat lock on the last sync: open at once (the database still enforces any lock on the messages themselves).
+    if (cachedLockMode === "off" && (!client || !navigator.onLine || !pairId)) { chatGate = true; next(); return; }
     if (!client || !pairId) { notice("Couldn't check the chat lock", "Try again when you are online.", { error: true }); return; }
     const r = await client.from("pair_settings").select("chat_lock_mode,chat_lock_salt,chat_lock_hash").eq("pair_id", pairId).maybeSingle();
-    if (r.error) { notice("Couldn't check the chat lock", "Try again when you are online.", { error: true }); return; }
+    if (r.error) {
+      if (cachedLockMode === "off") { chatGate = true; next(); return; }
+      notice("Couldn't check the chat lock", "Try again when you are online.", { error: true }); return;
+    }
+    cachedLockMode = (r.data && r.data.chat_lock_mode) || "off";
     const s = r.data;
     if (!s || !s.chat_lock_mode || s.chat_lock_mode === "off") { chatGate = true; next(); return; }
     openPanel("Locked chat", "Enter your passphrase to open it.", (body) => {
@@ -3967,6 +3973,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     $("people").textContent = "";
     $("navrow").textContent = "";
     if (me) store.set(KEY.typing, null);
+    closeMediaPreview(true);
+    if (stagedMedia && stagedMedia.thumb) URL.revokeObjectURL(stagedMedia.thumb);
+    stagedMedia = null;
+    sendOpts = { once: false, quiet: false };
     dropHeld();
     me = null;
     prevUnread = 0;
@@ -4561,10 +4571,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     paintPreview(true);
     history.pushState && history.pushState({ lp: "preview" }, "");
   }
-  window.addEventListener("popstate", () => { if ($("mediaPreview")) closeMediaPreview(); });
-  function closeMediaPreview(silent) {
+  window.addEventListener("popstate", () => { if ($("mediaPreview")) { if (stagedMedia && stagedMedia.thumb) URL.revokeObjectURL(stagedMedia.thumb); stagedMedia = null; closeMediaPreview(false, true); renderHoldBar(); } });
+  function closeMediaPreview(silent, fromPop) {
     const ov = $("mediaPreview");
-    if (ov) ov.remove();
+    if (ov) { ov.remove(); if (!fromPop && history.state && history.state.lp === "preview") { try { history.back(); } catch (e) {} } }
     if (pvUrl) { URL.revokeObjectURL(pvUrl); pvUrl = null; }
     ped = null;
     if (!silent && $("input")) autosize();
@@ -5413,7 +5423,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   let snapTimer = 0;
   function saveSnapshot(snap) {
     clearTimeout(snapTimer);
+    if (!unlocked) return;
     snapTimer = setTimeout(() => {
+      if (!unlocked) return;
       try {
         const data = { v: 1, at: Date.now(), userId: myUserId, side: me, pairId, ...snap, messages: snap.messages.slice(-600) };
         localStorage.setItem(SNAP_KEY, JSON.stringify(data));
@@ -5427,8 +5439,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     } catch (e) {}
     return null;
   }
-  function dropSnapshot() { try { localStorage.removeItem(SNAP_KEY); } catch (e) {} }
+  function dropSnapshot() { clearTimeout(snapTimer); try { localStorage.removeItem(SNAP_KEY); } catch (e) {} }
+  let cachedLockMode = null;
   function applyRows(d) {
+    cachedLockMode = d.settings ? (d.settings.chat_lock_mode || "off") : cachedLockMode;
     const members = { data: d.members }, settings = { data: d.settings }, messages = { data: d.messages }, notes = { data: d.notes }, scheduled = { data: d.scheduled }, reads = { data: d.reads }, nreads = { data: d.nreads }, journal = { data: d.journal };
     sideOfUser = {}; userOfSide = {}; cacheMembers = {};
     for (const row of members.data || []) {
@@ -5611,7 +5625,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
             if (ppShouldAlert(m)) { chime(); arrivalBuzz(); }
             if (view === "chat" && !document.hidden) { if (wasNearRt) { scrollBottomInstant(); markRead(); } else passUnread(false); }
             else if (document.hidden) document.title = "(" + unreadN + ") " + baseTitle;
-          } else render();
+          } else { cancelAnimationFrame(subscribePair._r); subscribePair._r = requestAnimationFrame(() => { if (unlocked) render(); }); }
         }
         clearTimeout(subscribePair._t);
         subscribePair._t = setTimeout(() => {
@@ -5698,11 +5712,19 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       applyRows(snap);
       localUnreadSync();
       // Sync behind the painted screen; render once fresh data is in.
-      sync().then((r) => {
-        if (!unlocked) return;
-        if (r && r.error) { if (navigator.onLine) notice("Working from this device", "The latest messages will load when the connection returns.", { error: true }); return; }
+      let tries = 0;
+      const attempt = () => sync().then((r) => {
+        if (!unlocked || me !== side) return;
+        if (r && r.error) {
+          if (tries++ === 0 && navigator.onLine) notice("Working from this device", "The latest messages will load when the connection returns.", { error: true });
+          pendingSync = attempt;
+          clearTimeout(syncRetry); syncRetry = setTimeout(() => { if (pendingSync === attempt && unlocked) attempt(); }, Math.min(60000, 3000 * tries));
+          return;
+        }
+        pendingSync = null; clearTimeout(syncRetry);
         render(); refreshUnread(); prefetchMedia();
-      }).catch(() => {});
+      }).catch(() => { pendingSync = attempt; });
+      attempt();
       return true;
     }
     if (!navigator.onLine) { notice("You're offline", "Connect once on this device so The Lees can keep a copy for offline use.", { error: true }); return false; }
@@ -5711,6 +5733,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     prefetchMedia();
     return true;
   }
+  let pendingSync = null, syncRetry = 0;
+  const kickSync = () => { if (pendingSync && unlocked && navigator.onLine) pendingSync(); };
+  window.addEventListener("online", kickSync);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) kickSync(); });
   function localUnreadSync() { try { unreadN = localUnreadCount(); } catch (e) {} }
   // Warms the newest photos so scrolling the chat and Media doesn't wait on the network.
   let prefetched = new Set();
@@ -6870,7 +6896,14 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       return true;
     }
     const ins = await client.from("messages").insert({ pair_id: pairId, sender_id: myUserId, kind: "text", text, effect: "none", client_id: clientId, quiet: !!(opts && opts.quiet) }).select().maybeSingle();
-    if (ins.error) { markFailed(local.id); notice("Couldn't send", ins.error.message, { error: true }); return false; }
+    if (ins.error) {
+      markFailed(local.id);
+      const box = outbox();
+      box.push({ kind: "text", text, effect: "none", replyTo: null, clientId, localId: local.id });
+      saveOutbox(box);
+      notice("Waiting to send", ins.error.message, { error: true });
+      return false;
+    }
     cacheThread = thread().filter(x => x.id !== local.id);
     if (ins.data) cacheThread = cacheThread.concat([msgFromRow(ins.data)]).sort((a, b) => a.ts - b.ts);
     haptic("send");
@@ -6913,8 +6946,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   })();
 })();
 </script>
-<script src="/lees-patch.js?v=15" defer></script>
-<script src="/lees-v8.js?v=1" defer></script>
+<script src="/lees-patch.js?v=16" defer></script>
+<script src="/lees-v8.js?v=2" defer></script>
 <script>
   // Offline shell: the app opens without a connection after one visit. Data comes from the on-device copy.
   if ("serviceWorker" in navigator && location.protocol === "https:") {
