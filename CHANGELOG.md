@@ -94,7 +94,3 @@ New files: lees-v9.js, lees-v9.css, supabase/migrations/2026-11-19_tagline_rotat
 - Draw speed: finished ink is kept as a bitmap; each frame draws only the stroke in progress, once per screen
   refresh (measured 16.7 ms per frame with 40 strokes and a fill). Pen pressure changes line thickness. The card
   colour sits behind the ink, so the eraser removes only ink. Undo removes the last stroke.
-- Draw follows Instagram's layout: you draw straight on the conversation; bottom bar with close, undo last stroke,
-  current brush, colours and a round send; a floating brush pill (pen, marker, highlighter, arrow, text, bucket,
-  eraser, neon glow, background); size on a left-edge handle; Add space slides the conversation and the drawing up
-  together and opens clean room below. Controls fade while you draw.
