@@ -104,3 +104,17 @@ New files: lees-v9.js, lees-v9.css, supabase/migrations/2026-11-19_tagline_rotat
 - Home: the tool grid can no longer push past the screen; tiles stack icon over name on phones; the six extras use
   line icons.
 - Laptops (not Apple devices): emoji show as modern artwork (Twemoji via jsDelivr; CSP img-src updated).
+
+## v10 (2026-11-19)
+New: lees-v10.js; migrations 2026-11-19_special_days.sql, 2026-11-19_grants_and_existing_rpcs.sql (applied live).
+- Swipe right on a message to reply; tap a quoted reply to jump to the original.
+- Fixed: the reply bar was always invisible (a leftover "hidden" class), so you couldn't see what you were replying to.
+- Our special days: anniversary, birthdays, firsts, trips; shared; countdown hero, calendar marks, a reminder the
+  day before and a celebration on the day. Settings → Letters, games & awards, and from the Calendar.
+- Fixed from a full audit: lock-screen lines and special days now save for both (column grants); journal pages are
+  never lost on a failed save; no duplicate bubble for stickers/answers; stickers can't inherit a staged reply;
+  Clear conversation uses local dates; Mark all read also marks messages seen; camera mode no longer sticks;
+  choice sheets and confirmations sit above viewers and the studio; Escape never acts behind an overlay; studio and
+  video viewer close with Escape; lines preview stops when you leave; emoji artwork is CORS-clean, observed less
+  often and never retried after failing; CSP allows data:/blob: fetches (backup restore, photo save, waveforms);
+  the service worker only caches good pages.

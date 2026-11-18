@@ -494,7 +494,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
 <link rel="stylesheet" href="/lees-v8.css?v=4">
-<link rel="stylesheet" href="/lees-v9.css?v=7">
+<link rel="stylesheet" href="/lees-v9.css?v=8">
 </head>
 <body>
 
@@ -2397,6 +2397,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function showBar(label, text) {
     $("replyLabel").textContent = label;
     $("replyText").textContent = text;
+    $("replyBar").classList.remove("hidden");
     $("replyBar").style.display = "flex";
   }
   function clearBar() { replyTo = null; editingId = null; $("replyBar").style.display = "none"; }
@@ -3106,16 +3107,19 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
   async function saveJournal(text, kind) {
     const client = cloudClient();
-    if (!client || !pairId) return;
-    await client.from("journal_entries").insert({ pair_id: pairId, side: me, kind, text });
+    if (!client || !pairId) { notice("Couldn't save", "You're offline. Your page is still here.", { error: true }); return false; }
+    const r = await client.from("journal_entries").insert({ pair_id: pairId, side: me, kind, text });
+    if (r.error) { notice("Couldn't save", r.error.message + ". Your page is still here.", { error: true }); return false; }
     await reloadJournal();
+    return true;
   }
   async function editJournal(id, text, kind) {
     const client = cloudClient();
-    if (!client || !pairId) return;
+    if (!client || !pairId) { notice("Couldn't save", "You're offline. Your changes are still here.", { error: true }); return false; }
     const r = await client.from("journal_entries").update({ text, kind, edited_at: new Date().toISOString() }).eq("id", id);
-    if (r.error) { notice("Couldn't save that entry", r.error.message, { error: true }); return; }
+    if (r.error) { notice("Couldn't save that entry", r.error.message, { error: true }); return false; }
     await reloadJournal();
+    return true;
   }
   async function deleteJournal(id) {
     const client = cloudClient();
@@ -5623,7 +5627,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
   // Attach opens the picker at once: photos, videos and audio, several at a time.
   $("attach").addEventListener("click", () => { const f = $("file"); f.accept = "image/*,video/*,audio/*"; f.multiple = true; f.click(); });
-  $("file").addEventListener("change", (e) => { handleFiles(e.target.files); e.target.value = ""; });
+  $("file").addEventListener("change", (e) => { handleFiles(e.target.files); e.target.value = ""; e.target.removeAttribute("capture"); });
   let homeHold = 0;
   $("home").addEventListener("pointerdown", (e) => {
     if (e.target.closest("button,a,input,textarea,select")) return;
@@ -5741,6 +5745,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   document.addEventListener("keydown", (e) => {
     lastActivity = Date.now();
     if (e.key === "Escape") {
+      if (document.querySelector(".cb-scrim,.v9-viewer,.v9-studio,.v8-overlay,.ov9,#mediaPreview")) return;
+      if (drawUi && !drawUi.layer.classList.contains("hidden")) return;
       if (!$("sheet").classList.contains("hidden")) return sheetClose();
       if (!$("lightbox").classList.contains("hidden")) return closeLightbox();
       if (!$("actionBar").classList.contains("hidden")) return closeActions();
@@ -5911,7 +5917,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     return null;
   }
   function dropSnapshot() { clearTimeout(snapTimer); try { localStorage.removeItem(SNAP_KEY); } catch (e) {} }
-  let cachedLockMode = null;
+  let cachedLockMode = null, specialDays = [];
   function applyRows(d) {
     cachedLockMode = d.settings ? (d.settings.chat_lock_mode || "off") : cachedLockMode;
     const members = { data: d.members }, settings = { data: d.settings }, messages = { data: d.messages }, notes = { data: d.notes }, scheduled = { data: d.scheduled }, reads = { data: d.reads }, nreads = { data: d.nreads }, journal = { data: d.journal };
@@ -5932,6 +5938,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (settings.data) {
       cacheShared = { theme: settings.data.theme || "warm", archiveDays: settings.data.archive_days || 0, appIcon: settings.data.app_icon || null, pinnedId: settings.data.pinned_message_id || null };
       if (settings.data.tagline) { try { localStorage.setItem("pp-tagline", settings.data.tagline); } catch (e) {} }
+      if (Array.isArray(settings.data.special_days)) specialDays = settings.data.special_days;
       try {
         if (Array.isArray(settings.data.taglines)) localStorage.setItem("pp-taglines", JSON.stringify(settings.data.taglines));
         if (settings.data.tagline_mode) localStorage.setItem("pp-tagline-mode", settings.data.tagline_mode);
@@ -6441,7 +6448,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function addMessage(partial) {
     const localId = "local-" + uid();
     const m = { id: localId, from: me, ts: Date.now(), hearts: [], kind: "text", pending: true, ...partial };
-    if (replyTo) m.replyTo = { id: replyTo.id, from: replyTo.from, preview: replyTo.preview };
+    if (replyTo && !("replyTo" in partial)) m.replyTo = { id: replyTo.id, from: replyTo.from, preview: replyTo.preview };
     cacheThread = thread().concat([m]);
     return m;
   }
@@ -7583,7 +7590,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       notice("Waiting to send", ins.error.message, { error: true });
       return false;
     }
-    cacheThread = thread().filter(x => x.id !== local.id);
+    cacheThread = thread().filter(x => x.id !== local.id && x.clientId !== clientId && !(ins.data && x.id === ins.data.id));
     if (ins.data) cacheThread = cacheThread.concat([msgFromRow(ins.data)]).sort((a, b) => a.ts - b.ts);
     haptic("send");
     render();
@@ -7618,12 +7625,15 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     TERMS, S, setS, SH, setSH, THEMES, applyTheme, resolvedTheme, darkTheme, putBlob, getBlob, delBlob,
     visibleList: () => visibleList(), mediaURL, deleteForMe, deleteForEveryone, addMedia, resendCard, previewOf,
     reloadAll, render: () => render(), formPanel, choicePanel, saveTagline,
+    markSeen: async () => { const latest = visibleList().reduce((mx, m) => Math.max(mx, m.ts || 0), cacheSeen[me] || 0); if (!latest) return; cacheSeen[me] = latest; unreadN = 0; renderBanner(); renderBellCount(); await syncReadCursor(latest); },
     openChatAt: (start, end) => openChat(false, { day: { start, end } }), fillAvatars, archiveMessage: async (id) => { const c = cloudClient(); const r = await c.rpc("archive_message", { p_id: id }); if (!r.error) { await reloadAll(); render(); } return !r.error; },
-    setMoment, openMoments, fmtDur, store, typeTagline, openDraw, nudgeReady: () => Math.max(0, Number(store.get("pp-nudge-at", 0)) + NUDGE_GAP - Date.now())
+    setMoment, openMoments, fmtDur, store, typeTagline, openDraw, setReply, jumpToMessage,
+    get specialDays() { return specialDays; }, nudgeReady: () => Math.max(0, Number(store.get("pp-nudge-at", 0)) + NUDGE_GAP - Date.now())
   });
   // Live values: real getters, so callers always see the current data.
   Object.defineProperties(window.LeesApp, {
     journal: { get: () => cacheJournal || [], configurable: true },
+    specialDays: { get: () => specialDays, set: (v) => { specialDays = v; }, configurable: true },
     seen: { get: () => cacheSeen, configurable: true },
     draft: { get: () => $("input").value, set: (v) => { $("input").value = v; autosize(); saveDraft(true); }, configurable: true }
   });
@@ -7646,7 +7656,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 </script>
 <script src="/lees-patch.js?v=17" defer></script>
 <script src="/lees-v8.js?v=3" defer></script>
-<script src="/lees-v9.js?v=4" defer></script>
+<script src="/lees-v9.js?v=5" defer></script>
+<script src="/lees-v10.js?v=2" defer></script>
 <script>
   // Offline shell: the app opens without a connection after one visit. Data comes from the on-device copy.
   if ("serviceWorker" in navigator && location.protocol === "https:") {

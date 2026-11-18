@@ -601,3 +601,23 @@ img.tw9{width:1.2em;height:1.2em;vertical-align:-.22em;display:inline-block;marg
   .tools2 .navbtn .notif-count{position:absolute;top:4px;right:4px;margin:0}
   .tools2 .navbtn.journal-tool span{font-size:13px}
 }
+
+/* ---------- v10: swipe to reply, special days ---------- */
+.row.v10-swiping{position:relative}
+.v10-reply-ic{position:absolute;left:6px;top:50%;width:34px;height:34px;margin-top:-17px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--ink) 8%,var(--surface));color:var(--ink);opacity:0;transition:transform .15s,background .15s;pointer-events:none}
+.v10-reply-ic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.v10-reply-ic.ready{transform:scale(1.15);background:var(--accent);color:var(--accent-ink)}
+.msg .quote{cursor:pointer}
+.v10-hero{display:flex;flex-direction:column;align-items:center;gap:4px;padding:22px 16px;margin-bottom:14px;border-radius:24px;text-align:center;background:linear-gradient(160deg,color-mix(in srgb,var(--accent) 16%,var(--surface)),var(--surface));border:1px solid var(--line);box-shadow:var(--shadow)}
+.v10-hero-e{font-size:40px}
+.v10-hero b{font:normal 22px var(--serif)}
+.v10-hero strong{font-size:30px;font-weight:600;color:var(--accent)}
+.v10-hero small{font-size:13px;color:var(--muted)}
+.v10-e{width:34px;height:34px;display:grid;place-items:center;font-size:20px;flex:none}
+.v10-yearly{display:flex;align-items:center;gap:10px;font-size:15px;margin:2px 4px 6px}
+.v10-yearly input{width:20px;height:20px;accent-color:var(--accent)}
+.v10-calnext{display:block;width:100%;margin:-2px 0 12px;padding:10px 14px;border-radius:14px;text-align:center;font-size:14px;font-weight:600;color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,var(--surface));border:1px dashed color-mix(in srgb,var(--accent) 40%,var(--line))}
+.v9-cday .v10-sd{position:absolute;top:2px;right:3px;font-size:11px;line-height:1}
+/* Layering: confirmations and choice sheets always sit above viewers, the studio and letter overlays */
+#sheet{z-index:94}
+.cb-scrim{z-index:98!important}

@@ -66,7 +66,7 @@
       summary.append(el("b", "", unreadN ? unreadN + " new" : "You're up to date"), el("span", "", all.length + " in the last while"));
       var markAll = btn("v9-link", "Mark all read", function () {
         a.feedSave(a.feedAll().map(function (f) { f.read = true; return f; }));
-        a.renderPanel();
+        Promise.resolve(a.markSeen && a.markSeen()).then(function () { a.renderPanel(); });
       });
       if (!unreadN) markAll.disabled = true;
       head.append(summary, markAll);
@@ -223,8 +223,9 @@
         var t = ta.value.trim();
         if (!t) { a.notice("Write something first", "", { error: true }); ta.focus(); return; }
         go.disabled = true;
-        if (existing) await a.editJournal(existing.id, t, draft.kind); else await a.saveJournal(t, draft.kind);
+        var ok = existing ? await a.editJournal(existing.id, t, draft.kind) : await a.saveJournal(t, draft.kind);
         go.disabled = false;
+        if (!ok) return;
         if (!existing) a.store.set(key, { text: "", kind: draft.kind });
         a.notice(existing ? "Page saved" : "Added to the journal", "", { kind: "success" });
         a.goBack();
@@ -320,7 +321,7 @@
         detail.appendChild(h);
         if (info && info.photos.length) {
           var strip = el("div", "v9-strip");
-          info.photos.slice(0, 12).forEach(function (m) { var t = btn("v9-thumb", "", function () { viewPhoto(m.id); }); var im = new Image(); im.alt = ""; a.mediaURL(m.mid).then(function (u) { if (u) im.src = u; }); t.appendChild(im); strip.appendChild(t); });
+          info.photos.slice(0, 12).forEach(function (m) { var t = btn("v9-thumb", "", function () { viewPhoto(m.id); }, "Open photo"); var im = new Image(); im.alt = ""; a.mediaURL(m.mid).then(function (u) { if (u) im.src = u; }); t.appendChild(im); strip.appendChild(t); });
           detail.appendChild(strip);
         }
         if (info) {
@@ -416,8 +417,8 @@
   function viewPhoto(id, src) {
     var a = A();
     var list = mediaList("image").slice().reverse();
-    var i = Math.max(0, list.findIndex(function (m) { return m.id === id; }));
-    if (!list.length) { if (src) { list = [{ id: id, src: src, ts: Date.now(), from: a.me }]; i = 0; } else return; }
+    var i = list.findIndex(function (m) { return m.id === id; });
+    if (i < 0) { if (src) { list = [{ id: id, src: src, ts: Date.now(), from: a.me }]; i = 0; } else if (list.length) i = 0; else return; }
     var ov = el("div", "v9-viewer");
     ov.setAttribute("role", "dialog"); ov.setAttribute("aria-label", "Photo");
     var top = el("div", "v9-vw-top");
@@ -467,7 +468,10 @@
     var a = A();
     var ov = el("div", "v9-viewer in");
     var top = el("div", "v9-vw-top");
-    var close = btn("v9-vw-b", "", function () { v.pause(); ov.remove(); }, "Close"); close.innerHTML = svg(I.close);
+    var key = function (e) { if (e.key === "Escape") { e.stopPropagation(); shutV(); } };
+    var shutV = function () { document.removeEventListener("keydown", key, true); v.pause(); ov.remove(); };
+    document.addEventListener("keydown", key, true);
+    var close = btn("v9-vw-b", "", function () { shutV(); }, "Close"); close.innerHTML = svg(I.close);
     var who = el("div", "v9-vw-who"); who.append(el("b", "", m.from === a.me ? "You" : a.name(m.from)), el("span", "", fmtDay(m.ts) + ", " + hm(m.ts)));
     top.append(close, who);
     var stage = el("div", "v9-vw-stage");
@@ -476,6 +480,7 @@
     stage.appendChild(v);
     ov.append(top, stage);
     document.body.appendChild(ov);
+    close.focus();
   }
 
   /* ======================= Blurred words ======================= */
@@ -612,6 +617,7 @@
   }
 
   /* ======================= Clear conversation ======================= */
+  function ymd(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
   function openClear() {
     var a = A(), scope = "me", range = "7";
     a.openPanel("Clear conversation", "Tidy the chat safely", still(function (body) {
@@ -646,7 +652,7 @@
           if (!f1.value || !f2.value) return null;
           from = Date.parse(f1.value + "T00:00:00"); to = Date.parse(f2.value + "T00:00:00") + DAY; f = f1.value; t = f2.value;
           if (!(to > from)) return null;
-        } else if (range !== "all") { from = day0(Date.now()) - (Number(range) - 1) * DAY; var d1 = new Date(from); f = d1.toISOString().slice(0, 10); t = new Date().toISOString().slice(0, 10); }
+        } else if (range !== "all") { from = day0(Date.now()) - (Number(range) - 1) * DAY; f = ymd(new Date(from)); t = ymd(new Date()); }
         return { from: from, to: to, f: f, t: t };
       }
       var target = 0;
@@ -796,8 +802,12 @@
       ov.classList.add("out");
       setTimeout(function () { ov.remove(); }, 220);
     }
+    var esc = function (e) { if (e.key === "Escape" && !document.querySelector(".cb-scrim") && $("sheet").classList.contains("hidden")) { e.stopPropagation(); shut(false); } };
+    document.addEventListener("keydown", esc, true);
+    var shut0 = shut;
+    shut = function (save) { document.removeEventListener("keydown", esc, true); shut0(save); };
     drawPanel(); paintPreview();
-    requestAnimationFrame(function () { ov.classList.add("in"); });
+    requestAnimationFrame(function () { ov.classList.add("in"); done.focus(); });
   }
   function shrinkData(file, max) {
     return new Promise(function (res) {
@@ -1008,6 +1018,7 @@
       var timer = 0, li = 0, ci = 0, dir = 1;
       var play = function () {
         clearTimeout(timer);
+        if (!dl.isConnected) return;
         var list = mode === "rotate" ? lines.filter(Boolean) : [lines[0] || one];
         if (!list.length) list = [one];
         var t = list[li % list.length];
@@ -1173,6 +1184,9 @@
 
   /* ======================= Wiring ======================= */
   var APPLE = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+  var twFail = {}, twDown = !navigator.onLine;
+  window.addEventListener("online", function () { twDown = false; });
+  window.addEventListener("offline", function () { twDown = true; });
   function twemojify(root) {
     if (APPLE || !root) return;
     var re = /(\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*)/gu;
@@ -1185,9 +1199,10 @@
       s.replace(re, function (m, g, idx) {
         if (idx > last) frag.appendChild(document.createTextNode(s.slice(last, idx)));
         var code = Array.from(m).map(function (c) { return c.codePointAt(0).toString(16); }).filter(function (c) { return c !== "fe0f"; }).join("-");
-        var img = new Image(); img.className = "tw9"; img.alt = m; img.draggable = false; img.decoding = "async";
+        if (twFail[code] || twDown) { var keep = document.createElement("span"); keep.className = "tw9-skip"; keep.textContent = m; frag.appendChild(keep); last = idx + m.length; return m; }
+        var img = new Image(); img.className = "tw9"; img.alt = m; img.draggable = false; img.decoding = "async"; img.crossOrigin = "anonymous";
         img.src = "https://cdn.jsdelivr.net/gh/jdecked/twemoji@15.1.0/assets/svg/" + code + ".svg";
-        img.onerror = function () { img.replaceWith(document.createTextNode(m)); };
+        img.onerror = function () { twFail[code] = 1; var sp = document.createElement("span"); sp.className = "tw9-skip"; sp.textContent = m; img.replaceWith(sp); };
         frag.appendChild(img); last = idx + m.length; return m;
       });
       if (last < s.length) frag.appendChild(document.createTextNode(s.slice(last)));
@@ -1196,7 +1211,11 @@
   }
   if (!APPLE) {
     var twTimer = 0;
-    new MutationObserver(function () { clearTimeout(twTimer); twTimer = setTimeout(function () { ["list", "sheetBody", "panelBody", "notice", "home"].forEach(function (id) { twemojify($(id)); }); }, 60); }).observe(document.body, { childList: true, subtree: true, characterData: false });
+    var twRun = function () { ["list", "sheetBody", "panelBody", "notice", "people", "navrow"].forEach(function (id) { twemojify($(id)); }); };
+    new MutationObserver(function (muts) {
+      if (muts.every(function (m) { return m.target.closest && m.target.closest(".ttt,.tw9-skip,#tttLog,.v9-tdemo,#drawLayer"); })) return;
+      clearTimeout(twTimer); twTimer = setTimeout(twRun, 120);
+    }).observe(document.body, { childList: true, subtree: true });
   }
   window.LeesV9 = {
     openNotifications: openNotifications, openJournal: openJournal, openCalendar: openCalendar, openMedia: openMedia,
