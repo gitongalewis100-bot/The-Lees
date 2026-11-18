@@ -494,7 +494,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
 <link rel="stylesheet" href="/lees-v8.css?v=4">
-<link rel="stylesheet" href="/lees-v9.css?v=4">
+<link rel="stylesheet" href="/lees-v9.css?v=7">
 </head>
 <body>
 
@@ -1153,12 +1153,14 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function isBlurred(m) {
     if (shield) return true;
     if ((m.hiddenBy || []).includes(me)) return true;
+    if (m.kind === "text" && stickerOf(m.text)) return false;
     if (m.kind === "text" && !m.deleted && S(me).autoBlur && sensitiveRE().test(m.text || "")) return true;
     return false;
   }
   function privatelyHidden(m) {
     if (m.deleted) return false;
     if ((m.hiddenBy || []).includes(me)) return true;
+    if (m.kind === "text" && stickerOf(m.text)) return false;
     return m.kind === "text" && S(me).autoBlur && sensitiveRE().test(m.text || "");
   }
 
@@ -1484,12 +1486,21 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       if (audio.paused) {
         voiceCache.forEach(w => { if (w._audio !== audio) w._audio.pause(); });
         audio.playbackRate = rate;
-        audio.play().catch((err) => {
-          const missing = !audio.getAttribute("src") && !audio.src;
-          notice(missing || (err && err.name !== "NotAllowedError") ? "Voice note unavailable" : "Playback blocked", missing ? "The recording could not be loaded." : "Tap play again.", { error: true });
+        const tryPlay = (retry) => audio.play().catch(async (err) => {
+          if (err && err.name === "NotAllowedError") { notice("Tap play again", "The browser needs one more tap to start sound.", { kind: "info" }); return; }
+          if (retry) {
+            // The link may have expired: fetch a fresh one and try once more.
+            try { urlCache.delete(m.mid); } catch (e) {}
+            const u = await mediaURL(m.mid);
+            if (u) { audio.src = u; audio.load(); return tryPlay(false); }
+          }
+          const webm = /webm/i.test(audio.currentSrc || "") || (audio.error && audio.error.code === 4);
+          notice("Can't play this voice note here", webm ? "It was recorded in a format this device can't play. New voice notes use a format that plays everywhere." : "The recording could not be loaded. Check your connection.", { error: true });
         });
+        tryPlay(true);
       } else audio.pause();
     });
+    audio.addEventListener("error", () => wrap.classList.add("vc9-missing"));
     const icon = (playing) => { btn.querySelector(".vc9-ic path").setAttribute("d", playing ? "M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" : "M8 5.5v13l11-6.5z"); btn.setAttribute("aria-label", playing ? "Pause" : "Play voice note"); };
     audio.addEventListener("play", () => { icon(true); update(); });
     audio.addEventListener("pause", () => { icon(false); update(); });
@@ -2571,16 +2582,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     list.style.setProperty("--wall-dim", String(st.dim != null ? st.dim : 0.25));
     list.style.setProperty("--wall-blur", (st.wblur || 0) + "px");
     if (st.wall === "photo") {
-      try {
-        const blob = await getBlob("wall-" + me);
-        if (blob) {
-          if (wallUrl) URL.revokeObjectURL(wallUrl);
-          wallUrl = URL.createObjectURL(blob);
-          list.style.setProperty("--wall-img", 'url("' + wallUrl + '")');
-          list.classList.add("has-wall");
-          return;
-        }
-      } catch (e) {}
+      let data = null;
+      try { data = localStorage.getItem("pp-wall-" + me); } catch (e) {}
+      if (data) { list.style.setProperty("--wall-img", 'url("' + data + '")'); list.classList.add("has-wall"); return; }
     }
     list.classList.remove("has-wall");
     list.style.removeProperty("--wall-img");
@@ -5334,7 +5338,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         const ctx = ensureAudio();
         if (ctx) { recAnalyser = ctx.createAnalyser(); recAnalyser.fftSize = 256; ctx.createMediaStreamSource(stream).connect(recAnalyser); }
       } catch (e) { recAnalyser = null; }
-      const type = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4;codecs=mp4a.40.2", "audio/mp4", "audio/aac", "audio/ogg;codecs=opus"].find(t => { try { return MediaRecorder.isTypeSupported(t); } catch (e) { return false; } }) || "";
+      const type = ["audio/mp4;codecs=mp4a.40.2", "audio/mp4", "audio/aac", "audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"].find(t => { try { return MediaRecorder.isTypeSupported(t); } catch (e) { return false; } }) || "";
       try { rec = new MediaRecorder(stream, { ...(type ? { mimeType: type } : {}), audioBitsPerSecond: 64000 }); }
       catch (e) { rec = new MediaRecorder(stream); }
       recChunks = [];
@@ -7642,7 +7646,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 </script>
 <script src="/lees-patch.js?v=17" defer></script>
 <script src="/lees-v8.js?v=3" defer></script>
-<script src="/lees-v9.js?v=3" defer></script>
+<script src="/lees-v9.js?v=4" defer></script>
 <script>
   // Offline shell: the app opens without a connection after one visit. Data comes from the on-device copy.
   if ("serviceWorker" in navigator && location.protocol === "https:") {

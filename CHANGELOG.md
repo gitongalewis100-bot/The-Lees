@@ -94,3 +94,13 @@ New files: lees-v9.js, lees-v9.css, supabase/migrations/2026-11-19_tagline_rotat
 - Draw speed: finished ink is kept as a bitmap; each frame draws only the stroke in progress, once per screen
   refresh (measured 16.7 ms per frame with 40 strokes and a fill). Pen pressure changes line thickness. The card
   colour sits behind the ink, so the eraser removes only ink. Undo removes the last stroke.
+
+## v9.2
+- Stickers never fall under word blurring (the recipient saw the raw "[[sticker:…]]" text).
+- Emoji picker stays open, shows what you've picked, with Delete and Send.
+- Chat wallpaper is kept as a compressed image on the device, so it no longer disappears.
+- Voice notes record as MP4/AAC where the browser can (plays on iPhone, Android and laptops); playback retries
+  with a fresh link and explains clips this device can't play.
+- Home: the tool grid can no longer push past the screen; tiles stack icon over name on phones; the six extras use
+  line icons.
+- Laptops (not Apple devices): emoji show as modern artwork (Twemoji via jsDelivr; CSP img-src updated).

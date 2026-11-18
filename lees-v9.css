@@ -564,3 +564,40 @@
 .dw9-card[data-card="grid"]{background-color:#fff;background-image:linear-gradient(rgba(70,110,180,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(70,110,180,.16) 1px,transparent 1px);background-size:24px 24px}
 .dw9-card[data-card="lines"]{background:#fffdf6 linear-gradient(transparent 31px,rgba(120,90,50,.16) 32px) 0 0/100% 32px}
 #drawCanvas{will-change:contents}
+
+/* ---------- v9.2 fixes ---------- */
+/* Modern emoji artwork on laptops */
+img.tw9{width:1.2em;height:1.2em;vertical-align:-.22em;display:inline-block;margin:0 .03em}
+.stk9-e img.tw9{width:1em;height:1em;vertical-align:0}
+.v9-emo-b img.tw9{width:28px;height:28px}
+/* Home: the Settings column never pushes the grid off screen */
+.homegrid{width:100%;max-width:100%}
+.homegrid > *{min-width:0;max-width:100%}
+.navbtn.settings-box{overflow:hidden;height:auto}
+.hx9{overflow:hidden}
+.hx9-e{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);flex:none;font-size:16px}
+.hx9-e svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hx9-t[data-k="streak"] .hx9-e{color:#e8590c;background:rgba(232,89,12,.12)}
+.hx9-t[data-k="close"] .hx9-e{color:#e0245e;background:rgba(224,36,94,.12)}
+.hx9-t[data-k="best"] .hx9-e{color:#3478f6;background:rgba(52,120,246,.12)}
+.hx9-t[data-k="memory"] .hx9-e{color:#7a5af8;background:rgba(122,90,248,.12)}
+.hx9-t[data-k="question"] .hx9-e{color:#2f9e63;background:rgba(47,158,99,.12)}
+@media (max-width:720px){.hx9-e{width:24px;height:24px;border-radius:8px}.hx9-e svg{width:14px;height:14px}}
+@media (max-width:380px){.hx9-tx small{display:none}.hx9-t{min-height:36px}}
+/* Emoji picker: what you've picked stays visible, with Delete and Send */
+.v9-emobar{position:sticky;top:-10px;z-index:2;display:flex;align-items:center;gap:8px;padding:10px 0;margin-bottom:4px;background:var(--surface)}
+.v9-emopv{flex:1;min-width:0;min-height:44px;max-height:88px;overflow:auto;padding:10px 14px;border-radius:16px;background:var(--bg);border:1px solid var(--line);font-size:17px;line-height:1.35;white-space:pre-wrap;overflow-wrap:anywhere}
+.v9-emopv.empty{color:var(--muted);font-size:14px}
+.v9-emodel{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:var(--bg);border:1px solid var(--line);color:var(--ink);flex:none}
+.v9-emodel svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.v9-emosend{height:44px;padding:0 16px;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-weight:600;flex:none}
+.v9-emosend:disabled{opacity:.4}
+.tools2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.tools2 .navbtn{min-width:0;overflow:hidden}
+.tools2 .navbtn span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:720px){
+  .tools2 .navbtn{flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:4px;padding:8px 4px;position:relative}
+  .tools2 .navbtn span{white-space:normal;line-height:1.15;font-size:12px;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+  .tools2 .navbtn .notif-count{position:absolute;top:4px;right:4px;margin:0}
+  .tools2 .navbtn.journal-tool span{font-size:13px}
+}

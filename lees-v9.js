@@ -718,7 +718,7 @@
       pv.style.setProperty("--wall-dim", String(st.dim));
       pv.style.setProperty("--wall-blur", st.wblur + "px");
       if (st.wall === "photo") {
-        if (!wallUrl) { try { var b = await a.getBlob("wall-" + me); if (b) wallUrl = URL.createObjectURL(b); } catch (e) {} }
+        if (!wallUrl) { try { wallUrl = localStorage.getItem("pp-wall-" + me); } catch (e) {} }
         if (wallUrl) { pv.style.setProperty("--wall-img", 'url("' + wallUrl + '")'); pv.classList.add("has-wall"); return; }
       }
       pv.classList.remove("has-wall");
@@ -749,9 +749,9 @@
           var f = document.createElement("input"); f.type = "file"; f.accept = "image/*";
           f.addEventListener("change", async function () {
             var file = f.files && f.files[0]; if (!file) return;
-            var blob = await shrink(file, 1600);
-            try { await a.putBlob("wall-" + me, blob); } catch (e) { a.notice("Couldn't keep that photo", "Storage may be full.", { error: true }); return; }
-            if (wallUrl) URL.revokeObjectURL(wallUrl); wallUrl = URL.createObjectURL(blob);
+            var data = await shrinkData(file, 1280);
+            try { localStorage.setItem("pp-wall-" + me, data); } catch (e) { a.notice("Couldn't keep that photo", "It's too large for this device's storage. Try a smaller one.", { error: true }); return; }
+            wallUrl = data;
             st.wall = "photo"; drawPanel(); paintPreview();
           });
           f.click();
@@ -793,12 +793,19 @@
         a.applyTheme();
         a.notice("Chat style saved", "", { kind: "success" });
       }
-      if (wallUrl) URL.revokeObjectURL(wallUrl);
       ov.classList.add("out");
       setTimeout(function () { ov.remove(); }, 220);
     }
     drawPanel(); paintPreview();
     requestAnimationFrame(function () { ov.classList.add("in"); });
+  }
+  function shrinkData(file, max) {
+    return new Promise(function (res) {
+      var url = URL.createObjectURL(file), img = new Image();
+      img.onload = function () { var s = Math.min(1, max / Math.max(img.width, img.height)); var c = document.createElement("canvas"); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg", 0.78)); };
+      img.onerror = function () { URL.revokeObjectURL(url); res(""); };
+      img.src = url;
+    });
   }
   function shrink(file, max) {
     return new Promise(function (res) {
@@ -876,10 +883,19 @@
       { k: "best", ic: "⏰", label: "Best time", val: bt.hour == null ? "Learning…" : hourLabel(bt.hour), fn: function () { openBest(bt); } },
       { k: "memory", ic: "📸", label: "On this day", val: otd.length ? otd.length + " memories" : "None yet", fn: function () { openMemory(otd); } }
     ];
+    var HX = {
+      streak: "M12 22c4 0 7-2.7 7-7 0-3-1.6-5.4-3.4-7.2-.4 2-1.4 3.2-2.6 3.7.2-3.5-1.4-6.5-4-8.5.2 3.2-1.6 5.5-3.2 7.4C4.6 12.4 5 14 5 15c0 4.3 3 7 7 7z",
+      mood: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM8 14s1.5 2 4 2 4-2 4-2M9 9.5h.01M15 9.5h.01",
+      question: "M21 12a8.5 8.5 0 0 1-12.6 7.4L3 21l1.6-5A8.5 8.5 0 1 1 21 12zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6M12 16.5h.01",
+      close: "M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z",
+      best: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3.5 2",
+      memory: "M4 8h3l2-3h6l2 3h3v11H4zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"
+    };
     tiles.forEach(function (t) {
       var b = btn("hx9-t" + (t.hot ? " hot" : ""), "", function () { a.haptic("press"); t.fn(); }, t.label + ": " + t.val);
       b.dataset.k = t.k;
-      var e = el("span", "hx9-e", t.ic);
+      var e = el("span", "hx9-e");
+      if (t.k === "mood" && fresh(themMood)) { e.textContent = themMood.e; e.classList.add("emo"); } else e.innerHTML = svg(HX[t.k]);
       var tx = el("span", "hx9-tx");
       tx.append(el("b", "", t.val), el("small", "", t.label));
       b.append(e, tx);
@@ -1066,6 +1082,12 @@
           grid.appendChild(g);
           grid.appendChild(el("p", "v9-hint center", "Animated stickers are built in. They work offline."));
         } else {
+          var bar = el("div", "v9-emobar");
+          var pv = el("div", "v9-emopv"); var sendB = btn("v9-emosend", "Send", function () { var t = $("input").value.trim(); if (!t) return; a.sheetClose(); $("send").click(); });
+          var showPv = function () { var t = $("input").value; pv.textContent = t || "Tap emoji to add them to your message"; pv.classList.toggle("empty", !t); sendB.disabled = !t.trim(); };
+          var del = btn("v9-emodel", "", function () { var inp = $("input"); var arr = Array.from(inp.value); arr.pop(); inp.value = arr.join(""); inp.dispatchEvent(new Event("input", { bubbles: true })); showPv(); }, "Delete");
+          del.innerHTML = svg("M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM18 9l-6 6M12 9l6 6");
+          bar.append(pv, del, sendB); grid.appendChild(bar); showPv();
           var recent = a.store.get("v9-emoji-recent", []);
           var cats = recent.length ? [["Recent", recent.join(" ")]] : [];
           Object.keys(EMOJI).forEach(function (k) { cats.push([k, EMOJI[k]]); });
@@ -1079,6 +1101,8 @@
                 inp.dispatchEvent(new Event("input", { bubbles: true }));
                 var r = [e].concat(a.store.get("v9-emoji-recent", []).filter(function (x) { return x !== e; })).slice(0, 16);
                 a.store.set("v9-emoji-recent", r);
+                showPv(); a.haptic("press");
+                if ($("sheet").classList.contains("hidden")) $("sheet").classList.remove("hidden");
               }, e));
             });
             grid.appendChild(g2);
@@ -1148,6 +1172,32 @@
   }
 
   /* ======================= Wiring ======================= */
+  var APPLE = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+  function twemojify(root) {
+    if (APPLE || !root) return;
+    var re = /(\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*)/gu;
+    var has = /\p{Extended_Pictographic}/u;
+    var walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), nodes = [], n;
+    while ((n = walk.nextNode())) if (has.test(n.nodeValue)) nodes.push(n);
+    nodes.forEach(function (node) {
+      if (node.parentNode && node.parentNode.closest && node.parentNode.closest("textarea,input,.tw9-skip")) return;
+      var frag = document.createDocumentFragment(), s = node.nodeValue, last = 0;
+      s.replace(re, function (m, g, idx) {
+        if (idx > last) frag.appendChild(document.createTextNode(s.slice(last, idx)));
+        var code = Array.from(m).map(function (c) { return c.codePointAt(0).toString(16); }).filter(function (c) { return c !== "fe0f"; }).join("-");
+        var img = new Image(); img.className = "tw9"; img.alt = m; img.draggable = false; img.decoding = "async";
+        img.src = "https://cdn.jsdelivr.net/gh/jdecked/twemoji@15.1.0/assets/svg/" + code + ".svg";
+        img.onerror = function () { img.replaceWith(document.createTextNode(m)); };
+        frag.appendChild(img); last = idx + m.length; return m;
+      });
+      if (last < s.length) frag.appendChild(document.createTextNode(s.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    });
+  }
+  if (!APPLE) {
+    var twTimer = 0;
+    new MutationObserver(function () { clearTimeout(twTimer); twTimer = setTimeout(function () { ["list", "sheetBody", "panelBody", "notice", "home"].forEach(function (id) { twemojify($(id)); }); }, 60); }).observe(document.body, { childList: true, subtree: true, characterData: false });
+  }
   window.LeesV9 = {
     openNotifications: openNotifications, openJournal: openJournal, openCalendar: openCalendar, openMedia: openMedia,
     openWords: openWords, openSchedule: openSchedule, openClear: openClear, openStudio: openStudio, homeExtras: homeExtras,
