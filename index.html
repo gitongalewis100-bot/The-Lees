@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="The Lees">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="icon" href="/icon-192.png">
-<link rel="stylesheet" href="/lees-patch.css?v=28">
+<link rel="stylesheet" href="/lees-patch.css?v=29">
 <style>
 :root{
   --bg:#f8f4ee;--surface:#fffdf9;--ink:#2a2420;--muted:#8c8179;--line:#ebe2d7;--line-strong:#dcd0c2;
@@ -493,6 +493,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 .fx{position:fixed;bottom:-30px;z-index:95;pointer-events:none;color:var(--accent);animation:fxrise 4.4s ease-out forwards}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
+<link rel="stylesheet" href="/lees-v8.css?v=1">
 </head>
 <body>
 
@@ -631,12 +632,11 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     <span id="replyText" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)"></span>
     <button id="replyX" class="ibtn" aria-label="Cancel" style="width:28px;height:28px"><svg class="i sm" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
   </div>
-  <div id="recbar" class="hidden">
-    <span class="dot"></span>
-    <span id="rectime" class="mono">0:00</span>
-    <canvas id="wave"></canvas>
-    <button id="recCancel" class="btn ghost sm">Cancel</button>
-    <button id="recSend" class="btn sm">Done</button>
+  <div id="recbar" class="hidden" role="group" aria-label="Recording a voice note">
+    <button id="recCancel" class="rb-ic" type="button" aria-label="Discard recording">Cancel</button>
+    <div class="rb-mid"><span class="dot"></span><span id="rectime" class="mono">0:00</span><canvas id="wave"></canvas></div>
+    <button id="recSend" class="rb-ic rb-done" type="button" aria-label="Stop and preview"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg></button>
+    <button id="recSendNow" class="rb-send" type="button" aria-label="Send now"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
   </div>
   <footer id="footer">
     <button id="attach" class="tool" aria-label="Attach photos or audio"><svg class="i" viewBox="0 0 24 24"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7L14 4.5a3.5 3.5 0 0 1 5 5L10.5 18a2 2 0 0 1-3-3L16 6.5"/></svg></button>
@@ -702,7 +702,13 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     download: '<path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/>',
     key: '<circle cx="8" cy="15" r="4"/><path d="M10.9 12.1L21 2M18 5l3 3M15 8l2 2"/>',
     calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
-    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    vibrate: '<rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M3 9v6M21 9v6M11 17.5h2"/>',
+    sound: '<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>',
+    globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+    play: '<path d="M7 4l13 8-13 8z"/>',
+    trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 21h8l-1-4H9z"/>',
+    letter: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>'
   };
   const ic = (n, cls) => `<svg class="i ${cls || ""}" viewBox="0 0 24 24" aria-hidden="true">${ICON[n] || ""}</svg>`;
 
@@ -945,8 +951,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
 
   function ensureAudio() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === "suspended") audioCtx.resume();
+    try {
+      if (!audioCtx) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; audioCtx = new C(); }
+      if (audioCtx.state === "suspended") { const p = audioCtx.resume(); if (p && p.catch) p.catch(() => {}); }
+    } catch (e) { return audioCtx; }
     if (!ensureAudio.primed && audioCtx.state !== "suspended") {
       try {
         const buf = audioCtx.createBuffer(1, 1, 22050);
@@ -1779,8 +1787,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (!unlocked) return;
     if (view === "chat") { renderChat(opts || {}); passUnread(false); }
     else if (view === "home") renderHome();
-    else if (view === "panel") renderPanel();
+    else if (view === "panel" && !(panelBuild && panelBuild.still) && !settingsTyping() && $("sheet").classList.contains("hidden")) renderPanel();
     renderBanner();
+    document.dispatchEvent(new Event("lees:render"));
   }
 
   function rowKey(m) { return "m:" + (m.clientId || m.id); }
@@ -1863,16 +1872,21 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (pinned) want.push({ key: "pin", pin: pinned });
     if (!list.length) want.push({ key: "empty" });
     let lastDay = "";
+    const wantKeys = new Set();
     shown.forEach((m, idx) => {
       const day = fmtDay(m.ts);
       if (day !== lastDay) { want.push({ key: "day:" + day, day }); lastDay = day; }
       if (m.id === firstUnreadId && !searching) want.push({ key: "new" });
-      want.push({ key: rowKey(m), msg: m, last: m === lastMine, end: idx === shown.length - 1 });
+      const k = rowKey(m);
+      if (wantKeys.has(k)) return;
+      wantKeys.add(k);
+      want.push({ key: k, msg: m, last: m === lastMine, end: idx === shown.length - 1 });
     });
     if (searching && !shown.length) want.push({ key: "nomatch" });
 
     const have = new Map();
-    [...box.children].forEach(n => { if (n.dataset.key) have.set(n.dataset.key, n); });
+    // A key seen twice means a stray copy: remove it, so a bubble can never be shown twice.
+    [...box.children].forEach(n => { if (!n.dataset.key) return; if (have.has(n.dataset.key)) { n.remove(); return; } have.set(n.dataset.key, n); });
     let addedAtEnd = false;
     const next = [];
     for (const item of want) {
@@ -2474,32 +2488,55 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (name === "chat") passUnread(true);
   }
 
+  // Panels form a stack: a panel opened from a panel slides in, and Back returns to the one below it.
+  let panelStack = [];
   function openPanel(title, sub, build, backTo) {
     const nested = view === "panel";
+    const curTitle = $("panelTitle").textContent;
+    if (nested && panelBuild && curTitle !== title) panelStack.push({ title: curTitle, sub: $("panelSub").textContent, build: panelBuild, top: $("panelBody").scrollTop });
+    if (!nested) { panelStack = []; panelBackTo = backTo || "home"; }
+    const refresh = nested && curTitle === title;
     panelBuild = build;
-    panelBackTo = backTo || (nested ? panelBackTo : "home");
     $("panelTitle").textContent = title;
     $("panelSub").textContent = sub || "";
     $("panelRight").textContent = "";
     if (!nested) showView("panel", "push");
-    renderPanel();
-    if (nested && !reduceMotion()) {
-      const body = $("panelBody");
-      body.classList.remove("ios-body");
-      void body.offsetWidth;
-      body.classList.add("ios-body");
-    }
+    renderPanel(refresh);
+    if (nested && !refresh) { $("panelBody").scrollTop = 0; slideBody("in"); }
   }
-  function renderPanel() {
+  function slideBody(dir) {
+    if (reduceMotion()) return;
+    const body = $("panelBody");
+    body.classList.remove("ios-body", "ios-body-back");
+    void body.offsetWidth;
+    body.classList.add(dir === "back" ? "ios-body-back" : "ios-body");
+  }
+  function renderPanel(keepScroll) {
     if (!panelBuild) return;
     const body = $("panelBody");
+    const top = body.scrollTop;
+    body.className = "panel-body";
     body.textContent = "";
     panelBuild(body);
+    if (keepScroll !== false) body.scrollTop = top;
   }
   $("panelBack").addEventListener("click", () => goBack());
 
   function goBack() {
-    if (view === "panel") { panelBuild = null; return showView(panelBackTo, "pop"); }
+    if (view === "panel") {
+      if (panelStack.length) {
+        const p = panelStack.pop();
+        panelBuild = p.build;
+        $("panelTitle").textContent = p.title;
+        $("panelSub").textContent = p.sub || "";
+        $("panelRight").textContent = "";
+        renderPanel(false);
+        $("panelBody").scrollTop = p.top || 0;
+        slideBody("back");
+        return;
+      }
+      panelBuild = null; return showView(panelBackTo, "pop");
+    }
     if (view === "chat") { savePosition(); hideSearch(); return showView("home", "pop"); }
     if (view === "home") return;
   }
@@ -2766,40 +2803,16 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
   // Regroups the Settings panel into Account, Privacy, Notifications, Data and Features.
   // It only moves existing rows and groups. It never changes what a control does.
-  function groupSettings(body) {
-    const plan = [
-      { name: "Account", groups: ["Your side", "Names shown to us", "Lock-screen tagline"], rows: ["Status", "Choose photo", "Time zone"] },
-      { name: "Privacy", groups: ["Words you want blurred"], rows: ["Auto-blur", "Shake to lock", "Sign-in object", "Change passphrase", "Recovery questions"] },
-      { name: "Notifications", groups: [], rows: ["Haptics", "Vibration", "Sounds"] },
-      { name: "Data", groups: ["Shared · both of you"], rows: ["Theme", "Archive old messages", "Open archive"] },
-      { name: "Session", groups: [], rows: ["Sign out"] },
-      { name: "Features", groups: [], rows: [] }
-    ];
-    const secs = plan.map((sec) => { const w = el("div", "settings-section"); w.appendChild(el("div", "settings-head", sec.name)); return w; });
-    const sectionForRow = (lab) => { for (let i = 0; i < plan.length; i++) if (plan[i].rows.some((l) => lab.startsWith(l))) return i; return 3; };
-    [...body.querySelectorAll(".prow")].forEach((r) => {
-      const lab = ((r.querySelector(".lab span") || r).textContent || "").trim();
-      secs[sectionForRow(lab)].appendChild(r);
-    });
-    [...body.querySelectorAll(":scope > .pgroup")].forEach((g) => {
-      const title = ((g.querySelector(".gh") || {}).textContent || "").trim();
-      const idx = plan.findIndex((sec) => sec.groups.includes(title));
-      if (idx >= 0 && !g.querySelector(".prow")) secs[idx].appendChild(g);
-    });
-    [...body.querySelectorAll(".pgroup")].forEach((g) => {
-      if (!g.querySelector(".prow, input, button, .wchips")) g.remove();
-    });
-    secs.forEach((w) => { if (w.children.length > 1) body.appendChild(w); });
-  }
-  // ---- Settings search: always at the top, waits for you to pause, learns what you search for ----
-  let settingsQ = "";
-  let settingsSearchTimer = 0;
+  /* ================= Settings v8: categories, a persistent smart search, safe controls ================= */
+  // Every setting is one entry in a registry. Category pages and search results draw from the same entries,
+  // so a control behaves the same wherever it is shown.
   const SS_KEY = "pp-settings-search";
+  let settingsQ = "";
   function settingsSearchStats() { return store.get(SS_KEY, {}); }
-  // True while the Settings search box has focus. Realtime refreshes wait so the keyboard stays up.
+  // True while a settings text field has focus. Realtime refreshes wait so the keyboard stays up.
   function settingsTyping() {
     const a = document.activeElement;
-    return !!(a && a.classList && a.classList.contains("settings-search"));
+    return !!(a && a.closest && a.closest("#panelBody") && /INPUT|TEXTAREA/.test(a.tagName) && view === "panel");
   }
   function recordSettingsSearch(q) {
     q = String(q || "").trim().toLowerCase();
@@ -2808,221 +2821,365 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const cur = stats[q] || { n: 0, t: 0 };
     stats[q] = { n: cur.n + 1, t: Date.now() };
     const keys = Object.keys(stats);
-    if (keys.length > 60) {
-      keys.sort((a, b) => stats[a].t - stats[b].t).slice(0, keys.length - 60).forEach((k) => { delete stats[k]; });
-    }
+    if (keys.length > 60) keys.sort((a, b) => stats[a].t - stats[b].t).slice(0, keys.length - 60).forEach((k) => { delete stats[k]; });
     store.set(SS_KEY, stats);
   }
-  function settingsLabels(body) {
-    const seen = new Set();
-    return [...body.querySelectorAll(".prow .lab span, button.prow")]
-      .map((n) => (n.textContent || "").trim())
-      .filter((t) => t && !seen.has(t) && seen.add(t));
+  const SET_CATS = [
+    { id: "profile", name: "Profile", icon: "user", tint: "#7d6a9b", sub: "Status, photo, names, time zone" },
+    { id: "look", name: "Appearance", icon: "palette", tint: "#c06a4b", sub: "Theme and chat look" },
+    { id: "alerts", name: "Notifications", icon: "bell", tint: "#d9822b", sub: "Mute, sounds, haptics" },
+    { id: "privacy", name: "Privacy", icon: "eyeoff", tint: "#4f7a5e", sub: "Receipts, blurring, transcripts" },
+    { id: "security", name: "Security & sign-in", icon: "lock", tint: "#4a6fa5", sub: "Scanner, passphrase, locks" },
+    { id: "data", name: "Messages & data", icon: "archive", tint: "#8b5a3c", sub: "Archive, export, backup" },
+    { id: "play", name: "Letters, games & awards", icon: "trophy", tint: "#b04a63", sub: "Sealed letters, trophies" }
+  ];
+  // Words people use for a setting that are not in its label.
+  const SET_SYNONYMS = {
+    dark: "theme appearance colour color night mode", light: "theme appearance", colour: "theme", color: "theme",
+    notification: "mute sounds haptics vibration alerts", notifications: "mute sounds haptics vibration", silent: "mute quiet",
+    quiet: "mute", dnd: "mute", disturb: "mute", ring: "sounds", tone: "sounds", ringtone: "sounds", buzz: "vibration haptics",
+    password: "passphrase", pin: "passphrase chat lock", login: "sign-in scanner passphrase", signin: "sign-in scanner",
+    scanner: "sign-in scanner", lens: "sign-in scanner", animation: "sign-in scanner", logout: "sign out", "log out": "sign out",
+    avatar: "photo", picture: "photo", pic: "photo", profile: "status photo names", name: "names", nickname: "names",
+    timezone: "time zone", time: "time zone", clock: "time zone", seen: "read receipts", read: "read receipts", ticks: "read receipts",
+    blur: "blurred words auto-blur", hide: "blurred words shield", private: "privacy", privacy: "receipts blur transcribe",
+    backup: "encrypted backup export", download: "export", save: "export backup", pdf: "print", delete: "clear conversation",
+    erase: "clear conversation", wipe: "clear conversation", old: "archive", archive: "archive", schedule: "scheduled", later: "scheduled",
+    letter: "sealed letters", letters: "sealed letters", capsule: "sealed letters", game: "tic-tac-toe games", games: "tic-tac-toe",
+    trophy: "awards trophy cabinet", trophies: "awards", medals: "awards", badges: "awards", voice: "transcribe", transcript: "transcribe",
+    words: "blurred words", shake: "shake to lock", icon: "app icon", tagline: "lock-screen tagline", quote: "lock-screen tagline",
+    bubble: "chat look", font: "chat look text size", size: "chat look text size", wallpaper: "chat look theme"
+  };
+  const tokens = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9\- ]+/g, " ").split(/\s+/).filter(Boolean);
+  function near1(a, b) {
+    if (a === b) return true;
+    if (Math.abs(a.length - b.length) > 1 || a.length < 4) return false;
+    let i = 0, j = 0, d = 0;
+    while (i < a.length && j < b.length) {
+      if (a[i] === b[j]) { i++; j++; continue; }
+      if (++d > 1) return false;
+      if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+    }
+    return d + (a.length - i) + (b.length - j) <= 1;
   }
-  // Shows only the rows, groups and sections that match. A section whose title matches shows in full.
-  function applySettingsFilter(body, raw) {
-    const q = String(raw || "").trim().toLowerCase();
-    const hit = (n) => !q || (n.textContent || "").toLowerCase().includes(q);
-    body.querySelectorAll(".prow").forEach((r) => { r.style.display = hit(r) ? "" : "none"; });
-    body.querySelectorAll(".pgroup").forEach((g) => { g.style.display = hit(g) ? "" : "none"; });
-    [...body.children].forEach((c) => {
-      if (c.classList.contains("settings-search-wrap") || c.classList.contains("settings-section")) return;
-      if (c.classList.contains("prow")) return;
-      c.style.display = hit(c) ? "" : "none";
+  // Scores one entry against the query. Label words count most, then keywords, synonyms and the category.
+  function scoreSetting(entry, q) {
+    const qs = tokens(q);
+    if (!qs.length) return 0;
+    const label = tokens(entry.label), kw = tokens((entry.keywords || "") + " " + (entry.sub || "")), cat = tokens((SET_CATS.find(c => c.id === entry.cat) || {}).name);
+    let total = 0;
+    for (const t of qs) {
+      const syn = tokens(SET_SYNONYMS[t] || "");
+      let best = 0;
+      for (const w of label) { if (w === t) best = Math.max(best, 10); else if (w.startsWith(t)) best = Math.max(best, 8); else if (near1(w, t)) best = Math.max(best, 6); }
+      for (const w of kw) { if (w === t) best = Math.max(best, 6); else if (w.startsWith(t) && t.length > 1) best = Math.max(best, 5); else if (near1(w, t)) best = Math.max(best, 3); }
+      for (const s of syn) { if (label.includes(s)) best = Math.max(best, 7); else if (kw.includes(s)) best = Math.max(best, 4); }
+      for (const w of cat) if (w.startsWith(t)) best = Math.max(best, 3);
+      if (!best) return 0;
+      total += best;
+    }
+    if (entry.label.toLowerCase().startsWith(q.trim().toLowerCase())) total += 4;
+    const used = (settingsSearchStats()["open:" + entry.id] || {}).n || 0;
+    return total + Math.min(4, used);
+  }
+
+  // Controls that are hard to trigger by accident: a switch row that flips only on a deliberate tap,
+  // and a choice row that opens a sheet instead of a scroll-sensitive dropdown.
+  function setRow(o) {
+    const r = el(o.onClick ? "button" : "div", "srow" + (o.danger ? " danger" : ""));
+    if (o.onClick) r.type = "button";
+    r.dataset.sid = o.id || "";
+    const tile = el("span", "srow-ic");
+    tile.innerHTML = ic(o.icon || "sparkle", "sm");
+    if (o.tint) tile.style.setProperty("--tint", o.tint);
+    const lab = el("span", "srow-lab");
+    lab.appendChild(el("span", "srow-t", o.label));
+    if (o.sub) lab.appendChild(el("small", "srow-s", o.sub));
+    r.append(tile, lab);
+    if (o.control) r.appendChild(o.control);
+    if (o.onClick) {
+      if (o.value != null) r.appendChild(el("span", "srow-v", o.value));
+      r.insertAdjacentHTML("beforeend", '<svg class="i sm srow-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>');
+      r.addEventListener("click", (e) => { haptic("press"); o.onClick(e, r); });
+    }
+    return r;
+  }
+  function sw8(checked, onChange, label) {
+    const b = el("button", "sw8" + (checked ? " on" : ""));
+    b.type = "button";
+    b.setAttribute("role", "switch");
+    b.setAttribute("aria-checked", String(!!checked));
+    if (label) b.setAttribute("aria-label", label);
+    b.innerHTML = "<i></i>";
+    let busy = false;
+    b.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (busy) return;
+      const next = b.getAttribute("aria-checked") !== "true";
+      busy = true;
+      b.classList.toggle("on", next); b.setAttribute("aria-checked", String(next));
+      haptic("press");
+      try { const ok = await onChange(next); if (ok === false) { b.classList.toggle("on", !next); b.setAttribute("aria-checked", String(!next)); } }
+      finally { busy = false; }
     });
-    body.querySelectorAll(".settings-section").forEach((sec) => {
-      const head = (sec.querySelector(".settings-head") || {}).textContent || "";
-      const titleHit = !!q && head.toLowerCase().includes(q);
-      const kids = [...sec.children].filter((c) => !c.classList.contains("settings-head"));
-      if (titleHit) kids.forEach((c) => { c.style.display = ""; });
-      const any = kids.some((c) => c.style.display !== "none");
-      sec.style.display = !q || titleHit || any ? "" : "none";
+    return b;
+  }
+  function switchRow(o) {
+    const s = sw8(o.get(), o.set, o.label);
+    const r = setRow({ ...o, control: s });
+    r.classList.add("srow-switch");
+    r.addEventListener("click", (e) => { if (e.target.closest(".sw8")) return; s.click(); });
+    return r;
+  }
+  function choiceSheet(o) {
+    return new Promise((resolve) => {
+      sheetOpen((body) => {
+        body.appendChild(el("h3", "fp-title", o.title));
+        if (o.desc) body.appendChild(el("p", "fp-desc", o.desc));
+        const list = el("div", "chs");
+        for (const [v, label, sub, swatch] of o.options) {
+          const b = el("button", "chs-opt" + (String(v) === String(o.value) ? " on" : ""));
+          b.type = "button";
+          b.setAttribute("role", "radio");
+          b.setAttribute("aria-checked", String(String(v) === String(o.value)));
+          if (swatch) { const sw = el("span", "chs-sw"); sw.style.background = swatch; b.appendChild(sw); }
+          const t = el("span", "chs-lab"); t.appendChild(el("b", "", label)); if (sub) t.appendChild(el("small", "", sub));
+          b.appendChild(t);
+          b.insertAdjacentHTML("beforeend", '<span class="chs-dot" aria-hidden="true"></span>');
+          b.addEventListener("click", () => { $("sheet").classList.add("hidden"); $("sheetBody").textContent = ""; resolve(v); });
+          list.appendChild(b);
+        }
+        body.appendChild(list);
+        const cancel = el("button", "btn ghost wide", "Cancel");
+        cancel.style.marginTop = "10px";
+        cancel.addEventListener("click", () => sheetClose(resolve));
+        body.appendChild(cancel);
+      });
+      $("sheetScrim").onclick = () => sheetClose(resolve);
     });
   }
-  function mountSettingsSearch(body) {
-    const wrap = el("div", "settings-search-wrap");
-    const bar = el("div", "settings-search-bar");
-    const input = el("input", "in plain settings-search");
+  function choiceRow(o) {
+    const label = () => { const hit = o.options().find(x => String(x[0]) === String(o.get())); return hit ? hit[1] : ""; };
+    return setRow({ ...o, value: label(), onClick: async (e, row) => {
+      const v = await choiceSheet({ title: o.label, desc: o.desc, options: o.options(), value: o.get() });
+      if (v == null || String(v) === String(o.get())) return;
+      await o.set(v);
+      const val = row.querySelector(".srow-v"); if (val) val.textContent = label();
+    } });
+  }
+  function inputRow(o) {
+    const wrap = el("div", "sfield");
+    const head = el("div", "sfield-h");
+    head.appendChild(el("span", "srow-t", o.label));
+    if (o.sub) head.appendChild(el("small", "srow-s", o.sub));
+    const line = el("div", "sfield-row");
+    const inputs = (o.fields || [{ value: o.get(), placeholder: o.placeholder || "", max: o.max || 80 }]).map(f => {
+      const i = el("input", "in plain");
+      i.value = f.value || ""; i.maxLength = f.max || 80; i.placeholder = f.placeholder || "";
+      if (f.aria) i.setAttribute("aria-label", f.aria);
+      return i;
+    });
+    const save = el("button", "btn sm", "Save");
+    save.type = "button";
+    save.disabled = true;
+    const initial = inputs.map(i => i.value);
+    const dirty = () => { save.disabled = inputs.every((i, k) => i.value === initial[k]); };
+    inputs.forEach(i => {
+      i.addEventListener("input", dirty);
+      i.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); if (!save.disabled) save.click(); } });
+    });
+    save.addEventListener("click", async () => {
+      save.disabled = true;
+      const ok = await o.set(...inputs.map(i => i.value.trim()));
+      if (ok === false) { save.disabled = false; return; }
+      inputs.forEach((i, k) => { initial[k] = i.value; });
+      save.textContent = "Saved"; setTimeout(() => { save.textContent = "Save"; }, 1400);
+      inputs.forEach(i => i.blur());
+    });
+    inputs.forEach(i => line.appendChild(i));
+    line.appendChild(save);
+    wrap.append(head, line);
+    wrap.dataset.sid = o.id;
+    return wrap;
+  }
+  function pickImage(fn) { const f = el("input"); f.type = "file"; f.accept = "image/*"; f.addEventListener("change", () => { if (f.files[0]) fn(f.files[0]); }); f.click(); }
+  async function confirmAct(title, desc, okLabel) { return centredBanner({ title, desc, okLabel: okLabel || "Continue" }); }
+  function openThemeSheet() {
+    choiceSheet({ title: "Theme", desc: "Shared: it changes the app for both of you.", value: SH().theme, options: THEMES.map(t => [t.id, t.name, t.id === "auto" ? "Light by day, dark at night" : "", t.sw]) })
+      .then(v => { if (v == null) return; setSH({ theme: v }); applyTheme(); haptic("press"); if (view === "panel") renderPanel(); });
+  }
+  const LENS_OPTS = [["auto", "Surprise me", "A different scanner every sign-in, none repeats until all have played"], ["scan", "Light beam"], ["prism", "Prism sweep"], ["ripple", "Ripples"], ["orbit", "Orbit"], ["pulse", "Heartbeat"], ["constellation", "Constellation"], ["bars", "Laser grid"], ["ink", "Ink drop"], ["aurora", "Aurora"], ["round", "Round lens"], ["star", "Star"]];
+  function settingsRegistry() {
+    const s = S(me);
+    const shared = "Shared · changes it for both of you";
+    const R = [];
+    const add = (cat, e) => { e.cat = cat; R.push(e); };
+    // Profile
+    add("profile", { id: "status", label: "Status", keywords: "line mood about", build: () => inputRow({ id: "status", label: "Status", sub: "Shown to " + NAME[other()] + " under your name", get: () => S(me).status || "", placeholder: "A line for " + NAME[other()], max: 60, set: (v) => { setS(me, { status: v }); notice("Status saved"); } }) });
+    add("profile", { id: "photo", label: "Photo", keywords: "avatar picture profile", build: () => setRow({ id: "photo", icon: "user", label: "Photo", sub: "Shown on your home card", onClick: () => pickImage(uploadAvatar) }) });
+    add("profile", { id: "tz", label: "Time zone", keywords: "clock local time", build: () => choiceRow({ id: "tz", icon: "globe", label: "Time zone", sub: "Shown as your local time", get: () => S(me).tz, options: () => ZONES.concat(ZONES.includes(S(me).tz) ? [] : [S(me).tz]).map(z => [z, z.replace(/_/g, " ")]), set: (v) => setS(me, { tz: v }) }) });
+    add("profile", { id: "names", label: "Names shown to us", keywords: "labels mr mrs nickname", build: () => inputRow({ id: "names", label: "Names shown to us", sub: shared, fields: [{ value: NAME.Lewis, max: 30, aria: "First name" }, { value: NAME.Agnes, max: 30, aria: "Second name" }], set: (a, b) => { if (!a || !b) { notice("Names can't be empty", "", { error: true }); return false; } return saveSideLabels(a, b); } }) });
+    add("profile", { id: "tagline", label: "Lock-screen tagline", keywords: "quote motto sign-in text", build: () => inputRow({ id: "tagline", label: "Lock-screen tagline", sub: shared, get: () => { try { return localStorage.getItem("pp-tagline") || "Do what you love, love what you do."; } catch (e) { return ""; } }, max: 80, set: (v) => { if (!v) return false; return saveTagline(v); } }) });
+    add("profile", { id: "appicon", label: "App icon", keywords: "home screen icon logo", build: () => setRow({ id: "appicon", icon: "image", label: "App icon", sub: shared, onClick: () => pickImage(setAppIcon) }) });
+    // Appearance
+    add("look", { id: "theme", label: "Theme", keywords: "colour color dark light night", build: () => setRow({ id: "theme", icon: "palette", label: "Theme", sub: shared, value: (THEMES.find(t => t.id === SH().theme) || THEMES[0]).name, onClick: () => openThemeSheet() }) });
+    add("look", { id: "chatlook", label: "Chat look", keywords: "bubbles text size corners wallpaper font", build: () => setRow({ id: "chatlook", icon: "chat", label: "Chat look", sub: "Bubbles, text size and corners on your side", onClick: () => openChatLook() }) });
+    // Notifications
+    add("alerts", { id: "mute", label: "Mute notifications", keywords: "silent quiet do not disturb", build: () => choiceRow({ id: "mute", icon: "bell", label: "Mute notifications", sub: "Silences sound and buzz for you", get: () => ppMuteChoice(), options: () => [["off", "Not muted"], ["8h", "For 8 hours"], ["1w", "For 1 week"]], set: (v) => ppSetMute(v) }) });
+    add("alerts", { id: "sound", label: "Sounds", keywords: "chime tone audio", build: () => switchRow({ id: "sound", icon: "sound", label: "Sounds", sub: "A soft chime when a message arrives", get: () => S(me).sound, set: (v) => { setS(me, { sound: v }); } }) });
+    add("alerts", { id: "tones", label: "Notification tones", keywords: "sounds ringtone preset volume preview", build: () => { const w = el("div", "sblock"); w.dataset.sid = "tones"; const blk = window.LeesHooks && LeesHooks.soundsBlock ? LeesHooks.soundsBlock() : null; if (blk) w.appendChild(blk); else w.appendChild(el("p", "fp-desc", "Tones load with the app.")); return w; } });
+    add("alerts", { id: "haptics", label: "Haptics", keywords: "vibration feel buzz taps", build: () => switchRow({ id: "haptics", icon: "sparkle", label: "Haptics", sub: "Gentle feedback on taps", get: () => S(me).haptics, set: (v) => { setS(me, { haptics: v }); if (v) haptic("press"); } }) });
+    add("alerts", { id: "vibrate", label: "Vibration", keywords: "buzz arrive shake phone", build: () => switchRow({ id: "vibrate", icon: "vibrate", label: "Vibration", sub: "A short buzz when a message arrives", get: () => S(me).vibrate !== false, set: (v) => { setS(me, { vibrate: v }); try { localStorage.setItem("pp-vibrate-" + me, v ? "1" : "0"); } catch (e) {} } }) });
+    // Privacy
+    add("privacy", { id: "receipts", label: "Read receipts", keywords: "seen ticks read", build: () => switchRow({ id: "receipts", icon: "check", label: "Read receipts", sub: "Let " + NAME[other()] + " see when you've read", get: () => myReadReceipts, set: (v) => ppSetReadReceipts(v).then(() => myReadReceipts === v) }) });
+    add("privacy", { id: "autoblur", label: "Auto-blur sensitive words", keywords: "blur hide words", build: () => switchRow({ id: "autoblur", icon: "eyeoff", label: "Auto-blur sensitive words", sub: "Blurs " + TERMS.length + " built-in words until you reveal them", get: () => S(me).autoBlur, set: (v) => { setS(me, { autoBlur: v }); render(); } }) });
+    add("privacy", { id: "words", label: "Blurred words", keywords: "add remove manage list phrases", build: () => setRow({ id: "words", icon: "edit", label: "Blurred words", sub: "Add your own, switch built-in ones off", value: String((S(me).blurWords || []).filter(z => !z.startsWith("~")).length || ""), onClick: () => openWordManager() }) });
+    add("privacy", { id: "transcribe", label: "Transcribe my voice notes", keywords: "voice text speech transcript", build: () => switchRow({ id: "transcribe", icon: "mic", label: "Transcribe my voice notes", sub: "Clips go to a third-party speech service", get: () => myTranscribe, set: (v) => ppSetTranscribe(v).then(() => myTranscribe === v) }) });
+    // Security
+    add("security", { id: "lens", label: "Sign-in scanner", keywords: "lens animation login scan passphrase", build: () => choiceRow({ id: "lens", icon: "sparkle", label: "Sign-in scanner", sub: "What sweeps over the passphrase while it checks", get: () => S(me).lens || "auto", options: () => LENS_OPTS, set: (v) => { try { localStorage.setItem("pp-lens", v); } catch (e) {} setS(me, { lens: v }); } }) });
+    add("security", { id: "pass", label: "Change passphrase", keywords: "password login", build: () => setRow({ id: "pass", icon: "key", label: "Change passphrase", onClick: () => changePassphrase() }) });
+    add("security", { id: "recovery", label: "Recovery questions", keywords: "forgot reset answers", build: () => setRow({ id: "recovery", icon: "key", label: "Recovery questions", sub: "Used if you forget your passphrase", onClick: () => editRecovery() }) });
+    add("security", { id: "chatlock", label: "Chat lock", keywords: "pin password lock conversation", build: () => setRow({ id: "chatlock", icon: "lock", label: "Chat lock", sub: "A second passphrase before the chat opens", onClick: () => openLockSetup() }) });
+    add("security", { id: "shake", label: "Shake to lock", keywords: "motion lock quickly", build: () => switchRow({ id: "shake", icon: "shield", label: "Shake to lock", sub: "Two firm shakes lock at once", get: () => S(me).shake, set: async (v) => {
+      if (v && typeof DeviceMotionEvent !== "undefined" && DeviceMotionEvent.requestPermission) {
+        try { if ((await DeviceMotionEvent.requestPermission()) !== "granted") { notice("Motion access denied", "Allow motion in Safari settings to use shake.", { error: true }); return false; } } catch { return false; }
+      }
+      setS(me, { shake: v });
+    } }) });
+    add("security", { id: "others", label: "Sign out on other devices", keywords: "logout sessions devices", build: () => setRow({ id: "others", icon: "logout", label: "Sign out on other devices", danger: true, onClick: () => confirmSignOut("other") }) });
+    // Messages & data
+    add("data", { id: "archivedays", label: "Archive old messages", keywords: "auto archive old cleanup", build: () => choiceRow({ id: "archivedays", icon: "archive", label: "Archive old messages", sub: shared + ". Moved, never deleted", get: () => SH().archiveDays, options: () => ARCHIVE.map(([v, t]) => [v, t]), set: (v) => { setSH({ archiveDays: Number(v) }); render(); notice("Archive updated"); } }) });
+    add("data", { id: "openarchive", label: "Open archive", keywords: "old messages archived", build: () => setRow({ id: "openarchive", icon: "archive", label: "Open archive", onClick: () => openArchive() }) });
+    add("data", { id: "scheduled", label: "Scheduled messages", keywords: "later send queue", build: () => setRow({ id: "scheduled", icon: "calendar", label: "Scheduled messages", value: String(sched().length || ""), onClick: () => openScheduled() }) });
+    add("data", { id: "json", label: "Export as JSON", keywords: "download save copy data", build: () => setRow({ id: "json", icon: "download", label: "Export as JSON", onClick: () => exportAs("json") }) });
+    add("data", { id: "md", label: "Export as Markdown", keywords: "download text copy", build: () => setRow({ id: "md", icon: "download", label: "Export as Markdown", onClick: () => exportAs("md") }) });
+    add("data", { id: "pdf", label: "Print or save as PDF", keywords: "print pdf paper", build: () => setRow({ id: "pdf", icon: "download", label: "Print or save as PDF", onClick: () => exportAs("pdf") }) });
+    add("data", { id: "backup", label: "Encrypted backup", keywords: "save secure file", build: () => setRow({ id: "backup", icon: "lock", label: "Encrypted backup", onClick: () => makeBackup() }) });
+    add("data", { id: "restore", label: "Restore from backup", keywords: "import load file", build: () => setRow({ id: "restore", icon: "undo", label: "Restore from backup", onClick: async () => { if (await confirmAct("Restore from a backup?", "Messages in the backup are added back. Nothing current is removed.", "Choose file")) pickRestore(); } }) });
+    add("data", { id: "clear", label: "Clear conversation", keywords: "delete erase wipe all messages", build: () => setRow({ id: "clear", icon: "trash", label: "Clear conversation", sub: "Asks before anything is removed", danger: true, onClick: () => { if (window.LeesHooks && LeesHooks.clearConversation) LeesHooks.clearConversation(); } }) });
+    // Extras from other modules (letters, games, awards).
+    const extra = (window.LeesSettingsExtra && window.LeesSettingsExtra()) || [];
+    for (const e of extra) add(e.cat || "play", { id: e.id, label: e.label, keywords: e.keywords || "", build: () => setRow({ id: e.id, icon: e.icon || "sparkle", label: e.label, sub: e.sub, value: e.value, onClick: e.run }) });
+    return R;
+  }
+  const stillPanel = (f) => { f.still = true; return f; };
+  function catCard(rows) { const c = el("div", "scard"); rows.forEach(r => c.appendChild(r)); return c; }
+  function openSettingsCategory(id) {
+    const cat = SET_CATS.find(c => c.id === id);
+    if (!cat) return;
+    openPanel(cat.name, "Settings", stillPanel((body) => {
+      body.classList.add("set8");
+      const rows = settingsRegistry().filter(e => e.cat === id);
+      const simple = rows.filter(e => !["status", "names", "tagline", "tones"].includes(e.id));
+      const blocks = rows.filter(e => ["status", "names", "tagline", "tones"].includes(e.id));
+      const tinted = (c) => { c.style.setProperty("--tint", cat.tint); return c; };
+      if (simple.length) body.appendChild(tinted(catCard(simple.map(e => e.build()))));
+      blocks.forEach(e => body.appendChild(tinted(catCard([e.build()]))));
+      if (id === "security") body.appendChild(el("p", "snote", "Your passphrase never leaves this device in plain text."));
+    }));
+  }
+  function settingsSearchUI(body, onQuery) {
+    const wrap = el("div", "s8-search");
+    const bar = el("label", "s8-bar");
+    bar.innerHTML = ic("search", "sm");
+    const input = el("input", "s8-input");
     input.type = "search";
     input.placeholder = "Search settings";
     input.setAttribute("aria-label", "Search settings");
     input.autocomplete = "off";
+    input.enterKeyHint = "search";
     input.value = settingsQ;
-    const clear = el("button", "settings-search-clear", "×");
+    const clear = el("button", "s8-clear" + (settingsQ ? "" : " hidden"));
     clear.type = "button";
     clear.setAttribute("aria-label", "Clear search");
-    const box = el("div", "settings-suggest hidden");
-    box.setAttribute("role", "listbox");
+    clear.innerHTML = ic("close", "sm");
     bar.append(input, clear);
-    wrap.append(bar, box);
+    const menu = el("button", "s8-menu");
+    menu.type = "button";
+    menu.setAttribute("aria-label", "Jump to a section");
+    menu.innerHTML = '<svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>';
+    menu.addEventListener("click", async () => {
+      const v = await choiceSheet({ title: "Jump to", options: SET_CATS.map(c => [c.id, c.name, c.sub]).concat([["signout", "Sign out", "Ends this session on this device"]]), value: "" });
+      if (v === "signout") confirmSignOut("this"); else if (v) openSettingsCategory(v);
+    });
+    wrap.append(bar, menu);
     body.appendChild(wrap);
-
-    const draw = () => {
-      const q = settingsQ.trim().toLowerCase();
-      box.textContent = "";
-      const stats = settingsSearchStats();
-      const past = Object.keys(stats)
-        .filter((k) => !q || (k.startsWith(q) && k !== q))
-        .sort((a, b) => (stats[b].n - stats[a].n) || (stats[b].t - stats[a].t))
-        .slice(0, 4)
-        .map((t) => ({ text: t, kind: "Recent" }));
-      const labels = q
-        ? settingsLabels(body).filter((t) => t.toLowerCase().includes(q) && t.toLowerCase() !== q).slice(0, 4).map((t) => ({ text: t, kind: "Setting" }))
-        : [];
-      const items = past.concat(labels);
-      if (!items.length) { box.classList.add("hidden"); return; }
-      box.classList.remove("hidden");
-      for (const it of items) {
-        const b = el("button", "ss-chip");
-        b.type = "button";
-        b.append(el("span", "ss-kind mono", it.kind), el("span", "", it.text));
-        b.addEventListener("mousedown", (ev) => ev.preventDefault());
-        b.addEventListener("click", () => {
-          input.value = it.text; settingsQ = it.text;
-          applySettingsFilter(body, settingsQ);
-          recordSettingsSearch(settingsQ);
-          box.classList.add("hidden");
-          input.blur();
-        });
-        box.appendChild(b);
-      }
-    };
-    input.addEventListener("focus", () => draw());
+    let t = 0;
     input.addEventListener("input", () => {
       settingsQ = input.value;
-      clearTimeout(settingsSearchTimer);
-      // Wait for the pause: filter and suggestions update only after a short rest.
-      settingsSearchTimer = setTimeout(() => { applySettingsFilter(body, settingsQ); draw(); }, 280);
+      clear.classList.toggle("hidden", !settingsQ);
+      clearTimeout(t);
+      t = setTimeout(() => onQuery(settingsQ), 90);
     });
-    input.addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter") { ev.preventDefault(); recordSettingsSearch(settingsQ); box.classList.add("hidden"); input.blur(); }
-      if (ev.key === "Escape") { box.classList.add("hidden"); }
-    });
-    input.addEventListener("blur", () => {
-      recordSettingsSearch(settingsQ);
-      setTimeout(() => box.classList.add("hidden"), 120);
-    });
-    clear.addEventListener("mousedown", (ev) => ev.preventDefault());
-    clear.addEventListener("click", () => {
-      input.value = ""; settingsQ = "";
-      clearTimeout(settingsSearchTimer);
-      applySettingsFilter(body, "");
-      draw();
-      input.focus();
-    });
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); recordSettingsSearch(settingsQ); input.blur(); } if (e.key === "Escape") { clear.click(); } });
+    input.addEventListener("blur", () => recordSettingsSearch(settingsQ));
+    clear.addEventListener("mousedown", (e) => e.preventDefault());
+    clear.addEventListener("click", (e) => { e.preventDefault(); input.value = ""; settingsQ = ""; clear.classList.add("hidden"); onQuery(""); input.focus(); });
+    return input;
   }
   function openSettings() {
-    settingsQ = "";
-    openPanel("Settings", NAME[me], (body) => {
-      const sh = SH(), s = S(me);
-      mountSettingsSearch(body);
-      body.appendChild(group("Shared · both of you", [
-        btnRow("Theme · " + (THEMES.find(t => t.id === sh.theme) || THEMES[0]).name, "palette", () => openThemeBar("app")),
-        prow("Archive old messages", "Moved to Archive, never deleted", selectCtl(ARCHIVE, sh.archiveDays, (v) => { setSH({ archiveDays: Number(v) }); render(); notice("Archive updated"); })),
-        btnRow("Open archive", "archive", () => openArchive())
-      ]));
-
-      const tagBox = el("div", "");
-      const tagIn = el("input", "in plain");
-      tagIn.maxLength = 80;
-      let tagNow = "Do what you love, love what you do.";
-      try { tagNow = localStorage.getItem("pp-tagline") || tagNow; } catch (e) {}
-      tagIn.value = tagNow;
-      const tagBtn = el("button", "btn sm", "Save");
-      tagBtn.type = "button";
-      tagBtn.addEventListener("click", () => saveTagline(tagIn.value));
-      tagBox.append(tagIn, tagBtn);
-      body.appendChild(group("Lock-screen tagline", [tagBox]));
-
-      const nameBox = el("div", "pgroup");
-      nameBox.appendChild(el("div", "gh", "Names shown to us"));
-      const lewisIn = el("input", "in plain");
-      lewisIn.maxLength = 30;
-      lewisIn.value = NAME.Lewis;
-      lewisIn.setAttribute("aria-label", "Name for the first side");
-      const agnesIn = el("input", "in plain");
-      agnesIn.maxLength = 30;
-      agnesIn.value = NAME.Agnes;
-      agnesIn.setAttribute("aria-label", "Name for the second side");
-      const saveNames = el("button", "btn sm", "Save");
-      saveNames.addEventListener("click", () => saveSideLabels(lewisIn.value, agnesIn.value));
-      nameBox.append(lewisIn, agnesIn, saveNames);
-      body.appendChild(nameBox);
-
-      const status = el("input", "in"); status.value = s.status || ""; status.maxLength = 60; status.placeholder = "A line for her";
-      status.style.maxWidth = "55%";
-      status.addEventListener("change", () => setS(me, { status: status.value.trim() }));
-      body.appendChild(group("Your side", [
-        prow("Status", "Shown to her under your name", status),
-        (() => { const b = el("button", "btn sm", "Choose"); b.addEventListener("click", () => { const f = el("input"); f.type = "file"; f.accept = "image/*"; f.addEventListener("change", () => { if (f.files[0]) setAppIcon(f.files[0]); }); f.click(); }); return prow("App icon", "Shown on both devices", b); })(),
-        (() => { const b = el("button", "btn sm", "Choose photo"); b.addEventListener("click", () => { const f = el("input"); f.type = "file"; f.accept = "image/*"; f.addEventListener("change", () => { if (f.files[0]) uploadAvatar(f.files[0]); }); f.click(); }); return prow("Photo", "Shown on your home card", b); })(),
-        prow("Time zone", "Shown to her as your local time", selectCtl(ZONES.concat(ZONES.includes(s.tz) ? [] : [s.tz]).map(z => [z, z]), s.tz, (v) => setS(me, { tz: v }))),
-        prow("Mute notifications", "Silences sound and buzz for you", selectCtl([["off", "Not muted"], ["8h", "8 hours"], ["1w", "1 week"]], ppMuteChoice(), (v) => ppSetMute(v))),
-        prow("Haptics", "Gentle vibration on actions", toggle(s.haptics, (v) => { setS(me, { haptics: v }); if (v) haptic("press"); })),
-        prow("Vibration", "A short buzz when a message arrives", toggle(s.vibrate !== false, (v) => setS(me, { vibrate: v }))),
-        prow("Sounds", "A soft chime on arrival", toggle(s.sound, (v) => setS(me, { sound: v }))),
-        prow("Sign-in object", "What moves over the passphrase marks", selectCtl([["scan", "Scan line (recommended)"], ["round", "Round lens"], ["small", "Small lens"], ["square", "Square lens"], ["drop", "Drop"], ["star", "Star"]], s.lens || "scan", (v) => { try { localStorage.setItem("pp-lens", v); } catch (e) {} setS(me, { lens: v }); })),
-        prow("Let her see when I've read", "Turn off to hide your read receipts", toggle(myReadReceipts, (v) => ppSetReadReceipts(v))),
-        prow("Auto-blur sensitive words", "Blurs " + TERMS.length + " built-in words", toggle(s.autoBlur, (v) => { setS(me, { autoBlur: v }); render(); })),
-        prow("Transcribe my voice notes", "Voice clips go to a third-party speech service", toggle(myTranscribe, (v) => ppSetTranscribe(v))),
-        prow("Shake to lock", "Two firm shakes lock at once", toggle(s.shake, async (v) => {
-          if (v && typeof DeviceMotionEvent !== "undefined" && DeviceMotionEvent.requestPermission) {
-            try { if ((await DeviceMotionEvent.requestPermission()) !== "granted") { notice("Motion access denied", "Allow motion in Safari settings to use shake.", { error: true }); return; } } catch {}
-          }
-          setS(me, { shake: v });
-        }))
-      ]));
-
-      const wordsBox = el("div", "pgroup");
-      wordsBox.appendChild(el("div", "gh", "Words you want blurred"));
-      const add = el("div", "");
-      add.style.display = "flex"; add.style.gap = "8px";
-      const wi = el("input", "in plain"); wi.placeholder = "Add a word or phrase"; wi.style.flex = "1";
-      const wa = el("button", "btn sm", "Add");
-      wa.addEventListener("click", () => {
-        const w = wi.value.trim().toLowerCase();
-        if (!w) return;
-        const list = S(me).blurWords || [];
-        if (!list.includes(w)) list.push(w);
-        setS(me, { blurWords: list });
-        render();
-        openSettings();
-      });
-      add.append(wi, wa);
-      wordsBox.appendChild(add);
-      const chips = el("div", "wchips");
-      for (const w of (s.blurWords || []).filter(z => !z.startsWith("~"))) {
-        const c = el("span", "", w);
-        const x = el("button");
-        x.innerHTML = ic("close");
-        x.addEventListener("click", () => { setS(me, { blurWords: (S(me).blurWords || []).filter(z => z !== w) }); render(); openSettings(); });
-        c.appendChild(x);
-        chips.appendChild(c);
+    openPanel("Settings", NAME[me], stillPanel((body) => {
+      body.classList.add("set8");
+      const results = el("div", "s8-results");
+      const home = el("div", "s8-home");
+      const draw = (q) => {
+        q = String(q || "").trim();
+        results.textContent = "";
+        home.classList.toggle("hidden", !!q);
+        results.classList.toggle("hidden", !q);
+        if (!q) return;
+        const reg = settingsRegistry();
+        const hits = reg.map(e => ({ e, s: scoreSetting(e, q) })).filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 12);
+        if (!hits.length) {
+          const none = el("div", "s8-none");
+          none.append(el("b", "", "No setting matches “" + q + "”"), el("span", "", "Try words like theme, sound, passphrase, letters or backup."));
+          results.appendChild(none);
+          return;
+        }
+        results.appendChild(el("div", "s8-count mono", hits.length + (hits.length === 1 ? " result" : " results")));
+        for (const { e } of hits) {
+          const cat = SET_CATS.find(c => c.id === e.cat) || {};
+          const crumb = el("button", "s8-crumb");
+          crumb.type = "button";
+          crumb.textContent = cat.name + " ›";
+          crumb.addEventListener("click", () => openSettingsCategory(e.cat));
+          const node = e.build();
+          node.addEventListener("click", () => { const st = settingsSearchStats(); const k = "open:" + e.id; st[k] = { n: ((st[k] || {}).n || 0) + 1, t: Date.now() }; store.set(SS_KEY, st); }, true);
+          const card = catCard([node]);
+          card.prepend(crumb);
+          results.appendChild(card);
+        }
+      };
+      settingsSearchUI(body, draw);
+      // Profile header
+      const prof = el("button", "s8-profile");
+      prof.type = "button";
+      const av = el("div", "avatar " + me.toLowerCase());
+      av.textContent = me === "Lewis" ? "L" : "A";
+      av.id = "setAvatar";
+      const meta = el("div", "s8-pmeta");
+      meta.append(el("b", "", NAME[me]), el("span", "", S(me).status || "Add a status line"));
+      prof.append(av, meta);
+      prof.insertAdjacentHTML("beforeend", '<svg class="i sm srow-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>');
+      prof.addEventListener("click", () => openSettingsCategory("profile"));
+      home.appendChild(prof);
+      // Recent searches as quick chips
+      const stats = settingsSearchStats();
+      const recent = Object.keys(stats).filter(k => !k.startsWith("open:")).sort((a, b) => stats[b].t - stats[a].t).slice(0, 4);
+      if (recent.length) {
+        const chips = el("div", "s8-chips");
+        recent.forEach(q => { const c = el("button", "chip", q); c.type = "button"; c.addEventListener("click", () => { const i = body.querySelector(".s8-input"); i.value = q; i.dispatchEvent(new Event("input")); }); chips.appendChild(c); });
+        home.appendChild(chips);
       }
-      wordsBox.appendChild(chips);
-      const mgr = el("button", "btn sm ghost", "Manage all words");
-      mgr.type = "button";
-      mgr.addEventListener("click", () => openWordManager());
-      wordsBox.appendChild(mgr);
-      body.appendChild(wordsBox);
-
-      body.appendChild(group("Save a copy", [
-        btnRow("Export as JSON", "download", () => exportAs("json")),
-        btnRow("Export as Markdown", "download", () => exportAs("md")),
-        btnRow("Print or save as PDF", "download", () => exportAs("pdf")),
-        btnRow("Encrypted backup", "lock", () => makeBackup()),
-        btnRow("Restore from backup", "undo", () => pickRestore())
-      ]));
-
-      body.appendChild(group("Security", [
-        btnRow("Change passphrase", "key", () => changePassphrase()),
-        btnRow("Recovery questions", "key", () => editRecovery()),
-        btnRow("Sign out on other devices", "logout", () => confirmSignOut("other"), true),
-        btnRow("Sign out", "logout", () => confirmSignOut("this"), true)
-      ]));
-      groupSettings(body);
-      applySettingsFilter(body, settingsQ);
-    }, "home");
+      home.appendChild(catCard(SET_CATS.map(c => setRow({ id: "cat-" + c.id, icon: c.icon, tint: c.tint, label: c.name, sub: c.sub, onClick: () => openSettingsCategory(c.id) }))));
+      const out = el("div", "scard");
+      out.appendChild(setRow({ id: "signout", icon: "logout", label: "Sign out", danger: true, onClick: () => confirmSignOut("this") }));
+      home.appendChild(out);
+      home.appendChild(el("p", "snote", "The Lees · private to the two of you"));
+      body.append(home, results);
+      if (settingsQ) draw(settingsQ);
+      fillAvatars();
+    }), "home");
   }
 
   function openArchive() {
@@ -3479,7 +3636,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     $("greet").textContent = (h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening") + ", " + NAME[me];
     $("dateLine").textContent = new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" });
     $("homeTitle").textContent = "The Lees";
-    $("homeSub").textContent = "";
+    if (!$("homeSub").dataset.typing) $("homeSub").textContent = "";
     const av = $("homeAvatar");
     av.className = "avatar " + me.toLowerCase();
     av.textContent = me === "Lewis" ? "L" : "A";
@@ -3514,13 +3671,18 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     ];
     const savedOrder = store.get("pp-home-order", null);
     if (Array.isArray(savedOrder)) items.sort((x, y) => { const a = savedOrder.indexOf(x[0]), c = savedOrder.indexOf(y[0]); return (a < 0 ? 99 : a) - (c < 0 ? 99 : c); });
-    for (const [icon, label, fn, on] of items) {
-      const b = el("button", "navbtn lift" + (icon === "book" ? " journal-tool" : "") + (on === true ? " on" : "") + (icon === "logout" ? " danger" : ""));
+    // The + tile sits directly below Archive (two columns, so two places later).
+    const ai = items.findIndex(x => x[0] === "archive");
+    const ready = window.LeesFeatures && LeesFeatures.readyCount ? LeesFeatures.readyCount() : 0;
+    items.splice(Math.min(items.length, (ai < 0 ? items.length - 2 : ai) + 2), 0, ["plus", "Create", () => { if (window.LeesFeatures) LeesFeatures.openCreate(); }, false, ready]);
+    for (const [icon, label, fn, on, badge] of items) {
+      const b = el("button", "navbtn lift" + (icon === "book" ? " journal-tool" : "") + (icon === "plus" ? " create-tool" : "") + (on === true ? " on" : "") + (icon === "logout" ? " danger" : ""));
       b.type = "button";
       b.dataset.key = icon;
       applyTileSize(b, store.get("pp-home-sizes", {})[icon] || "s");
       b.innerHTML = ic(icon, "sm") + `<span>${label}</span>`;
       if (icon === "bell" && unreadN) b.insertAdjacentHTML("beforeend", `<span class="notif-count">${unreadN}</span>`);
+      if (icon === "plus") { b.setAttribute("aria-label", "Create: sealed letters and games"); if (badge) b.insertAdjacentHTML("beforeend", `<span class="notif-count">${badge}</span>`); }
       b.addEventListener("click", fn);
       grid.appendChild(b);
     }
@@ -3811,6 +3973,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     hideNotice();
     shield = false;
     document.title = baseTitle;
+    document.dispatchEvent(new CustomEvent("lees:locked"));
     showView("lock");
     applyRemembered();
     setTimeout(() => $("pass").focus(), 60);
@@ -3988,6 +4151,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (which === "other") signOutEverywhere();
     else {
       try { const client = cloudClient(); if (client) await client.auth.signOut(); } catch {}
+      dropSnapshot();
       lock();
     }
   }
@@ -4235,6 +4399,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     stagedMedia = { kind, blob, extra: extra || {}, label, thumb: kind === "audio" ? null : URL.createObjectURL(blob), source: (extra && extra.source) || null };
     renderHoldBar();
     autosize();
+    openMediaPreview();
   }
   // One bar above the composer for a held voice note or a staged photo, video or audio file.
   // It lets you choose View once and Quiet before Send. Nothing sends until you tap Send.
@@ -4382,82 +4547,116 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
   function openMediaPreview() {
     if (!stagedMedia) return;
-    closeMediaPreview();
+    closeMediaPreview(true);
     ped = { rot: 0, flip: false, ratio: null, cropIdx: 0, hd: false };
     if (stagedMedia.kind !== "image") pvUrl = URL.createObjectURL(stagedMedia.blob);
     const ov = document.createElement("div");
     ov.id = "mediaPreview";
-    ov.className = "mp-overlay";
+    ov.className = "mp-overlay mp8";
     ov.setAttribute("role", "dialog");
-    ov.setAttribute("aria-label", "Preview");
-    ov.innerHTML = '<div class="mp-top"></div><div class="mp-stage"></div><div class="mp-bar"></div>';
+    ov.setAttribute("aria-modal", "true");
+    ov.setAttribute("aria-label", "Preview before sending");
+    ov.innerHTML = '<div class="mp-top"></div><div class="mp-stage"></div><div class="mp-opts"></div><div class="mp-bar"></div>';
     document.body.appendChild(ov);
     paintPreview(true);
+    history.pushState && history.pushState({ lp: "preview" }, "");
   }
-  function closeMediaPreview() {
+  window.addEventListener("popstate", () => { if ($("mediaPreview")) closeMediaPreview(); });
+  function closeMediaPreview(silent) {
     const ov = $("mediaPreview");
     if (ov) ov.remove();
     if (pvUrl) { URL.revokeObjectURL(pvUrl); pvUrl = null; }
     ped = null;
-    if ($("input")) autosize();
+    if (!silent && $("input")) autosize();
   }
+  const PV_ICONS = {
+    close: "M18 6L6 18M6 6l12 12", rotate: "M3 12a9 9 0 1 0 3-6.7M3 4v5h5", flip: "M12 3v18M8 7l-5 5 5 5M16 7l5 5-5 5",
+    crop: "M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14", hd: "M4 6h16v12H4zM8 9v6M8 12h3M11 9v6M14 9v6h2a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2h-2",
+    mute: "M11 5L6 9H2v6h4l5 4zM23 9l-6 6M17 9l6 6", sound: "M11 5L6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14", trash: "M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"
+  };
   function paintPreview(full) {
     const ov = $("mediaPreview");
     if (!ov || !stagedMedia || !ped) { closeMediaPreview(); return; }
-    const top = ov.querySelector(".mp-top"), stage = ov.querySelector(".mp-stage"), bar = ov.querySelector(".mp-bar");
+    const top = ov.querySelector(".mp-top"), stage = ov.querySelector(".mp-stage"), opts = ov.querySelector(".mp-opts"), bar = ov.querySelector(".mp-bar");
     const isPhoto = stagedMedia.kind === "image";
     if (full) {
       stage.textContent = "";
       if (isPhoto) {
         const im = document.createElement("img");
-        im.id = "pvImg"; im.alt = "Photo preview"; im.src = stagedMedia.thumb;
+        im.id = "pvImg"; im.alt = "Photo preview"; im.src = stagedMedia.thumb; im.draggable = false;
         stage.append(im);
         refreshPreviewImg();
-      } else {
-        const m = document.createElement(stagedMedia.kind === "video" ? "video" : "audio");
-        m.id = "pvMedia"; m.controls = true; m.playsInline = true; m.src = pvUrl;
+      } else if (stagedMedia.kind === "video") {
+        const m = document.createElement("video");
+        m.id = "pvMedia"; m.controls = true; m.playsInline = true; m.src = pvUrl; m.autoplay = true; m.muted = true; m.loop = true;
         stage.append(m);
+      } else {
+        const card = el("div", "mp-audio");
+        card.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></svg>';
+        card.appendChild(el("b", "", stagedMedia.label || "Audio"));
+        const m = document.createElement("audio");
+        m.id = "pvMedia"; m.controls = true; m.src = pvUrl;
+        card.appendChild(m);
+        stage.append(card);
       }
     }
     top.textContent = "";
-    top.append(mpIcon("M18 6L6 18M6 6l12 12", "Close preview", () => closeMediaPreview()));
-    const sp = document.createElement("span"); sp.className = "grow"; top.append(sp);
+    top.append(mpIcon(PV_ICONS.close, "Discard and close", () => removeFromPreview()));
+    top.append(Object.assign(el("span", "grow"), {}));
     if (isPhoto) {
-      top.append(mpTool("Rotate", false, () => { ped.rot = (ped.rot + 90) % 360; paintPreview(false); refreshPreviewImg(); }));
-      top.append(mpTool("Flip", ped.flip, () => { ped.flip = !ped.flip; paintPreview(false); refreshPreviewImg(); }));
-      top.append(mpTool("Crop " + CROPS[ped.cropIdx][1], ped.ratio !== null, () => {
+      top.append(mpIcon(PV_ICONS.rotate, "Rotate", () => { ped.rot = (ped.rot + 90) % 360; refreshPreviewImg(); }));
+      const flip = mpIcon(PV_ICONS.flip, "Flip", () => { ped.flip = !ped.flip; flip.classList.toggle("on", ped.flip); refreshPreviewImg(); });
+      flip.classList.toggle("on", ped.flip);
+      top.append(flip);
+      const crop = mpIcon(PV_ICONS.crop, "Crop: " + CROPS[ped.cropIdx][1], () => {
         ped.cropIdx = (ped.cropIdx + 1) % CROPS.length; ped.ratio = CROPS[ped.cropIdx][0];
-        paintPreview(false); refreshPreviewImg();
-      }));
-      top.append(mpTool("HD", ped.hd, () => { ped.hd = !ped.hd; paintPreview(false); }));
-    } else {
+        crop.classList.toggle("on", ped.ratio !== null); crop.dataset.tag = ped.ratio === null ? "" : CROPS[ped.cropIdx][1];
+        crop.setAttribute("aria-label", "Crop: " + CROPS[ped.cropIdx][1]);
+        refreshPreviewImg();
+      });
+      crop.classList.toggle("on", ped.ratio !== null); crop.dataset.tag = ped.ratio === null ? "" : CROPS[ped.cropIdx][1];
+      top.append(crop);
+      const hd = mpIcon(PV_ICONS.hd, "Send in HD", () => { ped.hd = !ped.hd; hd.classList.toggle("on", ped.hd); hd.setAttribute("aria-pressed", String(ped.hd)); });
+      hd.classList.toggle("on", ped.hd); hd.setAttribute("aria-pressed", String(ped.hd));
+      top.append(hd);
+    } else if (stagedMedia.kind === "video") {
       const m = $("pvMedia");
-      top.append(mpTool("Mute preview", m && m.muted, () => { if (m) m.muted = !m.muted; paintPreview(false); }));
+      const mb = mpIcon(m && m.muted ? PV_ICONS.mute : PV_ICONS.sound, "Preview sound", () => { if (!m) return; m.muted = !m.muted; mb.querySelector("path").setAttribute("d", m.muted ? PV_ICONS.mute : PV_ICONS.sound); });
+      top.append(mb);
     }
-    bar.textContent = "";
-    const cap = document.createElement("input");
-    cap.type = "text"; cap.className = "mp-cap"; cap.placeholder = "Add a caption"; cap.value = $("input").value;
-    cap.setAttribute("aria-label", "Caption");
-    cap.addEventListener("input", () => { $("input").value = cap.value; autosize(); });
-    const row1 = document.createElement("div"); row1.className = "mp-row"; row1.append(cap);
-    const row2 = document.createElement("div"); row2.className = "mp-row";
-    row2.append(
-      swRow("View once", sendOpts.once, () => { sendOpts.once = !sendOpts.once; paintPreview(false); }),
-      swRow("Quiet", sendOpts.quiet, () => { sendOpts.quiet = !sendOpts.quiet; paintPreview(false); })
+    opts.textContent = "";
+    const pill = (label, on, fn, d) => {
+      const b = el("button", "mp-pill" + (on ? " on" : ""));
+      b.type = "button"; b.setAttribute("aria-pressed", String(!!on));
+      b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '"/></svg><span></span>';
+      b.querySelector("span").textContent = label;
+      b.addEventListener("click", () => { fn(); const v = b.getAttribute("aria-pressed") !== "true"; b.classList.toggle("on", v); b.setAttribute("aria-pressed", String(v)); haptic("press"); });
+      return b;
+    };
+    opts.append(
+      pill("View once", sendOpts.once, () => { sendOpts.once = !sendOpts.once; }, "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM11 8h2v8"),
+      pill("Quiet", sendOpts.quiet, () => { sendOpts.quiet = !sendOpts.quiet; }, "M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M3 3l18 18")
     );
-    const row3 = document.createElement("div"); row3.className = "mp-row";
-    const rm = mpTool("Remove", false, () => removeFromPreview());
+    bar.textContent = "";
+    const cap = document.createElement("textarea");
+    cap.rows = 1; cap.className = "mp-cap"; cap.placeholder = "Add a message…"; cap.value = $("input").value;
+    cap.setAttribute("aria-label", "Message to send with this");
+    const fit = () => { cap.style.height = "auto"; cap.style.height = Math.min(cap.scrollHeight, 120) + "px"; };
+    cap.addEventListener("input", () => { $("input").value = cap.value; fit(); });
+    cap.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && window.matchMedia("(pointer:fine)").matches) { e.preventDefault(); sendFromPreview(); } });
     const send = document.createElement("button");
-    send.type = "button"; send.className = "btn"; send.textContent = "Send";
+    send.type = "button"; send.className = "mp-send"; send.setAttribute("aria-label", "Send");
+    send.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>';
     send.addEventListener("click", () => sendFromPreview());
-    const sp2 = document.createElement("span"); sp2.className = "grow"; sp2.style.flex = "1";
-    row3.append(rm, sp2, send);
-    bar.append(row1, row2, row3);
+    const who = el("div", "mp-to mono", "To " + NAME[other()]);
+    bar.append(who, Object.assign(el("div", "mp-compose"), {}));
+    bar.querySelector(".mp-compose").append(cap, send);
+    setTimeout(fit, 0);
   }
   async function refreshPreviewImg() {
     const token = ++pvSeq;
     if (!stagedMedia || !ped || stagedMedia.kind !== "image") return;
-    const out = await exportEditedPhoto(stagedMedia.source || stagedMedia.blob, { ...ped }, 1000);
+    const out = await exportEditedPhoto(stagedMedia.source || stagedMedia.blob, { ...ped }, 1400);
     if (token !== pvSeq || !out) return;
     const im = $("pvImg");
     if (!im) return;
@@ -4466,42 +4665,113 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     im.dataset.url = next;
     im.src = next;
   }
+  let pvSending = false;
   async function sendFromPreview() {
-    if (!stagedMedia || !ped) return;
-    if (stagedMedia.kind === "image") {
-      const out = await exportEditedPhoto(stagedMedia.source || stagedMedia.blob, { ...ped }, ped.hd ? 2048 : 1600);
-      if (!out) { notice("Couldn't prepare that photo", "Try again or choose another.", { error: true }); return; }
-      stagedMedia.blob = out;
-    }
-    closeMediaPreview();
-    await sendText();
+    if (!stagedMedia || !ped || pvSending) return;
+    pvSending = true;
+    const btn = document.querySelector("#mediaPreview .mp-send");
+    if (btn) btn.classList.add("busy");
+    try {
+      if (stagedMedia.kind === "image") {
+        const out = await exportEditedPhoto(stagedMedia.source || stagedMedia.blob, { ...ped }, ped.hd ? 2560 : 1600);
+        if (!out) { notice("Couldn't prepare that photo", "Try again or choose another.", { error: true }); return; }
+        stagedMedia.blob = out;
+      }
+      closeMediaPreview();
+      await sendText();
+    } finally { pvSending = false; }
   }
   function removeFromPreview() {
     if (stagedMedia && stagedMedia.thumb) URL.revokeObjectURL(stagedMedia.thumb);
     stagedMedia = null;
+    sendOpts = { once: false, quiet: false };
     closeMediaPreview();
     renderHoldBar();
     autosize();
   }
 
+  // The held voice note: a waveform you can tap or drag to seek, play and pause, the length,
+  // plus delete and record-again. Nothing sends until Send.
+  const waveCache = new WeakMap();
+  async function clipPeaks(blob, bars) {
+    if (waveCache.has(blob)) return waveCache.get(blob);
+    let peaks = null;
+    try {
+      let ctx = null; try { ctx = ensureAudio(); } catch (e) {}
+      const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      const buf = await blob.arrayBuffer();
+      const decoded = await new Promise((res, rej) => { const c = ctx || new (window.AudioContext || window.webkitAudioContext)(); const p = c.decodeAudioData(buf, res, rej); if (p && p.then) p.then(res, rej); });
+      const data = decoded.getChannelData(0), step = Math.max(1, Math.floor(data.length / bars));
+      peaks = [];
+      for (let i = 0; i < bars; i++) { let m = 0; for (let j = i * step; j < Math.min(data.length, (i + 1) * step); j += 8) m = Math.max(m, Math.abs(data[j])); peaks.push(m); }
+      const top = Math.max(0.05, ...peaks);
+      peaks = peaks.map(p => Math.max(0.08, p / top));
+      void Ctx;
+    } catch (e) { peaks = null; }
+    if (!peaks) peaks = Array.from({ length: bars }, (_, i) => 0.25 + 0.6 * Math.abs(Math.sin(i * 0.7) * Math.cos(i * 0.23)));
+    waveCache.set(blob, peaks);
+    return peaks;
+  }
+  function voicePreview() {
+    const a = ensureHeldAudio();
+    const dur = Math.max(1, heldClip.dur || 1);
+    const fmt = (t) => { t = Math.max(0, Math.floor(t || 0)); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); };
+    const wrap = el("div", "vp8");
+    const play = el("button", "vp8-play");
+    play.type = "button";
+    const wave = el("div", "vp8-wave");
+    wave.setAttribute("role", "slider");
+    wave.setAttribute("aria-label", "Position in recording");
+    wave.tabIndex = 0;
+    const BARS = 44;
+    for (let i = 0; i < BARS; i++) { const b = el("i"); b.style.height = "30%"; wave.appendChild(b); }
+    clipPeaks(heldClip.blob, BARS).then(p => { [...wave.children].forEach((b, i) => { b.style.height = Math.round(p[i] * 100) + "%"; }); });
+    const time = el("span", "vp8-time mono", fmt(dur));
+    let speed = 1;
+    const sp = el("button", "vp8-speed mono", "1×");
+    sp.type = "button";
+    sp.setAttribute("aria-label", "Playback speed");
+    sp.addEventListener("click", () => { speed = speed === 1 ? 1.5 : speed === 1.5 ? 2 : 1; a.playbackRate = speed; sp.textContent = speed + "×"; });
+    const sync = () => {
+      play.innerHTML = a.paused ? '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
+      play.setAttribute("aria-label", a.paused ? "Play" : "Pause");
+      const frac = Math.min(1, (a.currentTime || 0) / dur);
+      const on = Math.round(frac * BARS);
+      [...wave.children].forEach((b, i) => b.classList.toggle("on", i < on));
+      wave.setAttribute("aria-valuenow", String(Math.round(frac * 100)));
+      time.textContent = a.paused && !a.currentTime ? fmt(dur) : fmt(a.currentTime) + " / " + fmt(dur);
+      wrap.classList.toggle("playing", !a.paused);
+    };
+    play.addEventListener("click", () => { if (a.paused) { a.playbackRate = speed; a.play().catch(() => notice("Couldn't play that", "Record again and try once more.", { error: true })); } else a.pause(); });
+    const seekAt = (x) => { const r = wave.getBoundingClientRect(); const f = Math.min(1, Math.max(0, (x - r.left) / r.width)); try { a.currentTime = f * dur; } catch (e) {} sync(); };
+    wave.addEventListener("pointerdown", (e) => { wave.setPointerCapture(e.pointerId); seekAt(e.clientX); const mv = (ev) => seekAt(ev.clientX); wave.addEventListener("pointermove", mv); wave.addEventListener("pointerup", () => wave.removeEventListener("pointermove", mv), { once: true }); });
+    wave.addEventListener("keydown", (e) => { if (e.key === "ArrowRight") { a.currentTime = Math.min(dur, a.currentTime + 2); sync(); } if (e.key === "ArrowLeft") { a.currentTime = Math.max(0, a.currentTime - 2); sync(); } });
+    wrap.append(play, wave, time, sp);
+    heldUi = { sync };
+    sync();
+    return wrap;
+  }
+
   function renderHoldBar() {
     const old = $("heldVoice");
-    if (!heldClip && !stagedMedia) { if (old) old.classList.add("hidden"); return; }
-    const b = el("div", "heldvoice");
+    if (!heldClip && !stagedMedia) { if (old) old.remove(); return; }
+    const b = el("div", "heldvoice hv8");
     b.id = "heldVoice";
-    const label = stagedMedia ? stagedMedia.label : "Voice note held. It sends with your words.";
-    b.append(el("span", "dot"), el("span", "heldlabel", label));
-    if (stagedMedia) b.prepend(stageThumb());
-    const mk = (text, on, fn) => { const x = el("button", "btn ghost sm", text); x.type = "button"; if (on) x.classList.add("on"); x.setAttribute("aria-pressed", String(!!on)); x.addEventListener("click", fn); return x; };
-    b.append(
-      swRow("View once", sendOpts.once, () => { sendOpts.once = !sendOpts.once; renderHoldBar(); }),
-      swRow("Quiet", sendOpts.quiet, () => { sendOpts.quiet = !sendOpts.quiet; renderHoldBar(); }),
-      mk("Remove", false, () => { if (stagedMedia) stagedMedia = null; else dropHeld(); renderHoldBar(); autosize(); })
-    );
+    const mkIcon = (d, label, fn, cls) => { const x = el("button", "hv8-ic" + (cls ? " " + cls : "")); x.type = "button"; x.setAttribute("aria-label", label); x.title = label; x.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '"/></svg>'; x.addEventListener("click", fn); return x; };
+    const toggles = el("div", "hv8-opts");
+    const pill = (label, key) => { const p = el("button", "hv8-pill" + (sendOpts[key] ? " on" : ""), label); p.type = "button"; p.setAttribute("aria-pressed", String(!!sendOpts[key])); p.addEventListener("click", () => { sendOpts[key] = !sendOpts[key]; p.classList.toggle("on", sendOpts[key]); p.setAttribute("aria-pressed", String(sendOpts[key])); haptic("press"); }); return p; };
+    toggles.append(pill("View once", "once"), pill("Quiet", "quiet"));
     if (heldClip) {
-      b.append(heldPlayer());
+      const head = el("div", "hv8-head");
+      head.append(el("span", "hv8-dot"), el("span", "hv8-label", "Voice note · ready"), toggles);
+      const row = el("div", "hv8-row");
+      row.append(mkIcon(PV_ICONS.trash, "Delete recording", () => { dropHeld(); haptic("press"); }, "danger"), voicePreview(), mkIcon("M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v3", "Record again", () => { dropHeld(); startRecording(); }));
+      b.append(head, row);
       if (heldClip.tx) b.append(heldTranscript(heldClip.tx));
-      b.append(mk("Record again", false, () => { dropHeld(); startRecording(); }));
+    } else if (stagedMedia) {
+      const row = el("div", "hv8-row");
+      row.append(stageThumb(), el("span", "hv8-label", stagedMedia.label + " · tap to preview"), toggles, mkIcon(PV_ICONS.trash, "Remove", () => { if (stagedMedia && stagedMedia.thumb) URL.revokeObjectURL(stagedMedia.thumb); stagedMedia = null; renderHoldBar(); autosize(); }, "danger"));
+      b.append(row);
     }
     if (old) old.replaceWith(b); else $("footer").before(b);
   }
@@ -4541,12 +4811,20 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     }
   }
 
-  const REC_AUDIO = { channelCount: 1, sampleRate: 48000, echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+  // "ideal" values: a device that can't do mono 48 kHz still records instead of failing with OverconstrainedError.
+  const REC_AUDIO = { channelCount: { ideal: 1 }, sampleRate: { ideal: 48000 }, echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+  async function getMic() {
+    try { return await navigator.mediaDevices.getUserMedia({ audio: REC_AUDIO }); }
+    catch (e) {
+      if (e && (e.name === "NotAllowedError" || e.name === "SecurityError")) throw e;
+      return await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
+  }
   let micPrimed = false, micGestureTried = false;
   async function primeMic(fromGesture) {
     if (micPrimed || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: REC_AUDIO });
+      const stream = await getMic();
       stream.getTracks().forEach(t => t.stop());
       micPrimed = true;
     } catch {
@@ -4557,52 +4835,60 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     }
   }
 
+  let recSendNow = false;
   async function startRecording() {
     if (rec || startRecording.busy) return;
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) { notice("Recording isn't available here", "Attach an audio file instead."); return; }
     startRecording.busy = true;
     recWantStop = false;
+    recSendNow = false;
+    const restore = () => { $("recbar").classList.add("hidden"); $("mic").classList.remove("recording"); $("footer").classList.remove("hidden"); };
     $("footer").classList.add("hidden");
     $("recbar").classList.remove("hidden");
     $("rectime").textContent = "0:00";
     $("mic").classList.add("recording");
-    let stream;
-    try { stream = await navigator.mediaDevices.getUserMedia({ audio: REC_AUDIO }); }
-    catch {
-      $("recbar").classList.add("hidden"); $("mic").classList.remove("recording");
-      $("footer").classList.remove("hidden");
+    try {
+      let stream;
+      try { stream = await getMic(); }
+      catch (e) {
+        restore();
+        notice("Microphone is blocked", "Allow the microphone for this site in your browser settings, then tap the mic again.", { error: true });
+        return;
+      }
+      if (recWantStop) { stream.getTracks().forEach(t => t.stop()); restore(); recWantStop = false; return; }
+      recStream = stream;
+      recAnalyser = null;
+      try {
+        const ctx = ensureAudio();
+        if (ctx) { recAnalyser = ctx.createAnalyser(); recAnalyser.fftSize = 256; ctx.createMediaStreamSource(stream).connect(recAnalyser); }
+      } catch (e) { recAnalyser = null; }
+      const type = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4;codecs=mp4a.40.2", "audio/mp4", "audio/aac", "audio/ogg;codecs=opus"].find(t => { try { return MediaRecorder.isTypeSupported(t); } catch (e) { return false; } }) || "";
+      try { rec = new MediaRecorder(stream, { ...(type ? { mimeType: type } : {}), audioBitsPerSecond: 64000 }); }
+      catch (e) { rec = new MediaRecorder(stream); }
+      recChunks = [];
+      rec.ondataavailable = (e) => { if (e.data && e.data.size) recChunks.push(e.data); };
+      rec.onerror = () => { notice("Recording stopped", "The microphone was interrupted. What was recorded is kept.", { error: true }); stopRecording(true); };
+      // A timeslice keeps data flowing, so a recording is never lost if the stop event is late.
+      rec.start(250);
+      recStart = Date.now();
+      recHistory = [];
+      haptic("press");
+      drawWave();
+      clearInterval(recTimer);
+      recTimer = setInterval(() => {
+        const s = (Date.now() - recStart) / 1000;
+        $("rectime").textContent = fmtDur(s);
+        lastActivity = Date.now();
+        if (s * 1000 >= REC_MAX_MS) stopRecording(true);
+      }, 200);
+    } catch (err) {
+      if (recStream) { recStream.getTracks().forEach(t => t.stop()); recStream = null; }
+      rec = null;
+      restore();
+      notice("Couldn't start recording", String((err && err.message) || err), { error: true });
+    } finally {
       startRecording.busy = false;
-      notice("Microphone is blocked", "Allow the microphone, or attach an audio file.", { error: true });
-      return;
     }
-    if (recWantStop) {
-      stream.getTracks().forEach(t => t.stop());
-      $("recbar").classList.add("hidden"); $("mic").classList.remove("recording");
-      $("footer").classList.remove("hidden");
-      startRecording.busy = false;
-      recWantStop = false;
-      return;
-    }
-    ensureAudio();
-    recStream = stream;
-    recAnalyser = audioCtx.createAnalyser();
-    recAnalyser.fftSize = 256;
-    audioCtx.createMediaStreamSource(stream).connect(recAnalyser);
-    const type = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find(t => MediaRecorder.isTypeSupported(t)) || "";
-    rec = new MediaRecorder(stream, { ...(type ? { mimeType: type } : {}), audioBitsPerSecond: 64000 });
-    recChunks = [];
-    rec.ondataavailable = (e) => { if (e.data.size) recChunks.push(e.data); };
-    rec.start();
-    recStart = Date.now();
-    recHistory = [];
-    drawWave();
-    recTimer = setInterval(() => {
-      const s = (Date.now() - recStart) / 1000;
-      $("rectime").textContent = fmtDur(s);
-      lastActivity = Date.now();
-      if (s * 1000 >= REC_MAX_MS) stopRecording(true);
-    }, 200);
-    startRecording.busy = false;
   }
 
   function stopRecording(sendIt) {
@@ -4626,6 +4912,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       if (!chunks.length) { notice("Nothing was recorded", "Check the microphone and try again.", { error: true }); return; }
       try {
         showHeld(new Blob(chunks, { type: r.mimeType || "audio/webm" }), dur);
+        if (recSendNow) { recSendNow = false; sendText(); }
       } catch (err) {
         notice("Couldn't keep that recording", String((err && err.message) || err), { error: true });
       }
@@ -4638,6 +4925,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   function drawWave() {
     const c = $("wave"), g = c.getContext("2d");
+    if (!recAnalyser) { c.classList.add("idle"); return; }
+    c.classList.remove("idle");
     const dpr = window.devicePixelRatio || 1;
     const w = c.clientWidth, h = c.clientHeight;
     if (c.width !== Math.floor(w * dpr) || c.height !== Math.floor(h * dpr)) {
@@ -4692,7 +4981,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if ($("input").value.trim()) {
       trackTyping(true, typingEnergy());
       clearTimeout(typingTail);
-      typingTail = setTimeout(() => trackTyping(false), 40);
+      typingTail = setTimeout(() => trackTyping(false), 3000);
     } else trackTyping(false);
   });
   $("input").addEventListener("blur", () => trackTyping(false));
@@ -4872,8 +5161,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     $("home").addEventListener("pointercancel", up);
   });
 
-  $("mic").addEventListener("click", () => { ensureAudio(); if (rec || startRecording.busy) stopRecording(true); else startRecording(); });
+  $("mic").addEventListener("click", () => { try { ensureAudio(); } catch (e) {} if (rec || startRecording.busy) stopRecording(true); else startRecording(); });
   $("recSend").addEventListener("click", () => stopRecording(true));
+  $("recSendNow").addEventListener("click", () => { recSendNow = true; stopRecording(true); });
   $("recCancel").addEventListener("click", () => stopRecording(false));
   $("replyX").addEventListener("click", clearBar);
   // The floating tray (lees-patch.js) calls this to jump to the newest message.
@@ -5051,7 +5341,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   let cacheThread = [], cacheNotes = [], cacheSched = [], cacheJournal = [], cacheShared = { theme: "warm", archiveDays: 0, appIcon: null, pinnedId: null };
   let cacheMembers = {}, cacheSeen = {}, cacheNread = {}, presenceState = {};
   let cloudChannel = null, presenceChannel = null, typeChannel = null, lastPull = 0;
-  let partnerTypingUntil = 0, typingMuteUntil = 0, dropPresenceTyping = false, suppressSchedNotice = null, partnerEnergy = "mid", partnerTypingPulse = 0, typingEase = 1.55, typingRAF = 0;
+  let partnerTypingShownAt = 0, partnerTypingUntil = 0, typingMuteUntil = 0, dropPresenceTyping = false, suppressSchedNotice = null, partnerEnergy = "mid", partnerTypingPulse = 0, typingEase = 1.55, typingRAF = 0;
   const announcedSched = new Set();
   function noteDelivered(prevSched) {
     const gone = prevSched.filter(id => !cacheSched.some(s => s.id === id) && id !== suppressSchedNotice && !announcedSched.has(id));
@@ -5093,7 +5383,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     return { id: r.id, from: r.side, kind: r.kind, text: r.text, ts: new Date(r.created_at).getTime(), edited: !!r.edited };
   }
   function memberView(row) {
-    return { lens: row.lens || "scan", status: row.status || "", tz: row.tz || "UTC", haptics: row.haptics !== false, sound: row.sound !== false, autoBlur: row.auto_blur !== false, shake: !!row.shake, blurWords: row.blur_words || [], avatar_path: row.avatar_path || "", chatTheme: row.chat_theme || "", chatStyle: row.chat_style || {} };
+    let vib = true;
+    try { vib = localStorage.getItem("pp-vibrate-" + row.side) !== "0"; } catch (e) {}
+    return { vibrate: vib, lens: row.lens || "auto", status: row.status || "", tz: row.tz || "UTC", haptics: row.haptics !== false, sound: row.sound !== false, autoBlur: row.auto_blur !== false, shake: !!row.shake, blurWords: row.blur_words || [], avatar_path: row.avatar_path || "", chatTheme: row.chat_theme || "", chatStyle: row.chat_style || {} };
   }
   async function reloadAll() {
     const client = cloudClient();
@@ -5108,6 +5400,36 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       client.from("note_reads").select("note_id").eq("user_id", myUserId),
       client.from("journal_entries").select("*").eq("pair_id", pairId).order("created_at", { ascending: false })
     ]);
+    if (members.error || messages.error) return false;
+    const snap = { members: members.data || [], settings: settings.data || null, messages: messages.data || [], notes: notes.data || [], scheduled: scheduled.data || [], reads: reads.data || [], nreads: nreads.data || [], journal: journal.data || [] };
+    applyRows(snap);
+    saveSnapshot(snap);
+    await refreshUnread();
+    return true;
+  }
+  // Offline copy: everything the app needs to open is kept on this device after each sync,
+  // so the next sign-in paints at once and the app still opens without a connection.
+  const SNAP_KEY = "pp-snap-v1";
+  let snapTimer = 0;
+  function saveSnapshot(snap) {
+    clearTimeout(snapTimer);
+    snapTimer = setTimeout(() => {
+      try {
+        const data = { v: 1, at: Date.now(), userId: myUserId, side: me, pairId, ...snap, messages: snap.messages.slice(-600) };
+        localStorage.setItem(SNAP_KEY, JSON.stringify(data));
+      } catch (e) { try { localStorage.removeItem(SNAP_KEY); } catch (e2) {} }
+    }, 800);
+  }
+  function loadSnapshot(userId, side) {
+    try {
+      const s = JSON.parse(localStorage.getItem(SNAP_KEY) || "null");
+      if (s && s.v === 1 && s.userId === userId && s.side === side && s.pairId) return s;
+    } catch (e) {}
+    return null;
+  }
+  function dropSnapshot() { try { localStorage.removeItem(SNAP_KEY); } catch (e) {} }
+  function applyRows(d) {
+    const members = { data: d.members }, settings = { data: d.settings }, messages = { data: d.messages }, notes = { data: d.notes }, scheduled = { data: d.scheduled }, reads = { data: d.reads }, nreads = { data: d.nreads }, journal = { data: d.journal };
     sideOfUser = {}; userOfSide = {}; cacheMembers = {};
     for (const row of members.data || []) {
       sideOfUser[row.user_id] = row.side;
@@ -5138,7 +5460,6 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     cacheNread = {};
     for (const r of nreads.data || []) cacheNread[r.note_id] = true;
     applyTheme();
-    await refreshUnread();
   }
   function applySideLabels(lewis, agnes) {
     if (lewis) NAME.Lewis = String(lewis).slice(0, 30);
@@ -5170,19 +5491,19 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const client = cloudClient();
     if (!client || !pairId) return;
     const upd = await client.from("pair_settings").update({ label_lewis: a, label_agnes: b }).eq("pair_id", pairId);
-    if (upd.error) { notice("Couldn't save names", upd.error.message, { error: true }); return; }
+    if (upd.error) { notice("Couldn't save names", upd.error.message, { error: true }); return false; }
     applySideLabels(a, b);
     notice("Names saved");
     render();
   }
   async function saveTagline(value) {
     const v = String(value || "").trim();
-    if (!v || v.length > 80) { notice("Tagline needs 1 to 80 characters", "", { error: true }); return; }
+    if (!v || v.length > 80) { notice("Tagline needs 1 to 80 characters", "", { error: true }); return false; }
     try { localStorage.setItem("pp-tagline", v); } catch (e) {}
     const client = cloudClient();
     if (client && pairId) {
       const upd = await client.from("pair_settings").update({ tagline: v }).eq("pair_id", pairId);
-      if (upd.error) { notice("Saved on this device only", "The shared tagline could not be saved: " + upd.error.message, { error: true }); return; }
+      if (upd.error) { notice("Saved on this device only", "The shared tagline could not be saved: " + upd.error.message, { error: true }); return false; }
     }
     notice("Tagline saved");
     render();
@@ -5274,7 +5595,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
               setTimeout(() => flashRow(m.id, "lp-glow-like"), 60);
             }
           }
-          else if (!known) cacheThread = cacheThread.concat([m]).sort((a, b) => a.ts - b.ts);
+          if (i < 0) cacheThread = cacheThread.concat([m]).sort((a, b) => a.ts - b.ts);
           const fresh = !known && m.from && m.from !== me && !m.deleted && !(m.deletedFor || []).includes(me);
           if (fresh) {
             partnerTypingUntil = 0;
@@ -5335,20 +5656,21 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       if (payload.on === false) {
         // A short beat after the partner stops, so the indicator does not vanish on a one-second pause.
         dropPresenceTyping = true;
-        partnerTypingUntil = Date.now() + 500;
+        partnerTypingUntil = Math.max(Date.now() + 1800, Math.min(partnerTypingUntil, partnerTypingShownAt + 3200));
         clearTimeout(typeChannel._hide);
-        typeChannel._hide = setTimeout(() => { if (unlocked) renderPresence(); }, 520);
+        typeChannel._hide = setTimeout(() => { if (unlocked) renderPresence(); }, partnerTypingUntil - Date.now() + 30);
         renderPresence();
         return;
       }
       dropPresenceTyping = false;
       partnerTypingPulse = Date.now();
-      // Typing is re-sent at most every 900 ms, so the window must be longer than that gap.
-      partnerTypingUntil = Date.now() + 2600;
-      partnerEnergy = payload.energy || "mid";
+      // Typing is re-sent every 1.5 s while keys move, so the window covers two missed pings.
+      if (Date.now() > partnerTypingUntil) partnerTypingShownAt = Date.now();
+      partnerTypingUntil = Date.now() + 4200;
+      partnerEnergy = "mid";
       renderPresence();
       clearTimeout(typeChannel._hide);
-      typeChannel._hide = setTimeout(() => { if (unlocked) renderPresence(); }, 1420);
+      typeChannel._hide = setTimeout(() => { if (unlocked) renderPresence(); }, 4230);
     });
     typeChannel.subscribe();
   }
@@ -5359,13 +5681,46 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const session = sessionData.session;
     if (!session) { notice("Sign in again", "The session did not start.", { error: true }); return false; }
     myUserId = session.user.id;
-    const claimed = await client.rpc("claim_side", { p_side: side });
-    if (claimed.error) { notice("Couldn't open your side", claimed.error.message, { error: true }); return false; }
-    pairId = claimed.data;
-    await reloadAll();
-    subscribePair();
-    flushOutbox();
+    const snap = loadSnapshot(myUserId, side);
+    const sync = async () => {
+      const claimed = await client.rpc("claim_side", { p_side: side });
+      if (claimed.error) return { error: claimed.error };
+      pairId = claimed.data;
+      const ok = await reloadAll();
+      subscribePair();
+      flushOutbox();
+      document.dispatchEvent(new CustomEvent("lees:synced"));
+      return { ok };
+    };
+    if (snap) {
+      pairId = snap.pairId;
+      cacheThread = cacheThread.filter(m => m.pending);
+      applyRows(snap);
+      localUnreadSync();
+      // Sync behind the painted screen; render once fresh data is in.
+      sync().then((r) => {
+        if (!unlocked) return;
+        if (r && r.error) { if (navigator.onLine) notice("Working from this device", "The latest messages will load when the connection returns.", { error: true }); return; }
+        render(); refreshUnread(); prefetchMedia();
+      }).catch(() => {});
+      return true;
+    }
+    if (!navigator.onLine) { notice("You're offline", "Connect once on this device so The Lees can keep a copy for offline use.", { error: true }); return false; }
+    const r = await sync();
+    if (r.error) { notice("Couldn't open your side", r.error.message, { error: true }); return false; }
+    prefetchMedia();
     return true;
+  }
+  function localUnreadSync() { try { unreadN = localUnreadCount(); } catch (e) {} }
+  // Warms the newest photos so scrolling the chat and Media doesn't wait on the network.
+  let prefetched = new Set();
+  function prefetchMedia() {
+    const recent = thread().filter(m => m.mid && m.kind === "image" && !m.deleted && !m.once).slice(-24);
+    recent.forEach((m, i) => {
+      if (prefetched.has(m.mid)) return;
+      prefetched.add(m.mid);
+      setTimeout(async () => { try { const u = await mediaURL(m.mid); if (u) { const im = new Image(); im.decoding = "async"; im.src = u; } } catch (e) {} }, 300 + i * 120);
+    });
   }
   async function pushShared() {
     const client = cloudClient();
@@ -5502,11 +5857,15 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const client = cloudClient();
     if (!client || !me) return;
     const s = S(me);
-    await client.from("pair_members").update({
+    const row = {
       status: s.status || "", tz: s.tz || "UTC", haptics: !!s.haptics, sound: !!s.sound,
       auto_blur: !!s.autoBlur, shake: !!s.shake, blur_words: s.blurWords || [],
-      chat_theme: s.chatTheme || null, chat_style: s.chatStyle || {}, lens: s.lens || "scan"
-    }).eq("user_id", myUserId);
+      chat_theme: s.chatTheme || null, chat_style: s.chatStyle || {}, lens: s.lens || "auto"
+    };
+    let r = await client.from("pair_members").update(row).eq("user_id", myUserId);
+    // A database that doesn't know a scanner name yet still saves everything else; the scanner stays on this device.
+    if (r.error && /lens/i.test(r.error.message || "")) { delete row.lens; r = await client.from("pair_members").update(row).eq("user_id", myUserId); }
+    if (r.error) notice("Couldn't save that", r.error.message, { error: true });
   }
   async function pushRead() {
     const client = cloudClient();
@@ -6181,9 +6540,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const node = typingRowEl();
     if (!node) { typingRAF = 0; return; }
     if (!reduceMotion()) {
-      const active = partnerTypingPulse && (now - partnerTypingPulse) < 900;
-      const target = active ? energySeconds(partnerEnergy || "mid") : 2.55;
-      typingEase += (target - typingEase) * 0.016;
+      typingEase = 1.4;
       node.querySelectorAll(".tdots i").forEach((dot, i) => {
         const wave = Math.sin((now / 1000) / typingEase * Math.PI * 2 + i * 0.72);
         const up = Math.max(0, wave);
@@ -6210,7 +6567,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     }
     const first = !typingLive;
     typingLive = true;
-    if (typeChannel && (first || Date.now() - lastTypingSent > 900)) {
+    if (typeChannel && (first || Date.now() - lastTypingSent > 1500)) {
       lastTypingSent = Date.now();
       try { typeChannel.send({ type: "broadcast", event: "typing", payload: { side: me, on: true, energy: energy || "mid" } }); } catch {}
     }
@@ -6245,6 +6602,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     renderHome();
     deliverDue();
     haptic("recv");
+    document.dispatchEvent(new CustomEvent("lees:unlocked", { detail: { side: me } }));
   }
   async function cloudSignIn(e) {
     e.preventDefault();
@@ -6496,6 +6854,50 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
   function seenMap() { return cacheSeen; }
 
+
+  /* ================= Public surface for the feature modules (letters, games, awards) ================= */
+  async function sendPlainText(text, opts) {
+    text = String(text || "").trim();
+    if (!text) return false;
+    const client = cloudClient();
+    const clientId = uid();
+    const local = addMessage({ kind: "text", text, effect: "none", replyTo: null, clientId });
+    render();
+    if (!client || !navigator.onLine) {
+      const box = outbox();
+      box.push({ kind: "text", text, effect: "none", replyTo: null, clientId, localId: local.id });
+      saveOutbox(box);
+      return true;
+    }
+    const ins = await client.from("messages").insert({ pair_id: pairId, sender_id: myUserId, kind: "text", text, effect: "none", client_id: clientId, quiet: !!(opts && opts.quiet) }).select().maybeSingle();
+    if (ins.error) { markFailed(local.id); notice("Couldn't send", ins.error.message, { error: true }); return false; }
+    cacheThread = thread().filter(x => x.id !== local.id);
+    if (ins.data) cacheThread = cacheThread.concat([msgFromRow(ins.data)]).sort((a, b) => a.ts - b.ts);
+    haptic("send");
+    render();
+    return true;
+  }
+  if (window.LeesHooks) window.LeesHooks.doClear = async (o) => {
+    const client = cloudClient();
+    if (!client || !pairId) return;
+    const from = o.all || !o.from ? null : new Date(o.from + "T00:00:00").toISOString();
+    const to = o.all || !o.to ? null : new Date(new Date(o.to + "T00:00:00").getTime() + 864e5).toISOString();
+    const r = await client.rpc("clear_conversation", { p_scope: o.scope === "both" ? "both" : "me", p_from: from, p_to: to });
+    if (r.error) { notice("Couldn't clear", r.error.message, { error: true }); return; }
+    await reloadAll(); render();
+    notice("Conversation cleared", (r.data || 0) + " messages hidden" + (o.scope === "both" ? " on both sides." : " on your side."));
+  };
+  window.LeesApp = {
+    get sb() { return cloudClient(); }, get me() { return me; }, get other() { return me ? other() : null; },
+    get pairId() { return pairId; }, get userId() { return myUserId; }, get unlocked() { return unlocked; }, get view() { return view; },
+    name: (side) => NAME[side], names: () => ({ ...NAME }),
+    notice, haptic, chime, ic, el, htmlEsc, openPanel, renderPanel, goBack, openChat, sheetOpen, sheetClose, choiceSheet, centredBanner,
+    thread: () => thread(), sendText: sendPlainText, toggleHeart, fmtDateTime, fmtTime, uid, reduceMotion, burstAt, setRow, catCard,
+    settings: (side) => S(side || me), stillPanel, ensureAudio: () => { try { ensureAudio(); } catch (e) {} return audioCtx; },
+    mute: () => !ppShouldAlert({}), arrivalBuzz
+  };
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && unlocked) document.dispatchEvent(new CustomEvent("lees:resume")); });
+
   // Start.
   applyTheme();
   if (document.hidden) document.body.classList.add("private");
@@ -6511,6 +6913,13 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   })();
 })();
 </script>
-<script src="/lees-patch.js?v=14" defer></script>
+<script src="/lees-patch.js?v=15" defer></script>
+<script src="/lees-v8.js?v=1" defer></script>
+<script>
+  // Offline shell: the app opens without a connection after one visit. Data comes from the on-device copy.
+  if ("serviceWorker" in navigator && location.protocol === "https:") {
+    window.addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(() => {}); });
+  }
+</script>
 </body>
 </html>

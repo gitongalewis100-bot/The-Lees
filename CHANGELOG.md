@@ -39,3 +39,25 @@ Sound preview, staged media preview, double-tap partner notice, duplicate addMed
 - "Thinking of you" home tile (broadcast, no table, one send per 5 minutes).
 - Badge: the unread count comes from the local list only, so it matches the thread.
 - Stylesheet cache bust ?v=25. See V7_REPORT.md for checks and owner steps.
+
+## v8 (2026-11-18)
+Files: index.html, lees-patch.js, lees-patch.css (unchanged rules, cache-bust), new lees-v8.js, lees-v8.css, sw.js,
+supabase/migrations/2026-11-18_letters_games_awards.sql.
+
+- Create (+) tile on home, directly below Archive: Sealed letters, Tic-tac-toe, Trophy cabinet.
+- Sealed letters: write, pick the opening date, wax seal and paper. The recipient sees the envelope but the
+  database will not return the body before the date (RLS + `open_sealed_letter`). Priority card when one is ready.
+- Tic-tac-toe: live, server-validated moves (`game_move`), 10-second clock from the server deadline, turn passes on
+  timeout (`game_timeout`), rematch, in-game chat and quick messages that go to the conversation, double-tap to love.
+- Awards: 13 medals in bronze/silver/gold/diamond with points and levels, shared cabinet, partner is told.
+- Settings rebuilt: 7 categories, persistent centred search with synonyms and typo tolerance, sheets instead of
+  dropdowns, confirmations for risky actions. Clear conversation now works (`clear_conversation`). Vibration saves.
+- Panels stack: Back returns to the previous panel instead of jumping home. Settings pages don't rebuild under you.
+- Sign-in: compact field, no placeholder or eye during the scan, 12 scanners dealt from a shuffled deck (no repeat
+  until all have played), faster check, welcome hands straight to home.
+- Chat: fixed duplicate bubbles (own message echoed by realtime was appended twice); arrival animation no longer
+  locks the bubble size (no clipped text); typing indicator no longer drops 40 ms after each key; constant dot speed;
+  full-screen photo/video preview with message and Send; recorder hardened (ideal constraints, fallback, timeslice,
+  send-now); voice preview with waveform seek and speed.
+- Offline: on-device copy of the data after each sync (paints instantly next sign-in), service worker app shell,
+  photo prefetch.
