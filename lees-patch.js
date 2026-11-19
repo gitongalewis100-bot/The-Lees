@@ -692,10 +692,12 @@
     if (!banner) return;
     if (st.unread > (st.lastUnread || 0)) st.bannerOff = false;
     st.lastUnread = st.unread;
-    // Home only: on a panel the banner would sit over the Back button.
-    var onHome = window.LeesApp ? window.LeesApp.view === "home" : true;
-    // The banner is for typing only; new messages arrive through the app's toast pipeline.
-    var show = signedIn() && onHome && !st.bannerOff && st.typing && !st.inChat;
+    // Everywhere outside the conversation: home, Settings and every other panel, games and letters.
+    // On a panel it sits as a narrower pill, so the Back button stays reachable.
+    var v = window.LeesApp ? window.LeesApp.view : "home";
+    var away = v === "home" || v === "panel";
+    banner.classList.toggle("lp-compact", v === "panel");
+    var show = signedIn() && away && !st.bannerOff && st.typing && !st.inChat;
     clearTimeout(st.bannerTimer);
     if (show && !st.typing) st.bannerTimer = setTimeout(function () { st.bannerOff = true; syncBanner(); }, 3200);
     banner.classList.toggle("lp-show", show);
@@ -703,7 +705,9 @@
     banner.querySelector(".lp-bn-name").textContent = name;
     banner.querySelector(".lp-bn-av").textContent = (name.split(" ").pop() || "?").charAt(0).toUpperCase();
     var line = banner.querySelector(".lp-bn-line");
-    if (st.typing) { line.innerHTML = '<span class="lp-mini"><i></i><i></i><i></i></span><span>' + (name || "They") + ' is typing</span>'; }
+    var who = String(name || "They").replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; });
+    if (st.typing && st.act === "rec") { line.innerHTML = '<span class="lp-mini rec"><b></b><b></b><b></b><b></b></span><span>' + who + ' is recording a voice note</span>'; }
+    else if (st.typing) { line.innerHTML = '<span class="lp-mini"><i></i><i></i><i></i></span><span>' + who + ' is typing</span>'; }
     else { line.textContent = "New message"; }
     banner.querySelector(".lp-bn-view").classList.toggle("lp-gone-el", st.typing);
   }
@@ -763,7 +767,8 @@
       mini.className = "lp-mini";
       mini.innerHTML = "<i></i><i></i><i></i>";
       trayLabel.appendChild(mini);
-      trayLabel.appendChild(document.createTextNode((st.name || "They") + " is typing" + (showUnread ? " · " : "")));
+      if (st.act === "rec") mini.className = "lp-mini rec", mini.innerHTML = "<b></b><b></b><b></b><b></b>";
+      trayLabel.appendChild(document.createTextNode((st.name || "They") + (st.act === "rec" ? " is recording" : " is typing") + (showUnread ? " · " : "")));
     }
     if (showUnread) trayLabel.appendChild(document.createTextNode(showTyping ? st.unread + " new" : receipt(st.unread)));
     trayCount.textContent = st.unread;
@@ -815,8 +820,9 @@
   }
 
   /* called by the app's own typing and unread code (see the three hooks in index.html) */
-  hooks.onTyping = function (on, energy, name) {
+  hooks.onTyping = function (on, energy, name, act) {
     if (name) st.name = name;
+    st.act = act === "rec" ? "rec" : "type";
     if (on) {
       st.lastTypingAt = Date.now();
       if (!st.typing) st.bannerOff = false;

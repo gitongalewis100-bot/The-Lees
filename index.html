@@ -12,7 +12,8 @@
 <meta name="apple-mobile-web-app-title" content="The Lees">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="icon" href="/icon-192.png">
-<link rel="stylesheet" href="/lees-patch.css?v=30">
+<script>if(!/Mac|iPhone|iPad|iPod/.test(navigator.platform||navigator.userAgent))document.documentElement.classList.add("emo-noto");</script>
+<link rel="stylesheet" href="/lees-patch.css?v=31">
 <style>
 :root{
   --bg:#f8f4ee;--surface:#fffdf9;--ink:#2a2420;--muted:#8c8179;--line:#ebe2d7;--line-strong:#dcd0c2;
@@ -20,9 +21,10 @@
   --lilac:#7d6a9b;--sage:#6f8f7a;--rose:#b5534a;
   --shadow:0 1px 2px rgba(42,36,32,.06),0 8px 24px rgba(42,36,32,.06);
   --ease:cubic-bezier(.2,.8,.2,1);
-  --serif:Georgia,"Iowan Old Style","Palatino Linotype",serif;
-  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;
-  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --emoji-font:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji";
+  --serif:Georgia,"Iowan Old Style","Palatino Linotype",serif,var(--emoji-font);
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif,var(--emoji-font);
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace,var(--emoji-font);
 }
 [data-theme="ink"]{--bg:#171412;--surface:#211d1a;--ink:#f1ebe4;--muted:#948a82;--line:#342e29;--line-strong:#4a413a;--mine:#3f342c;--mine-ink:#f1ebe4;--theirs:#262120;--accent:#d69a84;--accent-ink:#1d1a18;--lilac:#b5a3d6;--sage:#9cc2aa;--rose:#e08b80;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25)}
 [data-theme="sage"]{--bg:#eef3ee;--surface:#fbfdfb;--ink:#1f2b24;--muted:#6f8577;--line:#dbe5dc;--line-strong:#c4d3c6;--mine:#cfe3d3;--mine-ink:#1f2b24;--theirs:#fff;--accent:#4f7a5e;--accent-ink:#fff;--lilac:#6d7fa0;--sage:#4f7a5e;--rose:#b5534a}
@@ -495,6 +497,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 </style>
 <link rel="stylesheet" href="/lees-v8.css?v=4">
 <link rel="stylesheet" href="/lees-v9.css?v=8">
+<link rel="stylesheet" href="/lees-v11.css?v=1">
 </head>
 <body>
 
@@ -1001,6 +1004,32 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       action: { label: "Send one back", run: () => sendNudge() },
       actions: [{ label: "Open chat", run: () => openChat() }]
     });
+  }
+
+  // A shared mood reaches the other side at once (broadcast), and the saved row backs it up.
+  function receiveMood(p) {
+    if (!unlocked || !p || !p.from || p.from === me || !p.e) return;
+    reloadAll().then(() => { if (unlocked) render(); });
+    alertMe("love", NAME[p.from] + " is feeling " + String(p.l || "").toLowerCase() + " " + p.e, p.n ? "“" + String(p.n).slice(0, 60) + "”" : "Shared just now.", {
+      side: p.from, ref: "mood-" + (p.at || Date.now()),
+      action: { label: "Reply", run: () => openChat() }
+    });
+  }
+  function broadcast(event, payload) {
+    if (!nudgeChannel) return false;
+    try { nudgeChannel.send({ type: "broadcast", event, payload: { from: me, at: Date.now(), ...(payload || {}) } }); return true; } catch (e) { return false; }
+  }
+  // Member rows that changed while a settings field had focus are reloaded as soon as the field loses it.
+  let memberReloadWaiting = false;
+  function deferMemberReload() {
+    if (memberReloadWaiting) return;
+    memberReloadWaiting = true;
+    const run = () => {
+      if (settingsTyping()) { setTimeout(run, 1500); return; }
+      memberReloadWaiting = false;
+      reloadAll().then(() => { if (unlocked) { applyTheme(); render(); fillAvatars(); } });
+    };
+    setTimeout(run, 1500);
   }
 
   function burst(glyph, n) {
@@ -1833,6 +1862,68 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     render();
     showOnceViewer(m.kind, signed.data.signedUrl);
   }
+  /* Listen once: the voice note plays right in its bubble like any other, with pause and a progress bar.
+     When it reaches the end it's done, and the bubble reads Played. */
+  const onceAudio = new Map();
+  async function openOnceAudio(m) {
+    if (onceAudio.size) for (const [, p] of onceAudio) { try { p.au.pause(); } catch (e) {} }
+    const client = cloudClient();
+    if (!client || !m.mid || String(m.mid).startsWith("local-")) { notice("Couldn't play that", "Try again in a moment.", { error: true }); return; }
+    const r = await client.rpc("mark_opened_once", { p_id: m.id });
+    if (r.error) { notice("Couldn't play that", "Refresh and try again.", { error: true }); return; }
+    if (r.data !== true) { openedOnce.add(m.id); render(); notice("Already played", "Listen-once voice notes play a single time.", { kind: "info" }); return; }
+    const signed = await client.storage.from("media").createSignedUrl(m.mid, 20);
+    if (signed.error || !signed.data || !signed.data.signedUrl) { notice("Couldn't play that", "The file could not be loaded.", { error: true }); return; }
+    let src = signed.data.signedUrl, blobUrl = null;
+    try { const b = await (await fetch(src)).blob(); blobUrl = URL.createObjectURL(b); src = blobUrl; } catch (e) {}
+    const au = new Audio();
+    au.preload = "auto";
+    au.src = src;
+    const p = { au, blobUrl, dur: m.dur || 0 };
+    onceAudio.set(m.id, p);
+    openedOnce.add(m.id);
+    const paint = () => {
+      const node = $("list").querySelector('.once-player[data-oid="' + m.id + '"]');
+      if (!node) return;
+      const d = isFinite(au.duration) && au.duration > 0 ? au.duration : (p.dur || 1);
+      node.querySelector(".op-fill").style.width = Math.min(100, 100 * au.currentTime / d) + "%";
+      node.querySelector(".op-time").textContent = fmtDur(au.currentTime) + " / " + fmtDur(d);
+      node.classList.toggle("playing", !au.paused);
+      node.querySelector(".op-btn").setAttribute("aria-label", au.paused ? "Play" : "Pause");
+      node.querySelector(".op-btn path").setAttribute("d", au.paused ? "M8 5.5v13l11-6.5z" : "M7 5h3.5v14H7zM13.5 5H17v14h-3.5z");
+    };
+    p.paint = paint;
+    au.addEventListener("timeupdate", paint);
+    au.addEventListener("play", paint);
+    au.addEventListener("pause", paint);
+    au.addEventListener("loadedmetadata", paint);
+    au.addEventListener("ended", () => {
+      onceAudio.delete(m.id);
+      try { au.removeAttribute("src"); au.load(); } catch (e) {}
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      render();
+    });
+    render();
+    au.play().catch(() => paint());
+  }
+  function oncePlayerNode(m) {
+    const p = onceAudio.get(m.id);
+    const wrap = el("div", "once-player");
+    wrap.dataset.oid = m.id;
+    const b = el("button", "op-btn");
+    b.type = "button";
+    b.setAttribute("aria-label", "Pause");
+    b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>';
+    b.addEventListener("click", (e) => { e.stopPropagation(); if (!p) return; if (p.au.paused) p.au.play().catch(() => {}); else p.au.pause(); });
+    const mid = el("div", "op-mid");
+    const bar = el("div", "op-bar"); bar.appendChild(el("i", "op-fill"));
+    const meta = el("div", "op-meta");
+    meta.append(el("span", "op-tag", "Listen once"), el("span", "op-time mono", "0:00"));
+    mid.append(bar, meta);
+    wrap.append(b, mid);
+    if (p && p.paint) setTimeout(p.paint, 0);
+    return wrap;
+  }
   // One look only. The file is shown from memory (no link to keep), it blurs the moment the app loses focus
   // (app switcher, screenshot shortcut on desktop, screen recording overlays), carries a name and time watermark,
   // and closes by itself. A web page can't block a phone's screenshot, so the sender is told when it was opened.
@@ -1914,20 +2005,33 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const card = el("div", "msg");
     card.dataset.id = m.id;
     if (m.deleted) { card.classList.add("gone"); card.textContent = "This message was deleted"; col.appendChild(card); return row; }
-    if (m.replyTo) {
+    if (m.replyTo && m.replyTo.fwd) {
+      const f = el("div", "fwdtag");
+      f.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 17l5-5-5-5M4 18v-2a4 4 0 0 1 4-4h12"/></svg>';
+      f.appendChild(el("span", "", "Forwarded"));
+      card.appendChild(f);
+    } else if (m.replyTo) {
       const q = el("div", "quote");
       q.append(el("b", "", NAME[m.replyTo.from]), el("span", "", m.replyTo.preview));
       card.appendChild(q);
     }
+    if (m.once && m.from !== me && m.kind === "audio" && onceAudio.has(m.id)) {
+      card.classList.add("once-audio");
+      card.appendChild(oncePlayerNode(m));
+      col.appendChild(card);
+      return row;
+    }
     if (m.once && m.from !== me && m.kind !== "text") {
       const opened = (m.openedBy || []).includes(me) || openedOnce.has(m.id);
+      const listen = m.kind === "audio";
       const gate = el("button", "oncegate" + (opened ? " done" : ""));
       gate.type = "button";
-      gate.setAttribute("aria-label", opened ? "Viewed" : "View once");
-      gate.innerHTML = '<span class="og-ic"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span><span class="og-t"></span>';
-      gate.querySelector(".og-t").textContent = opened ? "Viewed" : "View once";
-      gate.type = "button";
-      if (!opened) gate.addEventListener("click", (e) => { e.stopPropagation(); openOnceMedia(m); });
+      gate.setAttribute("aria-label", opened ? (listen ? "Played" : "Viewed") : (listen ? "Listen once" : "View once"));
+      gate.innerHTML = listen
+        ? '<span class="og-ic"><svg viewBox="0 0 24 24"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></svg></span><span class="og-t"></span>'
+        : '<span class="og-ic"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span><span class="og-t"></span>';
+      gate.querySelector(".og-t").textContent = opened ? (listen ? "Played" : "Viewed") : (listen ? "Listen once" + (m.dur ? " · " + fmtDur(m.dur) : "") : "View once");
+      if (!opened) gate.addEventListener("click", (e) => { e.stopPropagation(); if (listen) openOnceAudio(m); else openOnceMedia(m); });
       card.appendChild(gate);
       col.appendChild(card);
       return row;
@@ -1974,7 +2078,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       else if (shield) card.classList.add("blurred");
     }
     card.addEventListener("pointerup", (e) => {
-      if (e.target.closest(".scratch,.heartbtn,.vplay,.vspeed,.bars,.edlabel,.oncegate,.vf-play,.vc9-tx,video")) return;
+      if (e.target.closest(".scratch,.heartbtn,.vplay,.vspeed,.bars,.edlabel,.oncegate,.vf-play,.vc9-tx,video,.once-player,.fwdtag")) return;
       const now = Date.now();
       const live = thread().find(x => x.id === card.dataset.id) || m;
       if (card._tap && now - card._tap < 300) {
@@ -2022,6 +2126,201 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     return row;
   }
 
+  /* "Mrs Lees liked your message": every new heart or reaction on one of my messages is announced once,
+     whether it arrives on the live channel or with the next sync, with a Show button that jumps to it. */
+  const announced = new Set();
+  function announceReactions(m, prevHearts) {
+    if (!m || m.from !== me || m.deleted) return;
+    const prev = new Set(prevHearts || []);
+    for (const h of m.hearts || []) {
+      const t = String(h), i = t.indexOf(":"), side = i > 0 ? t.slice(0, i) : t, emo = i > 0 ? t.slice(i + 1) : "";
+      if (prev.has(h) || side === me || !NAME[side]) continue;
+      const key = m.id + "|" + t;
+      if (announced.has(key)) continue;
+      announced.add(key);
+      const what = m.kind === "image" ? "photo" : m.kind === "video" ? "video" : m.kind === "audio" ? "voice note" : "message";
+      const title = emo && emo !== "❤" ? NAME[side] + " reacted " + emo + " to your " + what : NAME[side] + " liked your " + what;
+      const detail = m.kind === "text" ? "“" + String(m.text || "").slice(0, 80) + "”" : "";
+      alertMe("love", title, detail, { side, ref: "react-" + key, action: { label: "Show", run: () => jumpToMessage(m.id, "lp-glow-like") } });
+      if (view === "chat") setTimeout(() => flashRow(m.id, "lp-glow-like"), 60);
+    }
+  }
+  // The row for a message, or the tile for a photo shown inside an album card.
+  function rowFor(id) {
+    if (!id) return null;
+    const box = $("list");
+    return box.querySelector('[data-row="' + id + '"]') || box.querySelector('[data-aid="' + id + '"]');
+  }
+  /* Photos sent together arrive one by one (each still notifies), but read as one card: up to four tiles,
+     the fourth with +N for the rest. Tapping a tile or +N opens the whole set, where each photo can be
+     liked, replied to, saved, shared or forwarded on its own. */
+  const ALBUM_GAP_MS = 2 * 60 * 1000;
+  function albumable(m) {
+    return m && m.kind === "image" && !m.deleted && !m.once && !m.pending && !String(m.id).startsWith("local-") && (!m.effect || m.effect === "none") && !m.replyTo && !privatelyHidden(m);
+  }
+  function albumRev(ms, seen, isLastMine) {
+    return ms.map(m => m.id + ":" + (m.hearts || []).join(",") + ":" + (m.text || "")).join("|") + "|" + (shield ? 1 : 0) + "|" + (isLastMine ? (seen[other()] || 0) : 0) + "|" + otherReadReceipts;
+  }
+  function buildAlbumRow(ms, seen, isLastMine) {
+    const last = ms[ms.length - 1], mine = last.from === me;
+    const row = el("div", "row album-row " + (mine ? "mine" : "theirs"));
+    row.dataset.row = ms[0].id;
+    row.dataset.ts = String(last.ts);
+    const av = el("div", "avatar msgav " + String(last.from || "").toLowerCase());
+    av.dataset.side = last.from || "";
+    av.textContent = last.from === "Lewis" ? "L" : "A";
+    bindAvatar(av);
+    const col = el("div", "bubblecol");
+    row.append(av, col);
+    const card = el("div", "msg media album9");
+    card.dataset.id = last.id;
+    const grid = el("div", "a9-grid n" + Math.min(4, ms.length));
+    const show = ms.slice(0, 4);
+    show.forEach((m, i) => {
+      const t = el("button", "a9-tile");
+      t.type = "button";
+      t.dataset.aid = m.id;
+      t.dataset.ts = String(m.ts);
+      t.setAttribute("aria-label", "Photo " + (i + 1) + " of " + ms.length);
+      const img = new Image();
+      img.className = "a9-img"; img.alt = ""; img.loading = "lazy"; img.decoding = "async"; img.draggable = false;
+      mediaURL(m.mid).then(u => { if (u) img.src = u; else t.classList.add("broken"); }).catch(() => t.classList.add("broken"));
+      t.appendChild(img);
+      const h = heartCount(m);
+      if (h) { const hb = el("span", "a9-heart" + (likedByMe(m) ? " on" : "")); hb.innerHTML = ic("heart", "sm"); if (h > 1) hb.appendChild(el("b", "", String(h))); t.appendChild(hb); }
+      const extra = ms.length - 4;
+      if (i === 3 && extra > 0) {
+        const more = el("span", "a9-more");
+        more.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><b>' + extra + "</b>";
+        more.setAttribute("aria-label", extra + " more photos");
+        t.appendChild(more);
+        t.setAttribute("aria-label", "Open all " + ms.length + " photos");
+      }
+      t.addEventListener("click", (e) => {
+        e.stopPropagation();
+        // A second tap within 300 ms is a double-tap (love), so the album opens only after a single tap.
+        const now = Date.now();
+        if (t._clk && now - t._clk < 300) { t._clk = 0; clearTimeout(t._open); return; }
+        t._clk = now;
+        clearTimeout(t._open);
+        t._open = setTimeout(() => { t._clk = 0; if (window.LeesV11 && LeesV11.openAlbum) LeesV11.openAlbum(ms.map(x => x.id), i === 3 && extra > 0 ? ms[0].id : ms[i].id); }, 280);
+      });
+      grid.appendChild(t);
+    });
+    card.appendChild(grid);
+    const cap = ms.find(m => m.text);
+    if (cap) { const t = el("div", "text cap9"); if (shield) t.textContent = "Hidden message"; else hiText(t, cap.text); card.appendChild(t); card.classList.add("has-cap"); }
+    if (shield) card.classList.add("blurred");
+    // Double-tap a tile to love that photo.
+    card.addEventListener("pointerup", (e) => {
+      const tile = e.target.closest("[data-aid]");
+      if (!tile) return;
+      const now = Date.now();
+      if (tile._tap && now - tile._tap < 300) {
+        tile._tap = 0;
+        const live = thread().find(x => x.id === tile.dataset.aid);
+        popHeart(card, e.clientX, e.clientY);
+        if (live && !likedByMe(live)) { try { navigator.vibrate && navigator.vibrate(10); } catch (err) {} toggleHeart(live.id); }
+      } else tile._tap = now;
+    });
+    const meta = el("div", "stack");
+    meta.appendChild(el("span", "", fmtTime(last.ts)));
+    meta.appendChild(el("span", "a9-count", "· " + ms.length + " photos"));
+    const hearts = ms.reduce((n, m) => n + heartCount(m), 0);
+    if (hearts) meta.appendChild(el("span", "a9-hsum", "♥ " + hearts));
+    card.appendChild(meta);
+    col.appendChild(card);
+    if (isLastMine) { const r = receiptInfo(last, seen); col.appendChild(el("div", "receipt " + r.cls, r.label)); }
+    return row;
+  }
+  /* Forwarding: a message or photo, voice note or video goes into the conversation again as a new message,
+     marked Forwarded. Media is copied (the original can be deleted without breaking the copy).
+     The same sheet shares to other apps or saves the files. */
+  async function mediaBlob(m) {
+    const u = await mediaURL(m.mid);
+    if (!u) throw new Error("The file isn't available.");
+    const r = await fetch(u);
+    if (!r.ok) throw new Error("The file isn't available.");
+    return r.blob();
+  }
+  function fileName(m, blob) {
+    const ext = (blob && blob.type && blob.type.split("/")[1] || (m.kind === "image" ? "jpeg" : m.kind === "video" ? "mp4" : "m4a")).split(";")[0].replace("jpeg", "jpg").replace("quicktime", "mov");
+    return "the-lees-" + new Date(m.ts).toISOString().slice(0, 19).replace(/[T:]/g, "-") + "-" + String(m.id).slice(0, 4) + "." + ext;
+  }
+  async function forwardMessages(list) {
+    let ok = 0;
+    for (const m of list) {
+      try {
+        if (m.kind === "text") { if (await sendPlainText(m.text, { fwd: { from: m.from } })) ok++; }
+        else if (m.mid) { const blob = await mediaBlob(m); await addMedia(m.kind, blob, { dur: m.dur || 0, text: m.text || null, fwd: { from: m.from } }); ok++; }
+      } catch (e) { notice("Couldn't forward that", String((e && e.message) || e), { error: true }); }
+    }
+    if (ok) { haptic("send"); notice(ok === 1 ? "Forwarded" : ok + " forwarded", "It's in the conversation now.", { kind: "success" }); }
+    return ok;
+  }
+  async function saveMedia(list) {
+    let n = 0;
+    for (const m of list) {
+      try {
+        const blob = await mediaBlob(m);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = fileName(m, blob);
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        n++;
+        if (list.length > 1) await new Promise(r => setTimeout(r, 350));
+      } catch (e) { notice("Couldn't save", String((e && e.message) || e), { error: true }); }
+    }
+    if (n) notice(n === 1 ? "Saved" : n + " saved", "Check your downloads.", { kind: "success" });
+  }
+  async function shareMessages(list) {
+    try {
+      const texts = list.filter(m => m.kind === "text").map(m => m.text).join("\n\n");
+      const media = list.filter(m => m.kind !== "text" && m.mid);
+      const files = [];
+      for (const m of media) { const b = await mediaBlob(m); files.push(new File([b], fileName(m, b), { type: b.type || "application/octet-stream" })); }
+      const data = files.length ? { files, ...(texts ? { text: texts } : {}) } : { text: texts };
+      if (!navigator.share || (files.length && navigator.canShare && !navigator.canShare(data))) {
+        if (files.length) { await saveMedia(media); return; }
+        await navigator.clipboard.writeText(texts); notice("Copied", "Sharing isn't available here, so the text was copied."); return;
+      }
+      await navigator.share(data);
+    } catch (e) { if (!e || e.name !== "AbortError") notice("Couldn't share", String((e && e.message) || e), { error: true }); }
+  }
+  function forwardSheet(list) {
+    list = (list || []).filter(m => m && !m.deleted && !m.once);
+    if (!list.length) return;
+    const media = list.filter(m => m.kind !== "text");
+    const what = list.length > 1 ? list.length + " items" : list[0].kind === "image" ? "this photo" : list[0].kind === "video" ? "this video" : list[0].kind === "audio" ? "this voice note" : "this message";
+    sheetOpen((b) => {
+      b.classList.add("v9-sheet", "fw11");
+      b.appendChild(el("h3", "fp-title", "Forward " + what));
+      const strip = el("div", "fw11-strip");
+      list.slice(0, 8).forEach(m => {
+        const t = el("div", "fw11-th " + m.kind);
+        if (m.kind === "image") { const im = new Image(); im.alt = ""; mediaURL(m.mid).then(u => { if (u) im.src = u; }); t.appendChild(im); }
+        else t.textContent = m.kind === "text" ? String(m.text || "").slice(0, 60) : m.kind === "audio" ? "🎤 " + fmtDur(m.dur || 0) : "🎬 Video";
+        strip.appendChild(t);
+      });
+      if (list.length > 8) strip.appendChild(el("div", "fw11-th more", "+" + (list.length - 8)));
+      b.appendChild(strip);
+      const opt = (icon, title, sub, fn) => {
+        const r = el("button", "fw11-opt");
+        r.type = "button";
+        r.innerHTML = '<span class="fw11-ic">' + icon + '</span><span class="fw11-tx"><b></b><small></small></span>';
+        r.querySelector("b").textContent = title;
+        r.querySelector("small").textContent = sub;
+        r.addEventListener("click", () => { sheetClose(); fn(); });
+        b.appendChild(r);
+      };
+      const svgI = (d) => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '"/></svg>';
+      opt(svgI("M15 17l5-5-5-5M4 18v-2a4 4 0 0 1 4-4h12"), "Send to " + NAME[other()], "Forward into your conversation", () => forwardMessages(list));
+      opt(svgI("M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13"), "Share to another app", "Messages, mail, photos and more", () => shareMessages(list));
+      if (media.length) opt(svgI("M12 3v12M7 10l5 5 5-5M5 21h14"), media.length > 1 ? "Save all " + media.length : "Save to this device", "Downloads the original file", () => saveMedia(media));
+      if (list.length === 1 && list[0].kind === "text") opt(svgI("M9 9h11v11H9zM5 15H4V4h11v1"), "Copy text", "", () => copyMessage(list[0]));
+    });
+  }
   function receiptInfo(m, seen) {
     if (m.failed) return { cls: "rc-failed", label: "NOT SENT" };
     if (m.pending) return { cls: "rc-sent", label: "SENT" };
@@ -2090,7 +2389,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
   function rowKey(m) { return "m:" + (m.clientId || m.id); }
   function structureRev(m) {
-    return [m.kind, m.deleted ? 1 : 0, m.text || "", m.mid || "", (m.hiddenBy || []).join(","), m.replyTo ? (m.replyTo.id + ":" + m.replyTo.preview) : "", shield ? 1 : 0, query || ""].join("\u0001");
+    const onceState = m.once ? (((m.openedBy || []).includes(me) || openedOnce.has(m.id)) ? "o" : "c") + (onceAudio.has(m.id) ? "p" : "") : "";
+    return [m.kind, onceState, m.deleted ? 1 : 0, m.text || "", m.mid || "", (m.hiddenBy || []).join(","), m.replyTo ? (m.replyTo.id + ":" + m.replyTo.preview) : "", shield ? 1 : 0, query || ""].join("\u0001");
   }
   function chromeRev(m, seen, isLastMine) {
     const seenAt = isLastMine ? (seen[other()] || 0) : 0;
@@ -2179,6 +2479,21 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       want.push({ key: k, msg: m, last: m === lastMine, end: idx === shown.length - 1 });
     });
     if (searching && !shown.length) want.push({ key: "nomatch" });
+    // Fold runs of photos sent together into one album item.
+    for (let i = 0; i < want.length; i++) {
+      const a = want[i];
+      if (!a.msg || !albumable(a.msg) || a.msg.text) continue;
+      const run = [a];
+      for (let j = i + 1; j < want.length; j++) {
+        const b = want[j], prev = run[run.length - 1].msg;
+        if (!b.msg || !albumable(b.msg) || b.msg.from !== prev.from || b.msg.ts - prev.ts > ALBUM_GAP_MS) break;
+        run.push(b);
+        if (b.msg.text) break;
+      }
+      if (run.length < 2) continue;
+      const ms = run.map(x => x.msg);
+      want.splice(i, run.length, { key: "album:" + (ms[0].clientId || ms[0].id), album: ms, last: run.some(x => x.last), end: run.some(x => x.end) });
+    }
 
     const have = new Map();
     // A key seen twice means a stray copy: remove it, so a bubble can never be shown twice.
@@ -2187,7 +2502,19 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const next = [];
     for (const item of want) {
       let node = have.get(item.key);
-      if (item.msg) {
+      if (item.album) {
+        const rev = albumRev(item.album, seen, item.last);
+        if (node && node.dataset.struct === rev) have.delete(item.key);
+        else {
+          if (node) have.delete(item.key);
+          const neu = buildAlbumRow(item.album, seen, item.last);
+          neu.dataset.key = item.key;
+          neu.dataset.struct = rev;
+          if (node) { neu.classList.add("arrive", "in"); node.replaceWith(neu); }
+          else { neu.classList.add("arrive"); if (reduceMotion()) neu.classList.add("in"); if (item.end) addedAtEnd = true; }
+          node = neu;
+        }
+      } else if (item.msg) {
         const struct = structureRev(item.msg);
         const chrome = chromeRev(item.msg, seen, item.last);
         if (!node) {
@@ -2282,7 +2609,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function highlightMatch() {
     document.querySelectorAll(".hit").forEach(n => n.classList.remove("hit"));
     const id = matches[matchIdx];
-    const row = id && $("list").querySelector(`[data-row="${id}"]`);
+    const row = id && rowFor(id);
     if (!row) return;
     row.querySelector(".msg").classList.add("hit");
     row.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -2326,12 +2653,13 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     try { zoneTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZone: S(other()).tz }); } catch {}
     const status = S(other()).status;
     p.textContent = zoneTime ? NAME[other()] + " · " + zoneTime + (status ? " · " + status : "") : "private";
-    if (window.LeesHooks && LeesHooks.onTyping) LeesHooks.onTyping(!!typing, partnerEnergy || "mid", NAME[other()]);
-    if (typing) showTypingRow(partnerEnergy || "mid");
-    else hideTypingRow();
+    const act = typing ? partnerAct : "type";
+    if (window.LeesHooks && LeesHooks.onTyping) LeesHooks.onTyping(!!typing, partnerEnergy || "mid", NAME[other()], act);
+    if (typing) showTypingRow(partnerEnergy || "mid", act);
+    else { const tr = typingRowEl(); if (tr && tr.dataset.act === "rec") removeTypingRow(); else hideTypingRow(); }
     const hs = $("homeSub");
     if (hs) {
-      if (typing) hs.innerHTML = '<span class="lp-mini"><i></i><i></i><i></i></span><span>' + NAME[other()] + ' is typing</span>';
+      if (typing) hs.innerHTML = act === "rec" ? '<span class="lp-mini rec"><b></b><b></b><b></b><b></b></span><span>' + htmlEsc(NAME[other()]) + ' is recording a voice note</span>' : '<span class="lp-mini"><i></i><i></i><i></i></span><span>' + htmlEsc(NAME[other()]) + ' is typing</span>';
       else if (hs.dataset.typing) hs.textContent = "";
       hs.dataset.typing = typing ? "1" : "";
     }
@@ -2374,7 +2702,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function jumpToUnread() {
     const first = firstUnread();
     if (!first) return;
-    const row = $("list").querySelector(`[data-row="${first.id}"]`);
+    const row = rowFor(first.id);
     if (row) {
       row.scrollIntoView({ behavior: "smooth", block: "center" });
       row.querySelector(".msg").classList.add("hit");
@@ -2444,7 +2772,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     actionFor = m.id;
     const menu = $("vmenu");
     menu.textContent = "";
-    const card = document.querySelector('.msg[data-id="' + m.id + '"]');
+    const card = document.querySelector('.msg[data-id="' + m.id + '"]') || document.querySelector('[data-aid="' + m.id + '"]');
     const mine = m.from === me;
     const age = Date.now() - m.ts;
     const hidden = (m.hiddenBy || []).includes(me);
@@ -2463,6 +2791,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     };
     if (!m.deleted) add("Reply", () => setReply(m), false, true);
     if (!m.deleted && m.kind === "text" && m.text) add("Copy text", () => copyMessage(m));
+    if (!m.deleted && !m.once && !String(m.id).startsWith("local-") && !(m.kind === "text" && isPlay(m))) add("Forward", () => forwardSheet([m]));
     if (!m.deleted && mine && m.kind === "text") add("Edit", () => startEdit(m));
     if (!m.deleted) {
       const react = el("div", "mini");
@@ -2803,8 +3132,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         const finish = () => {
           if (done) return;
           done = true;
-          top.classList.add("hidden");
           top.classList.remove("ios-leave", "ios-prep");
+          // A quick tap may already have brought this view back; only hide it if it's still the one leaving.
+          if (view !== prev) top.classList.add("hidden");
         };
         top.addEventListener("transitionend", finish, { once: true });
         setTimeout(finish, 520);
@@ -4190,10 +4520,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (fromDay) focusDay = opts.day;
     render();
     if (jump) {
-      const row = $("list").querySelector(`[data-row="${jump.id}"]`);
+      const row = rowFor(jump.id);
       if (row) row.scrollIntoView({ block: "center" });
     } else if (!fromDay) {
-      const row = pos && $("list").querySelector(`[data-row="${pos}"]`);
+      const row = pos && rowFor(pos);
       if (row) row.scrollIntoView({ block: "start" }); else scrollBottomInstant();
     }
     if (withSearch) toggleSearch(true);
@@ -5098,7 +5428,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       return b;
     };
     opts.append(
-      pill("View once", sendOpts.once, () => { sendOpts.once = !sendOpts.once; }, "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM11 8h2v8"),
+      pill(stagedMedia && stagedMedia.items.every(it => it.kind === "audio") ? "Listen once" : "View once", sendOpts.once, () => { sendOpts.once = !sendOpts.once; }, "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM11 8h2v8"),
       pill("Quiet", sendOpts.quiet, () => { sendOpts.quiet = !sendOpts.quiet; }, "M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M3 3l18 18")
     );
     bar.textContent = "";
@@ -5350,6 +5680,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       rec.onerror = () => { notice("Recording stopped", "The microphone was interrupted. What was recorded is kept.", { error: true }); stopRecording(true); };
       // A timeslice keeps data flowing, so a recording is never lost if the stop event is late.
       rec.start(250);
+      trackRecording(true);
       startRecog();
       recStart = Date.now();
       recHistory = [];
@@ -5380,6 +5711,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const dur = Math.max(1, Math.round((Date.now() - recStart) / 1000));
     const liveText = stopRecog();
     rec = null;
+    trackRecording(false);
     cancelAnimationFrame(recRAF);
     clearInterval(recTimer);
     $("recbar").classList.add("hidden"); $("mic").classList.remove("recording");
@@ -5668,7 +6000,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   const cancelPress = () => { clearTimeout(pressTimer); pressTimer = 0; pressStart = null; };
   $("list").addEventListener("contextmenu", (e) => e.preventDefault());
   $("list").addEventListener("pointerdown", (e) => {
-    if (e.target.closest(".vplay,.vspeed,.bars,.edlabel,.unsend,.oncegate,.vf-play,.vc9-tx")) return;
+    if (e.target.closest(".vplay,.vspeed,.bars,.edlabel,.unsend,.oncegate,.vf-play,.vc9-tx,.once-player")) return;
     const card = e.target.closest(".msg");
     if (!card || card.classList.contains("gone")) {
       if (!e.target.closest(".row") && e.button === 0) {
@@ -5677,7 +6009,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       }
       return;
     }
-    const m = thread().find(x => x.id === card.dataset.id);
+    const tile = e.target.closest("[data-aid]");
+    const m = thread().find(x => x.id === (tile ? tile.dataset.aid : card.dataset.id));
     if (!m) return;
     pressCard = card;
     pressStart = [e.clientX, e.clientY];
@@ -5745,7 +6078,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   document.addEventListener("keydown", (e) => {
     lastActivity = Date.now();
     if (e.key === "Escape") {
-      if (document.querySelector(".cb-scrim,.v9-viewer,.v9-studio,.v8-overlay,.ov9,#mediaPreview")) return;
+      if (document.querySelector(".cb-scrim,.v9-viewer,.v9-studio,.v8-overlay,.ov9,#mediaPreview,.al11")) return;
       if (drawUi && !drawUi.layer.classList.contains("hidden")) return;
       if (!$("sheet").classList.contains("hidden")) return sheetClose();
       if (!$("lightbox").classList.contains("hidden")) return closeLightbox();
@@ -5828,7 +6161,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   let cacheThread = [], cacheNotes = [], cacheSched = [], cacheJournal = [], cacheShared = { theme: "warm", archiveDays: 0, appIcon: null, pinnedId: null };
   let cacheMembers = {}, cacheSeen = {}, cacheNread = {}, presenceState = {};
   let cloudChannel = null, presenceChannel = null, typeChannel = null, lastPull = 0;
-  let partnerTypingShownAt = 0, partnerTypingUntil = 0, typingMuteUntil = 0, dropPresenceTyping = false, suppressSchedNotice = null, partnerEnergy = "mid", partnerTypingPulse = 0, typingEase = 1.55, typingRAF = 0;
+  let partnerTypingShownAt = 0, partnerTypingUntil = 0, typingMuteUntil = 0, dropPresenceTyping = false, suppressSchedNotice = null, partnerEnergy = "mid", partnerAct = "type", partnerTypingPulse = 0, typingEase = 1.55, typingRAF = 0;
   const announcedSched = new Set();
   function noteDelivered(prevSched) {
     const gone = prevSched.filter(id => !cacheSched.some(s => s.id === id) && id !== suppressSchedNotice && !announcedSched.has(id));
@@ -5947,7 +6280,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       if (cacheShared.appIcon) applyAppIcon(cacheShared.appIcon);
     }
     const pending = cacheThread.filter(m => m.pending);
+    const before = new Map(cacheThread.filter(m => !m.pending).map(m => [m.id, m.hearts || []]));
     cacheThread = (messages.data || []).map(msgFromRow).concat(pending);
+    if (before.size && unlocked && me) for (const m of cacheThread) if (m.from === me && before.has(m.id)) announceReactions(m, before.get(m.id));
     cacheNotes = (notes.data || []).map(noteFromRow);
     cacheJournal = (journal.data || []).map(e => ({ id: e.id, from: e.side, kind: e.kind, text: e.text, ts: new Date(e.created_at).getTime(), edited: !!e.edited_at }));
     cacheSched = (scheduled.data || []).filter(s => s.side === me).map(s => ({ id: s.id, from: s.side, text: s.text, effect: s.effect, sendAt: new Date(s.send_at).getTime(), createdAt: new Date(s.created_at).getTime() }));
@@ -6018,7 +6353,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   /* Partner edits (3.2 to 3.4). The edit arrives on the messages realtime row, which carries edited_at. */
   const pendingEdits = {};
   function flashRow(id, cls) {
-    const r = $("list").querySelector(`[data-row="${id}"]`);
+    const r = rowFor(id);
     if (!r) return;
     const target = r.querySelector(".msg") || r;
     target.classList.remove("lp-glow-edit", "lp-glow-like");
@@ -6030,7 +6365,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
   /* Marks the words that are new in the edit (words not present in the previous text). Plain text bubbles only. */
   function applyEditDiff(id, prev, next) {
-    const r = $("list").querySelector(`[data-row="${id}"]`);
+    const r = rowFor(id);
     const body = r && r.querySelector(".msg");
     if (!body || body.children.length) return;
     const had = new Set(String(prev || "").split(/\s+/).filter(Boolean));
@@ -6045,7 +6380,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function jumpToMessage(id, cls) {
     if (view !== "chat") showView("chat");
     setTimeout(() => {
-      const r = $("list").querySelector(`[data-row="${id}"]`);
+      const r = rowFor(id);
       if (!r) return;
       r.scrollIntoView({ behavior: "smooth", block: "center" });
       flashRow(id, cls);
@@ -6056,7 +6391,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const prev = (m.history || []).length ? m.history[m.history.length - 1].text : "";
     pendingEdits[m.id] = { prev: prev, next: m.text };
     setTimeout(() => {
-      const r = $("list").querySelector(`[data-row="${m.id}"]`);
+      const r = rowFor(m.id);
       const rect = r && r.getBoundingClientRect();
       const lr = $("list").getBoundingClientRect();
       const onScreen = view === "chat" && rect && rect.top >= lr.top && rect.bottom <= lr.bottom;
@@ -6084,13 +6419,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
           const prevEditAt = (i >= 0 && cacheThread[i].editedAt) || 0;
           if (i >= 0) cacheThread[i] = Object.assign({}, cacheThread[i], m, { pending: false });
           if (known && m.from !== me && m.editedAt && m.editedAt !== prevEditAt && Date.now() - m.editedAt < 60000) partnerEdited(m);
-          if (known && m.from === me) {
-            const newLike = (m.hearts || []).find(h => String(h).indexOf(":") < 0 && h !== me && !prevHearts.includes(h));
-            if (newLike) {
-              notice(NAME[newLike] + " liked your message", "", { action: { label: "Show", run: () => jumpToMessage(m.id, "lp-glow-like") } });
-              setTimeout(() => flashRow(m.id, "lp-glow-like"), 60);
-            }
-          }
+          if (known && m.from === me) announceReactions(m, prevHearts);
           if (i < 0) cacheThread = cacheThread.concat([m]).sort((a, b) => a.ts - b.ts);
           const fresh = !known && m.from && m.from !== me && !m.deleted && !(m.deletedFor || []).includes(me);
           if (fresh) {
@@ -6134,11 +6463,12 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "read_markers", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) render(); }))
       .on("postgres_changes", { event: "*", schema: "public", table: "pair_settings", filter: "pair_id=eq." + pairId }, () => reloadAll().then(() => { if (unlocked) { applyTheme(); render(); } }))
-      .on("postgres_changes", { event: "*", schema: "public", table: "pair_members", filter: "pair_id=eq." + pairId }, () => { if (settingsTyping()) return; reloadAll().then(() => { if (unlocked) { applyTheme(); render(); fillAvatars(); } }); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "pair_members", filter: "pair_id=eq." + pairId }, () => { if (settingsTyping()) { deferMemberReload(); return; } reloadAll().then(() => { if (unlocked) { applyTheme(); render(); fillAvatars(); } }); })
       .subscribe();
     if (nudgeChannel) client.removeChannel(nudgeChannel);
     nudgeChannel = client.channel("pair-" + pairId + "-nudge")
       .on("broadcast", { event: "nudge" }, (msg) => receiveNudge(msg && msg.payload))
+      .on("broadcast", { event: "mood" }, (msg) => receiveMood(msg && msg.payload))
       .subscribe();
     if (presenceChannel) client.removeChannel(presenceChannel);
     presenceChannel = client.channel("presence-" + pairId, { config: { presence: { key: me } } });
@@ -6161,6 +6491,11 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       if (!payload.side || payload.side === me) return;
       if (!unlocked) return;
       if (payload.on === false) {
+        if (payload.act === "rec") {
+          // A finished recording drops at once; the voice note itself follows.
+          partnerTypingUntil = 0; dropPresenceTyping = true; partnerAct = "type";
+          clearTimeout(typeChannel._hide); renderPresence(); return;
+        }
         // A short beat after the partner stops, so the indicator does not vanish on a one-second pause.
         dropPresenceTyping = true;
         partnerTypingUntil = Math.max(Date.now() + 1800, Math.min(partnerTypingUntil, partnerTypingShownAt + 3200));
@@ -6170,6 +6505,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         return;
       }
       dropPresenceTyping = false;
+      partnerAct = payload.act === "rec" ? "rec" : "type";
       partnerTypingPulse = Date.now();
       // Typing is re-sent every 1.5 s while keys move, so the window covers two missed pings.
       if (Date.now() > partnerTypingUntil) partnerTypingShownAt = Date.now();
@@ -6422,7 +6758,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
           const up = await client.storage.from("media").upload(path, blob, { contentType: blob.type || "application/octet-stream", upsert: true });
           if (up.error) throw up.error;
           const ins = await client.from("messages").insert({
-            pair_id: pairId, sender_id: myUserId, kind: item.kind, text: item.text || null, media_path: path, dur: item.dur || null, effect: item.effect || "none", once: !!item.once, quiet: !!item.quiet, client_id: item.clientId
+            pair_id: pairId, sender_id: myUserId, kind: item.kind, text: item.text || null, media_path: path, dur: item.dur || null, effect: item.effect || "none", once: !!item.once, quiet: !!item.quiet, reply_to: item.replyTo || null, client_id: item.clientId
           }).select().maybeSingle();
           if (ins.error) {
             await client.storage.from("media").remove([path]);
@@ -6458,7 +6794,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const localId = "local-" + clientId;
     try { await putBlob(localId, blob); }
     catch { notice("Couldn't save that file", "Storage may be full.", { error: true }); return; }
-    const m = { id: localId, from: me, ts: Date.now(), hearts: [], kind, mid: localId, pending: true, dur: (extra && extra.dur) || 0, text: (extra && extra.text) || "", effect: (extra && extra.effect) || "none", clientId, once: !!(extra && extra.once), openedBy: [] };
+    const fwd = extra && extra.fwd ? { fwd: true, from: extra.fwd.from || null } : null;
+    const m = { id: localId, from: me, ts: Date.now(), hearts: [], kind, mid: localId, pending: true, dur: (extra && extra.dur) || 0, text: (extra && extra.text) || "", effect: (extra && extra.effect) || "none", clientId, once: !!(extra && extra.once), openedBy: [], replyTo: fwd };
     cacheThread = thread().concat([m]);
     clearBar(); render({ stick: true });
     const client = cloudClient();
@@ -6468,7 +6805,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const up = await client.storage.from("media").upload(path, blob, { contentType: blob.type || (kind === "image" ? "image/jpeg" : kind === "video" ? "video/mp4" : "audio/webm"), upsert: false });
       if (up.error) throw up.error;
       const ins = await client.from("messages").insert({
-        pair_id: pairId, sender_id: myUserId, kind, text: (extra && extra.text) || null, media_path: path, dur: (extra && extra.dur) || null, effect: (extra && extra.effect) || "none", client_id: clientId, once: !!(extra && extra.once), quiet: !!(extra && extra.quiet), undo_until: undoUntilIso()
+        pair_id: pairId, sender_id: myUserId, kind, text: (extra && extra.text) || null, media_path: path, dur: (extra && extra.dur) || null, effect: (extra && extra.effect) || "none", client_id: clientId, once: !!(extra && extra.once), quiet: !!(extra && extra.quiet), reply_to: fwd, undo_until: undoUntilIso()
       }).select().maybeSingle();
       if (ins.error) {
         await client.storage.from("media").remove([path]);
@@ -6486,7 +6823,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     } catch {
       markFailed(localId);
       const box = outbox();
-      box.push({ kind, clientId, blobId: localId, dur: (extra && extra.dur) || null, text: (extra && extra.text) || null, effect: (extra && extra.effect) || "none", once: !!(extra && extra.once), quiet: !!(extra && extra.quiet), localId });
+      box.push({ kind, clientId, blobId: localId, dur: (extra && extra.dur) || null, text: (extra && extra.text) || null, effect: (extra && extra.effect) || "none", once: !!(extra && extra.once), quiet: !!(extra && extra.quiet), replyTo: fwd, localId });
       saveOutbox(box);
       render();
       notice("Waiting to send", "It will send when you are back online.");
@@ -7220,11 +7557,13 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   const TYPING_GRACE_MS = 2400;
   let typingGraceTimer = 0;
   function typingRowEl() { return document.querySelector("#list .typing-row"); }
-  function showTypingRow(energy) {
+  const REC_DOTS = '<span class="trec-mic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><span class="trec-bars"><b></b><b></b><b></b><b></b><b></b></span><span class="trec-t">Recording</span>';
+  function showTypingRow(energy, act) {
     const box = $("list");
     clearTimeout(typingGraceTimer); typingGraceTimer = 0;
     let row = typingRowEl();
     const arriving = !row;
+    act = act === "rec" ? "rec" : "type";
     if (!row) {
       const near = nearBottom();
       row = el("div", "row theirs typing-row");
@@ -7240,6 +7579,11 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       if (near) box.scrollTop = box.scrollHeight;
     }
     row.dataset.energy = energy || "mid";
+    if (row.dataset.act !== act) {
+      row.dataset.act = act;
+      const dots = row.querySelector(".tdots");
+      if (dots) { dots.classList.toggle("rec", act === "rec"); dots.innerHTML = act === "rec" ? REC_DOTS : "<i></i><i></i><i></i>"; }
+    }
     ensureTypingLoop();
     if (arriving && !reduceMotion()) {
       const r = row.querySelector(".tdots").getBoundingClientRect();
@@ -7277,6 +7621,14 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
   function ensureTypingLoop() {
     if (!typingRAF) typingRAF = requestAnimationFrame(tickTyping);
+  }
+  // Recording a voice note shows on the other side like typing: a bubble in the thread and the banner.
+  let recPing = 0;
+  function trackRecording(on) {
+    clearInterval(recPing); recPing = 0;
+    const send = (v) => { if (typeChannel) { try { typeChannel.send({ type: "broadcast", event: "typing", payload: { side: me, on: v, act: "rec" } }); } catch (e) {} } };
+    if (on) { typingLive = false; send(true); recPing = setInterval(() => { if (rec) send(true); else trackRecording(false); }, 1500); }
+    else send(false);
   }
   let typingLive = false;
   async function trackTyping(on, energy) {
@@ -7573,19 +7925,20 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (!text) return false;
     const client = cloudClient();
     const clientId = uid();
-    const local = addMessage({ kind: "text", text, effect: "none", replyTo: null, clientId });
+    const fwd = opts && opts.fwd ? { fwd: true, from: opts.fwd.from || null } : null;
+    const local = addMessage({ kind: "text", text, effect: "none", replyTo: fwd, clientId });
     render();
     if (!client || !navigator.onLine) {
       const box = outbox();
-      box.push({ kind: "text", text, effect: "none", replyTo: null, clientId, localId: local.id });
+      box.push({ kind: "text", text, effect: "none", replyTo: fwd, clientId, localId: local.id });
       saveOutbox(box);
       return true;
     }
-    const ins = await client.from("messages").insert({ pair_id: pairId, sender_id: myUserId, kind: "text", text, effect: "none", client_id: clientId, quiet: !!(opts && opts.quiet) }).select().maybeSingle();
+    const ins = await client.from("messages").insert({ pair_id: pairId, sender_id: myUserId, kind: "text", text, effect: "none", client_id: clientId, quiet: !!(opts && opts.quiet), reply_to: fwd }).select().maybeSingle();
     if (ins.error) {
       markFailed(local.id);
       const box = outbox();
-      box.push({ kind: "text", text, effect: "none", replyTo: null, clientId, localId: local.id });
+      box.push({ kind: "text", text, effect: "none", replyTo: fwd, clientId, localId: local.id });
       saveOutbox(box);
       notice("Waiting to send", ins.error.message, { error: true });
       return false;
@@ -7627,7 +7980,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     reloadAll, render: () => render(), formPanel, choicePanel, saveTagline,
     markSeen: async () => { const latest = visibleList().reduce((mx, m) => Math.max(mx, m.ts || 0), cacheSeen[me] || 0); if (!latest) return; cacheSeen[me] = latest; unreadN = 0; renderBanner(); renderBellCount(); await syncReadCursor(latest); },
     openChatAt: (start, end) => openChat(false, { day: { start, end } }), fillAvatars, archiveMessage: async (id) => { const c = cloudClient(); const r = await c.rpc("archive_message", { p_id: id }); if (!r.error) { await reloadAll(); render(); } return !r.error; },
-    setMoment, openMoments, fmtDur, store, typeTagline, openDraw, setReply, jumpToMessage,
+    broadcast, forwardSheet, forwardMessages, saveMedia, shareMessages, likedByMe, heartCount, setEmoji, setMoment, openMoments, fmtDur, store, typeTagline, openDraw, setReply, jumpToMessage,
     get specialDays() { return specialDays; }, nudgeReady: () => Math.max(0, Number(store.get("pp-nudge-at", 0)) + NUDGE_GAP - Date.now())
   });
   // Live values: real getters, so callers always see the current data.
@@ -7654,10 +8007,11 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   })();
 })();
 </script>
-<script src="/lees-patch.js?v=17" defer></script>
-<script src="/lees-v8.js?v=3" defer></script>
-<script src="/lees-v9.js?v=5" defer></script>
+<script src="/lees-patch.js?v=18" defer></script>
+<script src="/lees-v8.js?v=4" defer></script>
+<script src="/lees-v9.js?v=6" defer></script>
 <script src="/lees-v10.js?v=2" defer></script>
+<script src="/lees-v11.js?v=1" defer></script>
 <script>
   // Offline shell: the app opens without a connection after one visit. Data comes from the on-device copy.
   if ("serviceWorker" in navigator && location.protocol === "https:") {

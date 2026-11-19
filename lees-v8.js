@@ -518,55 +518,75 @@
     if (row) onGameRow(row);
     a.haptic("send");
   }
+  /* Game mode lives inside the real conversation: the board docks above the thread (beside it on a wide screen),
+     so the whole chat works while you play: typing and recording bubbles, banners, photos, voice notes, drawing,
+     replies and reactions. Quick replies are a short row of one-tap reactions. */
+  var QUICK = ["👏", "😄", "😤", "🔥", "⏳ Your move", "🔁 Rematch?"];
   function openGame() {
     var a = A();
-    a.openPanel("Tic-tac-toe", "Live with " + a.name(a.other), stillFn(function (body) {
-      body.classList.add("v8", "v8-gamebody");
-      D.gameOpen = true;
-      clearInterval(D.tickTimer);
-      D.tickTimer = setInterval(tick, 100);
-      setPanel(rerenderGame);
-      var wrap = el("div", "ttt");
-      wrap.id = "tttWrap";
-      body.appendChild(wrap);
-      drawGame();
-    }));
+    D.gameOpen = true;
+    D.dockMin = false;
+    clearInterval(D.tickTimer);
+    D.tickTimer = setInterval(tick, 100);
+    a.openChat();
+    setTimeout(mountDock, 0);
   }
-  function rerenderGame() { if (D.gameOpen && $("tttWrap")) drawGame(); }
+  function closeGame() {
+    D.gameOpen = false;
+    clearInterval(D.tickTimer);
+    var d = $("gameDock"); if (d) d.remove();
+    var c = $("chat"); if (c) c.classList.remove("game-mode");
+  }
+  function mountDock() {
+    var a = A(), chat = $("chat");
+    if (!D.gameOpen || !chat || !a || a.view !== "chat") return;
+    var dock = $("gameDock");
+    if (!dock) {
+      dock = el("div", "gdock");
+      dock.id = "gameDock";
+      dock.setAttribute("role", "region");
+      dock.setAttribute("aria-label", "Tic-tac-toe");
+      chat.insertBefore(dock, $("list"));
+      chat.classList.add("game-mode");
+      drawGame();
+    }
+  }
+  function rerenderGame() { if (D.gameOpen && $("gameDock")) drawGame(); }
   function boardOf(g) { var b = (g && g.state && g.state.board) || ["", "", "", "", "", "", "", "", ""]; if (D.pendingMove && g && D.pendingMove.g === g.id) { b = b.slice(); b[D.pendingMove.cell] = A().me; } return b; }
   function markOf(g, side) { return g && g.state && g.state.x === side ? "X" : "O"; }
   function drawGame() {
-    var a = A(), wrap = $("tttWrap"); if (!wrap) return;
-    if ($("panelTitle").textContent !== "Tic-tac-toe") { D.gameOpen = false; return; }
+    var a = A(), wrap = $("gameDock"); if (!wrap) return;
     var g = D.game, me = a.me, them = a.other;
-    var keepChat = wrap.querySelector(".ttt-side");
-    var keepInput = keepChat && keepChat.querySelector(".ttt-in");
-    var draftTxt = keepInput ? keepInput.value : "", hadFocus = keepInput && document.activeElement === keepInput;
     wrap.textContent = "";
-    var main = el("div", "ttt-main");
-    // Scoreboard
+    wrap.classList.toggle("min", !!D.dockMin);
+    // Head: score, timer, status, minimise, close
+    var head = el("div", "gd-head");
     var tm = tally(me), tt = tally(them);
-    var score = el("div", "ttt-score");
-    var player = function (side, t) {
-      var p = el("div", "ttt-p" + (g && g.status === "active" && g.state.turn === side ? " turn" : ""));
-      var av = el("div", "avatar " + side.toLowerCase(), initial(side));
-      var nm = el("div", "ttt-pn");
-      nm.append(el("b", "", side === me ? "You" : a.name(side)), el("span", "mono", (g ? markOf(g, side) : "") + " · " + t.w + " wins"));
-      p.append(av, nm);
+    var score = el("div", "gd-score");
+    var pl = function (side, t) {
+      var p = el("span", "gd-p" + (g && g.status === "active" && g.state.turn === side ? " turn" : ""));
+      p.append(el("span", "avatar " + side.toLowerCase(), initial(side)), el("b", "", g ? markOf(g, side) : (side === me ? "You" : "")));
+      p.title = (side === me ? "You" : a.name(side)) + (g ? " · " + markOf(g, side) : "");
       return p;
     };
-    var mid = el("div", "ttt-vs mono", tm.w + " – " + tt.w);
-    score.append(player(me, tm), mid, player(them, tt));
-    main.appendChild(score);
-    // Status + timer ring
-    var status = el("div", "ttt-status");
-    var ring = el("div", "ttt-ring");
+    score.append(pl(me, tm), el("span", "gd-vs mono", tm.w + " – " + tt.w), pl(them, tt));
+    var ring = el("div", "ttt-ring gd-ring");
     ring.innerHTML = '<svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="19" class="bg"/><circle cx="22" cy="22" r="19" class="fg" id="tttArc"/></svg><span id="tttSec">10</span>';
-    var msg = el("div", "ttt-msg"); msg.id = "tttMsg";
-    status.append(ring, msg);
-    main.appendChild(status);
-    // Board
-    var board = el("div", "ttt-board");
+    var minB = el("button", "gd-ic"); minB.type = "button"; minB.setAttribute("aria-label", D.dockMin ? "Show the board" : "Hide the board");
+    minB.innerHTML = svg(D.dockMin ? "M6 9l6 6 6-6" : "M18 15l-6-6-6 6");
+    minB.addEventListener("click", function () { D.dockMin = !D.dockMin; drawGame(); });
+    var x = el("button", "gd-ic"); x.type = "button"; x.setAttribute("aria-label", "Close game mode");
+    x.innerHTML = svg("M18 6L6 18M6 6l12 12");
+    x.addEventListener("click", closeGame);
+    var tro = el("button", "gd-ic"); tro.type = "button"; tro.setAttribute("aria-label", "Trophies");
+    tro.innerHTML = svg("M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3");
+    tro.addEventListener("click", openCabinet);
+    head.append(ring, score, tro, minB, x);
+    wrap.appendChild(head);
+    var msg = el("div", "ttt-msg gd-msg"); msg.id = "tttMsg";
+    wrap.appendChild(msg);
+    var body = el("div", "gd-body");
+    var board = el("div", "ttt-board gd-board");
     board.setAttribute("role", "grid");
     var b = boardOf(g), canPlay = g && g.status === "active" && g.state.turn === me && !D.pendingMove;
     var win = g && g.state && g.state.line ? g.state.line : null;
@@ -579,71 +599,37 @@
       c.addEventListener("click", function () { play(i); });
       board.appendChild(c);
     })(i);
-    main.appendChild(board);
-    // Actions
-    var acts = el("div", "ttt-acts");
+    body.appendChild(board);
+    var acts = el("div", "ttt-acts gd-acts");
+    var mk = function (label, cls, fn) { var x2 = el("button", cls, label); x2.type = "button"; x2.addEventListener("click", fn); acts.appendChild(x2); return x2; };
     if (!g || g.status === "done" || g.status === "abandoned") {
-      var go = el("button", "btn", g && g.status === "done" ? "Rematch" : "Challenge " + a.name(them)); go.type = "button";
-      go.addEventListener("click", async function () {
+      mk(g && g.status === "done" ? "Rematch" : "Challenge " + a.name(them), "btn sm", async function () {
         if (g && g.status === "done") { var r = await sb().rpc("game_rematch", { p_id: g.id }); if (r.error) { a.notice("Couldn't start", friendly(r.error), { error: true }); return; } onGameRow(Array.isArray(r.data) ? r.data[0] : r.data); }
         else startGame();
       });
-      acts.appendChild(go);
     } else if (g.status === "invited") {
-      if (g.state.by === me) { var nudge = el("button", "btn ghost sm", "Nudge " + a.name(them)); nudge.type = "button"; nudge.addEventListener("click", function () { ping("game", { kind: "nudge" }); a.notice("Nudge sent", ""); }); acts.appendChild(nudge); }
-      else { var acc = el("button", "btn", "Join the game"); acc.type = "button"; acc.addEventListener("click", function () { acceptAndOpen(g); }); acts.appendChild(acc); }
-      var cancel = el("button", "btn ghost sm", g.state.by === me ? "Cancel invite" : "Decline"); cancel.type = "button";
-      cancel.addEventListener("click", async function () { await sb().rpc("game_quit", { p_id: g.id }); loadGames().then(rerenderGame); });
-      acts.appendChild(cancel);
+      if (g.state.by === me) mk("Nudge", "btn ghost sm", function () { ping("game", { kind: "nudge" }); a.notice("Nudge sent", ""); });
+      else mk("Join the game", "btn sm", function () { acceptAndOpen(g); });
+      mk(g.state.by === me ? "Cancel invite" : "Decline", "btn ghost sm", async function () { await sb().rpc("game_quit", { p_id: g.id }); loadGames().then(rerenderGame); });
     } else {
-      var quit = el("button", "btn ghost sm", "Leave game"); quit.type = "button";
-      quit.addEventListener("click", async function () { if (await a.centredBanner({ title: "Leave this game?", desc: "It ends now and counts as unfinished.", okLabel: "Leave" })) { await sb().rpc("game_quit", { p_id: g.id }); loadGames().then(rerenderGame); } });
-      acts.appendChild(quit);
+      var flag = el("button", "gd-ic"); flag.type = "button"; flag.setAttribute("aria-label", "Leave game");
+      flag.innerHTML = svg("M5 21V4M5 4h11l-2 4 2 4H5");
+      flag.addEventListener("click", async function () { if (await a.centredBanner({ title: "Leave this game?", desc: "It ends now and counts as unfinished.", okLabel: "Leave" })) { await sb().rpc("game_quit", { p_id: g.id }); loadGames().then(rerenderGame); } });
+      head.insertBefore(flag, tro);
     }
-    var trophies = el("button", "btn ghost sm", "Trophies"); trophies.type = "button"; trophies.addEventListener("click", openCabinet);
-    acts.appendChild(trophies);
-    main.appendChild(acts);
-    wrap.appendChild(main);
-    // Chat beside the board (below it on a phone)
-    var side = el("div", "ttt-side");
-    var quick = el("div", "ttt-quick");
-    QUICK.forEach(function (q) { var c = el("button", "chip", q); c.type = "button"; c.addEventListener("click", function () { a.sendText(q); a.haptic("send"); }); quick.appendChild(c); });
-    var log = el("div", "ttt-log"); log.id = "tttLog";
-    var form = el("form", "ttt-form");
-    var input = el("input", "ttt-in"); input.placeholder = "Message " + a.name(them) + "…"; input.maxLength = 2000; input.value = draftTxt; input.setAttribute("aria-label", "Message");
-    var send = el("button", "ttt-send"); send.type = "submit"; send.setAttribute("aria-label", "Send"); send.innerHTML = svg("M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z");
-    form.append(input, send);
-    form.addEventListener("submit", function (e) { e.preventDefault(); var t = input.value.trim(); if (!t) return; input.value = ""; a.sendText(t); input.focus(); });
-    side.append(log, quick, form);
-    wrap.appendChild(side);
-    D.chatSig = "";
-    drawGameChat();
-    if (hadFocus) input.focus();
+    if (acts.children.length) body.appendChild(acts);
+    var quick = el("div", "gd-quick");
+    QUICK.forEach(function (q) {
+      var c = el("button", "gd-q", q); c.type = "button";
+      c.setAttribute("aria-label", "Send " + q);
+      c.addEventListener("click", function () { a.sendText(q); a.haptic("send"); c.classList.remove("sent"); void c.offsetWidth; c.classList.add("sent"); });
+      quick.appendChild(c);
+    });
+    body.appendChild(quick);
+    wrap.appendChild(body);
     tick();
   }
-  function drawGameChat() {
-    var log = $("tttLog"); if (!log) return;
-    var a = A();
-    var list = a.thread().filter(function (m) { return !m.deleted && !(m.deletedFor || []).includes(a.me); }).slice(-30);
-    var sig = list.map(function (m) { return m.id + ":" + (m.hearts || []).length + (m.pending ? "p" : ""); }).join(",");
-    if (sig === D.chatSig) return;
-    D.chatSig = sig;
-    var near = log.scrollHeight - log.scrollTop - log.clientHeight < 60;
-    log.textContent = "";
-    list.forEach(function (m) {
-      var r = el("div", "tl " + (m.from === a.me ? "me" : "them"));
-      var b = el("div", "tl-b", m.kind === "text" ? (m.text || "") : m.kind === "image" ? "📷 Photo" : m.kind === "audio" ? "🎤 Voice note" : m.kind === "video" ? "🎬 Video" : "Message");
-      var hearts = (m.hearts || []).filter(function (h) { return String(h).indexOf(":") < 0; }).length;
-      if (hearts) b.appendChild(el("span", "tl-h", "♥" + (hearts > 1 ? hearts : "")));
-      if (m.pending) r.classList.add("pending");
-      var last = 0;
-      b.addEventListener("click", function () { var now = Date.now(); if (now - last < 320 && m.id.indexOf("local-") !== 0) { a.toggleHeart(m.id); r.classList.add("liked"); } last = now; });
-      b.title = "Double-tap to love";
-      r.appendChild(b);
-      log.appendChild(r);
-    });
-    if (near || !log._init) { log.scrollTop = log.scrollHeight; log._init = true; }
-  }
+  function drawGameChat() { if (D.gameOpen) mountDock(); }
   async function play(i) {
     var a = A(), g = D.game;
     if (!g || g.status !== "active" || g.state.turn !== a.me || D.pendingMove || (g.state.board || [])[i]) return;
@@ -668,7 +654,9 @@
   var timeoutAsked = 0;
   function tick() {
     var g = D.game, arc = $("tttArc"), sec = $("tttSec"), msg = $("tttMsg"), a = A();
-    if (!a || a.view !== "panel" || $("panelTitle").textContent !== "Tic-tac-toe") { D.gameOpen = false; clearInterval(D.tickTimer); return; }
+    if (!a || !a.unlocked || a.view === "home" || a.view === "lock") { if (D.gameOpen) closeGame(); return; }
+    if (a.view !== "chat") return;
+    if (!$("gameDock")) { mountDock(); return; }
     if (!arc || !g) return;
     var me = a.me, them = a.other, txt = "";
     var ring = arc.closest(".ttt-ring");
@@ -831,7 +819,7 @@
       body.appendChild(el("p", "snote", "Points carry over to every future game in The Lees."));
       var play = el("button", "btn wide", "Play tic-tac-toe"); play.type = "button"; play.addEventListener("click", openGame);
       body.appendChild(play);
-    }));
+    }), D.gameOpen && a.view === "chat" ? "chat" : undefined);
   }
 
   /* ================= Settings entries ================= */

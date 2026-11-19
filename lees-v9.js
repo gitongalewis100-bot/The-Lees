@@ -414,9 +414,10 @@
     return r;
   }
   // Full-screen photo viewer: swipe or arrow keys between photos, with Show in chat, Save, Moment and Delete.
-  function viewPhoto(id, src) {
+  function viewPhoto(id, src, ids) {
     var a = A();
     var list = mediaList("image").slice().reverse();
+    if (Array.isArray(ids) && ids.length) { list = ids.map(function (x) { return a.thread().find(function (m) { return m.id === x; }); }).filter(Boolean); }
     var i = list.findIndex(function (m) { return m.id === id; });
     if (i < 0) { if (src) { list = [{ id: id, src: src, ts: Date.now(), from: a.me }]; i = 0; } else if (list.length) i = 0; else return; }
     var ov = el("div", "v9-viewer");
@@ -441,7 +442,11 @@
       if (!list.length) { shut(); return; }
       i = Math.min(i, list.length - 1); paint();
     }); delB.innerHTML = svg(I.trash) + "<span>Delete</span>";
-    bar.append(showB, saveB, starB, delB);
+    var cur = function () { var m = list[i]; return (m && m.id && a.thread().find(function (x) { return x.id === m.id; })) || m; };
+    var likeB = btn("v9-vw-a", "", async function () { var m = cur(); if (!m || !m.id || String(m.id).indexOf("local-") === 0) return; a.haptic("heart"); await a.toggleHeart(m.id); paint(); });
+    var replyB = btn("v9-vw-a", "", function () { var m = cur(); if (!m || !m.id) return; shut(); a.openChat(); setTimeout(function () { a.setReply(m); }, 60); }); replyB.innerHTML = svg("M9 17l-5-5 5-5M20 18v-2a4 4 0 0 0-4-4H4") + "<span>Reply</span>";
+    var fwdB = btn("v9-vw-a", "", function () { var m = cur(); if (m && m.id && a.forwardSheet) a.forwardSheet([m]); }); fwdB.innerHTML = svg("M15 17l5-5-5-5M4 18v-2a4 4 0 0 1 4-4h12") + "<span>Forward</span>";
+    bar.append(likeB, replyB, fwdB, saveB, starB, delB, showB);
     var count = el("div", "v9-vw-count mono");
     ov.append(top, stage, count, bar);
     document.body.appendChild(ov);
@@ -451,6 +456,9 @@
       who.append(el("b", "", m.from === a.me ? "You" : a.name(m.from)), el("span", "", fmtDay(m.ts) + ", " + hm(m.ts)));
       count.textContent = list.length > 1 ? (i + 1) + " / " + list.length : "";
       starB.innerHTML = svg(I.star) + "<span>" + (m.moment ? "Moment ★" : "Moment") + "</span>";
+      var live = cur(), liked = live && a.likedByMe && a.likedByMe(live), hc = live && a.heartCount ? a.heartCount(live) : 0;
+      likeB.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg><span>' + (liked ? "Loved" : "Love") + (hc ? " · " + hc : "") + "</span>";
+      likeB.classList.toggle("liked", !!liked);
       starB.classList.toggle("on", !!m.moment);
       if (m.src) img.src = m.src; else a.mediaURL(m.mid).then(function (u) { if (u && list[i] === m) img.src = u; });
     }
@@ -945,6 +953,7 @@
         var label = (MOODS.find(function (m) { return m[0] === picked; }) || [])[1] || "";
         var cs = Object.assign({}, a.S(a.me).chatStyle || {}, { mood: { e: picked, l: label, n: note.value.trim(), at: Date.now() } });
         a.setS(a.me, { chatStyle: cs });
+        if (a.broadcast) a.broadcast("mood", { e: picked, l: label, n: cs.mood.n });
         a.sheetClose(); a.render();
         a.notice("Mood shared", a.name(a.other) + " sees " + picked + " on their home screen.", { kind: "success" });
       }));
@@ -1183,40 +1192,8 @@
   }
 
   /* ======================= Wiring ======================= */
-  var APPLE = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
-  var twFail = {}, twDown = !navigator.onLine;
-  window.addEventListener("online", function () { twDown = false; });
-  window.addEventListener("offline", function () { twDown = true; });
-  function twemojify(root) {
-    if (APPLE || !root) return;
-    var re = /(\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*)/gu;
-    var has = /\p{Extended_Pictographic}/u;
-    var walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), nodes = [], n;
-    while ((n = walk.nextNode())) if (has.test(n.nodeValue)) nodes.push(n);
-    nodes.forEach(function (node) {
-      if (node.parentNode && node.parentNode.closest && node.parentNode.closest("textarea,input,.tw9-skip")) return;
-      var frag = document.createDocumentFragment(), s = node.nodeValue, last = 0;
-      s.replace(re, function (m, g, idx) {
-        if (idx > last) frag.appendChild(document.createTextNode(s.slice(last, idx)));
-        var code = Array.from(m).map(function (c) { return c.codePointAt(0).toString(16); }).filter(function (c) { return c !== "fe0f"; }).join("-");
-        if (twFail[code] || twDown) { var keep = document.createElement("span"); keep.className = "tw9-skip"; keep.textContent = m; frag.appendChild(keep); last = idx + m.length; return m; }
-        var img = new Image(); img.className = "tw9"; img.alt = m; img.draggable = false; img.decoding = "async"; img.crossOrigin = "anonymous";
-        img.src = "https://cdn.jsdelivr.net/gh/jdecked/twemoji@15.1.0/assets/svg/" + code + ".svg";
-        img.onerror = function () { twFail[code] = 1; var sp = document.createElement("span"); sp.className = "tw9-skip"; sp.textContent = m; img.replaceWith(sp); };
-        frag.appendChild(img); last = idx + m.length; return m;
-      });
-      if (last < s.length) frag.appendChild(document.createTextNode(s.slice(last)));
-      node.parentNode.replaceChild(frag, node);
-    });
-  }
-  if (!APPLE) {
-    var twTimer = 0;
-    var twRun = function () { ["list", "sheetBody", "panelBody", "notice", "people", "navrow"].forEach(function (id) { twemojify($(id)); }); };
-    new MutationObserver(function (muts) {
-      if (muts.every(function (m) { return m.target.closest && m.target.closest(".ttt,.tw9-skip,#tttLog,.v9-tdemo,#drawLayer"); })) return;
-      clearTimeout(twTimer); twTimer = setTimeout(twRun, 120);
-    }).observe(document.body, { childList: true, subtree: true });
-  }
+  // Emoji on laptops now come from the self-hosted Noto Color Emoji font (lees-v11.css), so text,
+  // inputs and every surface match without swapping glyphs for images.
   window.LeesV9 = {
     openNotifications: openNotifications, openJournal: openJournal, openCalendar: openCalendar, openMedia: openMedia,
     openWords: openWords, openSchedule: openSchedule, openClear: openClear, openStudio: openStudio, homeExtras: homeExtras,

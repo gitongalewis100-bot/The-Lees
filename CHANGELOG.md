@@ -118,3 +118,27 @@ New: lees-v10.js; migrations 2026-11-19_special_days.sql, 2026-11-19_grants_and_
   video viewer close with Escape; lines preview stops when you leave; emoji artwork is CORS-clean, observed less
   often and never retried after failing; CSP allows data:/blob: fetches (backup restore, photo save, waveforms);
   the service worker only caches good pages.
+
+## v11 (2026-11-19)
+New: lees-v11.js, lees-v11.css, fonts/ (Noto Color Emoji, SIL OFL). No database change.
+- Hover lift (desktop) on the six tiles under Settings on home, and on every settings card.
+- Recording a voice note shows on the other side like typing: a red mic bubble in the thread, "is recording a voice
+  note" on the home line, the tray and the banner. It clears the moment recording stops.
+- The typing/recording banner now shows on Settings and every other panel (a narrower pill so Back stays usable),
+  not only on home. Member changes that arrive while a settings field has focus are applied right after.
+- Game mode now lives inside the real conversation: the board docks above the thread on phones (collapsible) and
+  beside it on wide screens. Typing and recording bubbles, banners, mic, attachments, draw, stickers, replies and
+  reactions all work while playing. Quick replies are six one-tap chips. Leave and Trophies are header icons.
+- Emoji on Windows/Android/Linux use Google's Noto Color Emoji font, self-hosted and split by range, so text,
+  inputs, notices and games all match (replaces the Twemoji image swap; no third-party request).
+- Shared mood reaches the partner at once (live broadcast + saved row) with a "is feeling …" notice.
+- Photos sent together show as one album card (up to four tiles, +N for the rest); each still counts and notifies
+  on its own. Tapping opens the set, where each photo can be loved, replied to, forwarded, shared or saved; Forward
+  all and Save all for the set. The photo viewer gained Love, Reply and Forward.
+- Forwarding: long-press any message (text, photo, voice note, video) → Forward: send it again into the chat
+  (marked Forwarded; media is copied), share to another app, save, or copy.
+- "Mrs Lees liked your photo / reacted 😂 to your message" notices: shown once per reaction, whether it arrives
+  live or with the next sync, with Show to jump to it.
+- Listen once: voice notes sent once read "Listen once", play inside their bubble with pause and progress, and read
+  "Played" when they finish (no full-screen viewer).
+- Fixed: Back then quickly opening another screen could leave a blank screen (a stale transition timer hid it).
