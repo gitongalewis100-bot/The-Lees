@@ -1,7 +1,7 @@
 /* The Lees service worker: keeps the app shell available offline.
    Pages: network first, cached copy when offline. Static files: served from cache, refreshed in the background.
    Supabase API, realtime and storage are never cached. */
-const CACHE = "lees-shell-v11-1";
+const CACHE = "lees-shell-v11-2";
 const SHELL = ["/", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/icon-180.png"];
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).catch(() => {}));

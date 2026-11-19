@@ -4,7 +4,7 @@ Method: Playwright (Chromium) against the real index.html and scripts, with a fa
 signed-in browser contexts (Mr Lees and Mrs Lees), so realtime inserts, updates, broadcasts and presence flow between
 them. Fake microphone for recording. Desktop 1280x860 and phone 390x844.
 
-Result: 50 of 50 checks passed, 0 console errors on either side.
+Result: 62 of 62 checks passed, 0 console errors on either side. The vault SQL was also run on a real Postgres engine (PGlite) with a replica schema: runs twice cleanly; clear-for-both removes every row and unpins; both sides list the same vault; restore brings back text, voice notes and transcripts; direct writes and outsiders are refused.
 
 Covered: sign-in both sides; hover lift on home tiles and settings cards; typing banner in Settings (compact);
 recording banner on home, home line, recording bubble in the thread, cleared on stop; six photos → one album card
@@ -13,7 +13,7 @@ forward photo and text (Forwarded label), Forward in the long-press menu; listen
 "Played" after the end; mood reaches partner (notice + home tile); game mode in the chat, invite → join, typing
 bubble during a game, quick reply lands, + menu has Attach and Draw, draw opens/closes, phone layout leaves room for
 the chat with no sideways scroll; self-hosted emoji font loads and renders in colour; every home tile opens and
-returns; all 7 settings categories; settings search; Create, letters, trophies, special days; chat search; send.
+returns; all 7 settings categories; 3D emoji artwork in messages with the text intact; Settings title card; letter, challenge and nudge cards with letter notice and still-sealed tap; clear for both empties both sides and the database; hidden vault opens with five taps and restores for both; 2,500-message conversation loads fully; settings search; Create, letters, trophies, special days; chat search; send.
 
 Not run here (needs the live database or a real device): server-side RLS on the live project, push notifications,
 iOS Safari (Apple devices keep Apple's own emoji by design), real two-phone timing.

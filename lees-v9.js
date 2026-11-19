@@ -895,7 +895,7 @@
     var cl = closeness(), bt = bestTime(), otd = onThisDay(), st = streak();
     var tiles = [
       { k: "streak", ic: "🔥", label: "Streak", val: st ? st + (st === 1 ? " day" : " days") : "Start today", fn: openStreak, hot: st >= 3 },
-      { k: "mood", ic: fresh(themMood) ? themMood.e : "🙂", label: fresh(themMood) ? a.name(a.other).split(" ").pop() + "'s mood" : "Mood", val: fresh(themMood) ? themMood.l : (fresh(myMood) ? "You: " + myMood.e : "Share yours"), fn: openMood },
+      { k: "mood", ic: fresh(themMood) ? themMood.e : "🙂", label: fresh(themMood) ? a.name(a.other) + (/s$/i.test(a.name(a.other)) ? "' mood" : "'s mood") : "Mood", val: fresh(themMood) ? themMood.l : (fresh(myMood) ? "You: " + myMood.e : "Share yours"), fn: openMood },
       { k: "question", ic: "💭", label: "Today's question", val: answered ? "Answered" : "1 new", fn: function () { openQuestion(q); }, hot: !answered },
       { k: "close", ic: "💞", label: "Closeness", val: cl.score + "%", fn: function () { openCloseness(cl); } },
       { k: "best", ic: "⏰", label: "Best time", val: bt.hour == null ? "Learning…" : hourLabel(bt.hour), fn: function () { openBest(bt); } },

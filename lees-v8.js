@@ -90,6 +90,16 @@
   });
   document.addEventListener("lees:render", function () { if (D.gameOpen) drawGameChat(); });
 
+  // Opened from the letter card in the chat: behaves exactly like tapping the envelope in Sealed letters.
+  function openLetterById(id) {
+    var a = A();
+    loadEnvelopes().then(function () {
+      var e = D.env.find(function (x) { return x.id === id; });
+      if (!e) { a.notice("Letter not found", "It may have been withdrawn.", { error: true }); return; }
+      if (e.to === a.me && e.openAt > Date.now()) { a.haptic("error"); a.notice("Still sealed", "This letter opens " + fmtWhen(e.openAt) + ".", { kind: "letter", action: { label: "See it", run: function () { openLetters("in"); } } }); return; }
+      openLetter(e);
+    });
+  }
   function readyForMe() { var me = A() && A().me; return D.env.filter(function (e) { return e.to === me && !e.openedAt && e.openAt <= Date.now(); }); }
   function pendingInvite() { var g = D.game, me = A() && A().me; return g && g.status === "invited" && g.state && g.state.by !== me ? g : null; }
   function readyCount() { return readyForMe().length + (pendingInvite() ? 1 : 0); }
@@ -378,6 +388,8 @@
         if (r.error) { a.notice("Couldn't seal the letter", friendly(r.error) + " Your letter is still here.", { error: true }); return; }
         if (!editing) store.set("v8-letter-draft-" + a.me, { title: "", body: "", seal: draft.seal, paper: draft.paper, at: null });
         ping("letter", { kind: editing ? "edited" : "sealed", id: r.data && r.data.id, open_at: new Date(t).toISOString() });
+        // The letter also arrives as a message: it shows in the chat and notifies like any message.
+        if (!editing && r.data && r.data.id && a.sendCard) a.sendCard({ t: "letter", id: r.data.id, title: fields.title, at: fields.open_at, seal: draft.seal });
         await loadEnvelopes();
         sealAnimation(draft.seal, function () { a.goBack(); openLetters("out"); a.notice("Letter sealed", a.name(a.other) + " can open it " + fmtWhen(t) + "."); });
       });
@@ -400,7 +412,7 @@
     var a = A(); if (!a || !a.unlocked) return;
     loadEnvelopes().then(function () {
       rerender();
-      if (p.kind === "sealed") alertTo("letter", a.name(a.other) + " sealed a letter for you", p.open_at ? "It can be opened " + fmtWhen(Date.parse(p.open_at)) + "." : "", "letter-sealed-" + p.id, { label: "See it", run: function () { openLetters("in"); } });
+      // "sealed" needs no alert here: the letter arrives as a chat message and notifies through that pipeline.
       if (p.kind === "edited") alertTo("letter", a.name(a.other) + " changed a sealed letter", "It still opens " + (p.open_at ? fmtWhen(Date.parse(p.open_at)) : "on its day") + ".", "letter-edit-" + p.id + "-" + Date.now(), { label: "See it", run: function () { openLetters("in"); } });
       if (p.kind === "opened") alertTo("letter", a.name(a.other) + " opened your letter", "", "letter-opened-" + p.id, { label: "See it", run: function () { openLetters("out"); } });
     });
@@ -469,7 +481,7 @@
     refreshBadges();
     if (row.status === "invited" && row.state.by !== a.me && (!prev || prev.status !== "invited")) {
       if (D.gameOpen) alertTo("game", a.name(row.state.by) + " wants a rematch", "", "game-inv-" + row.id, { label: "Play", run: function () { acceptAndOpen(row); } });
-      else { a.alert("game", a.name(row.state.by) + " challenged you", "Tic-tac-toe, live", { ref: "game-inv-" + row.id, toast: false, priority: true }); checkInvite(); }
+      else checkInvite(); // the challenge itself arrives as a message card and notifies through the message pipeline
     }
     if (row.status === "active" && prev && prev.status === "invited" && row.state.by === a.me) { a.notice(a.name(a.other) + " joined the game", "", {}); if (!D.gameOpen) openGame(); }
     if (row.status === "done" && (!prev || prev.status !== "done")) onGameOver(row);
@@ -516,6 +528,7 @@
     if (r.error) { a.notice("Couldn't start a game", friendly(r.error), { error: true }); return; }
     var row = Array.isArray(r.data) ? r.data[0] : r.data;
     if (row) onGameRow(row);
+    if (row && a.sendCard) a.sendCard({ t: "game", id: row.id });
     a.haptic("send");
   }
   /* Game mode lives inside the real conversation: the board docks above the thread (beside it on a wide screen),
@@ -604,7 +617,7 @@
     var mk = function (label, cls, fn) { var x2 = el("button", cls, label); x2.type = "button"; x2.addEventListener("click", fn); acts.appendChild(x2); return x2; };
     if (!g || g.status === "done" || g.status === "abandoned") {
       mk(g && g.status === "done" ? "Rematch" : "Challenge " + a.name(them), "btn sm", async function () {
-        if (g && g.status === "done") { var r = await sb().rpc("game_rematch", { p_id: g.id }); if (r.error) { a.notice("Couldn't start", friendly(r.error), { error: true }); return; } onGameRow(Array.isArray(r.data) ? r.data[0] : r.data); }
+        if (g && g.status === "done") { var r = await sb().rpc("game_rematch", { p_id: g.id }); if (r.error) { a.notice("Couldn't start", friendly(r.error), { error: true }); return; } var rr = Array.isArray(r.data) ? r.data[0] : r.data; onGameRow(rr); if (rr && a.sendCard) a.sendCard({ t: "game", id: rr.id }); }
         else startGame();
       });
     } else if (g.status === "invited") {
@@ -831,5 +844,5 @@
       { id: "cabinet", label: "Trophy cabinet", sub: xp(a.me) + " points", keywords: "awards trophies medals points level", icon: "trophy", run: function () { openCabinet(); } }
     ];
   };
-  window.LeesFeatures = { openCreate: openCreate, readyCount: readyCount, openLetters: openLetters, openGame: openGame, openCabinet: openCabinet, _d: D };
+  window.LeesFeatures = { openLetterById: openLetterById, openCreate: openCreate, readyCount: readyCount, openLetters: openLetters, openGame: openGame, openCabinet: openCabinet, _d: D };
 })();

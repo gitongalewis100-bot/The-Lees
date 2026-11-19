@@ -64,3 +64,9 @@ If the tagline save says "Saved on this device only", the migration has not reac
 ## Rollback
 - Site: revert the commit on main (`git revert <commit>` then `git push origin main`), or redeploy the previous commit from the host dashboard. The site returns to the previous version within about a minute.
 - Database: the migration is additive and nothing is removed. Leave it in place. Only remove the tagline column or journal_entries table manually if you have checked that nothing depends on them.
+
+## v11.1 database step (one file)
+Run supabase/migrations/2026-11-19_v11_trash_vault.sql once in the Supabase SQL editor (safe to run twice; additive).
+Until it runs, the app keeps working with the old delete behaviour and Recently deleted shows "One database update
+needed". Messages deleted for both before this, by the old function, had their content wiped and can't be recovered;
+messages from an old "Clear for both" were only hidden and do appear in Recently deleted.

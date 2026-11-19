@@ -497,7 +497,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 </style>
 <link rel="stylesheet" href="/lees-v8.css?v=4">
 <link rel="stylesheet" href="/lees-v9.css?v=8">
-<link rel="stylesheet" href="/lees-v11.css?v=1">
+<link rel="stylesheet" href="/lees-v11.css?v=3">
 </head>
 <body>
 
@@ -729,6 +729,20 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     cry: { e: "😭", fx: "bob", bits: "💧", label: "Sad" }, ring: { e: "💍", fx: "twinkle", bits: "✨", label: "Forever" }
   };
   const STICKER_RE = /^\[\[sticker:([a-z0-9]+)\]\]$/;
+  /* Cards: letters, game challenges and "thinking of you" also arrive as a message, so they show in the chat and
+     go through the same notification pipeline as any message. Tapping the card opens the thing itself. */
+  const CARD_RE = /^\[\[card:(\{[\s\S]*\})\]\]$/;
+  function cardOf(text) {
+    const mm = CARD_RE.exec(String(text || "").trim());
+    if (!mm) return null;
+    try { const o = JSON.parse(mm[1]); return o && typeof o.t === "string" ? o : null; } catch (e) { return null; }
+  }
+  function cardPreview(c) {
+    if (c.t === "letter") return "✉️ Sealed letter" + (c.title ? ": " + c.title : "");
+    if (c.t === "game") return "🎮 Tic-tac-toe challenge";
+    if (c.t === "nudge") return "💗 Thinking of you";
+    return "Message";
+  }
   function stickerOf(text) { const m = STICKER_RE.exec(String(text || "").trim()); return m && STICKERS[m[1]] ? m[1] : null; }
   function stickerNode(id) {
     const s = STICKERS[id];
@@ -805,7 +819,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const fmtDateTime = (ts) => new Date(ts).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   const fmtDur = (s) => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
-  const previewOf = (m) => (m.kind === "text" && stickerOf(m.text)) ? "Sticker" : m.deleted ? "Deleted" : (m.effect === "doodle" || m.effect === "doodle-glow") ? "Doodle" : m.kind === "image" ? "Photo" : m.kind === "video" ? "Video" : m.kind === "audio" ? ((m.text || "").trim() || "Voice note") : (m.text || "").slice(0, 60);
+  const previewOf = (m) => (m.kind === "text" && cardOf(m.text)) ? cardPreview(cardOf(m.text)) : (m.kind === "text" && stickerOf(m.text)) ? "Sticker" : m.deleted ? "Deleted" : (m.effect === "doodle" || m.effect === "doodle-glow") ? "Doodle" : m.kind === "image" ? "Photo" : m.kind === "video" ? "Video" : m.kind === "audio" ? ((m.text || "").trim() || "Voice note") : (m.text || "").slice(0, 60);
   const hash = (s) => { let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
   const normAnswer = (a) => a.trim().toLowerCase().replace(/\s+/g, " ");
   const firstName = (side) => NAME[side];
@@ -973,6 +987,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     log[day] = (log[day] || 0) + 1; store.set("pp-nudge-log", log);
     try { navigator.vibrate?.([12, 40, 12]); } catch (e) {}
     nudgeChannel.send({ type: "broadcast", event: "nudge", payload: { from: me, at: Date.now() } });
+    sendPlainText(cardText({ t: "nudge" }));
     loveBurst(false);
     notice("Sent with love", NAME[other()] + " will feel it now." + (log[day] > 1 ? " " + log[day] + " today." : ""), { kind: "love" });
   }
@@ -1015,6 +1030,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       action: { label: "Reply", run: () => openChat() }
     });
   }
+  // True when the database doesn't have a function yet (the v11 SQL hasn't been run).
+  function missingFn(err) { return !!err && (err.code === "PGRST202" || err.code === "42883" || /could not find the function|does not exist/i.test(err.message || "")); }
+  function cardText(o) { return "[[card:" + JSON.stringify(o) + "]]"; }
   function broadcast(event, payload) {
     if (!nudgeChannel) return false;
     try { nudgeChannel.send({ type: "broadcast", event, payload: { from: me, at: Date.now(), ...(payload || {}) } }); return true; } catch (e) { return false; }
@@ -1182,14 +1200,14 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function isBlurred(m) {
     if (shield) return true;
     if ((m.hiddenBy || []).includes(me)) return true;
-    if (m.kind === "text" && stickerOf(m.text)) return false;
+    if (m.kind === "text" && (stickerOf(m.text) || cardOf(m.text))) return false;
     if (m.kind === "text" && !m.deleted && S(me).autoBlur && sensitiveRE().test(m.text || "")) return true;
     return false;
   }
   function privatelyHidden(m) {
     if (m.deleted) return false;
     if ((m.hiddenBy || []).includes(me)) return true;
-    if (m.kind === "text" && stickerOf(m.text)) return false;
+    if (m.kind === "text" && (stickerOf(m.text) || cardOf(m.text))) return false;
     return m.kind === "text" && S(me).autoBlur && sensitiveRE().test(m.text || "");
   }
 
@@ -2038,7 +2056,12 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     }
     const scratchIt = privatelyHidden(m);
     const stk = m.kind === "text" && !scratchIt && stickerOf(m.text);
-    if (stk) {
+    const crd = m.kind === "text" && !scratchIt && !stk && cardOf(m.text);
+    if (crd) {
+      card.classList.add("card11-msg");
+      card.appendChild(cardNode(m, crd));
+      if (shield) card.classList.add("blurred");
+    } else if (stk) {
       card.classList.add("sticker-msg");
       card.appendChild(stickerNode(stk));
       if (shield) card.classList.add("blurred");
@@ -2320,6 +2343,39 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       if (media.length) opt(svgI("M12 3v12M7 10l5 5 5-5M5 21h14"), media.length > 1 ? "Save all " + media.length : "Save to this device", "Downloads the original file", () => saveMedia(media));
       if (list.length === 1 && list[0].kind === "text") opt(svgI("M9 9h11v11H9zM5 15H4V4h11v1"), "Copy text", "", () => copyMessage(list[0]));
     });
+  }
+  function cardNode(m, c) {
+    const mine = m.from === me;
+    const box = el("button", "card11 k-" + c.t);
+    box.type = "button";
+    const art = el("div", "card11-art");
+    const tx = el("div", "card11-tx");
+    let cta = "";
+    if (c.t === "letter") {
+      art.innerHTML = '<svg viewBox="0 0 64 44" aria-hidden="true"><rect x="2" y="2" width="60" height="40" rx="5" class="env"/><path d="M3 4l29 21L61 4" class="flap"/><circle cx="32" cy="25" r="7" class="seal"/></svg>';
+      const at = Date.parse(c.at || "") || 0, ready = at && at <= Date.now();
+      tx.append(el("small", "mono", mine ? "You sealed a letter" : "A sealed letter for you"), el("b", "", c.title || "A letter"), el("span", "", ready ? (mine ? "Can be opened now" : "Ready to open") : "Opens " + fmtDateTime(at)));
+      cta = mine ? "View" : ready ? "Open" : "Sealed";
+    } else if (c.t === "game") {
+      art.textContent = "🎮";
+      tx.append(el("small", "mono", "Tic-tac-toe"), el("b", "", mine ? "You challenged " + NAME[other()] : NAME[m.from] + " challenged you"), el("span", "", "Live · 10 seconds a move"));
+      cta = mine ? "Open" : "Play";
+    } else if (c.t === "nudge") {
+      art.textContent = "💗";
+      tx.append(el("small", "mono", "Thinking of you"), el("b", "", mine ? "You sent a little love" : NAME[m.from] + " is thinking of you"), el("span", "", fmtTime(m.ts)));
+      cta = mine ? "" : "Send one back";
+    } else {
+      tx.append(el("b", "", "Message"));
+    }
+    box.append(art, tx);
+    if (cta) box.appendChild(el("span", "card11-cta", cta));
+    box.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (c.t === "letter" && window.LeesFeatures && LeesFeatures.openLetterById) LeesFeatures.openLetterById(c.id);
+      else if (c.t === "game" && window.LeesFeatures) LeesFeatures.openGame();
+      else if (c.t === "nudge" && !mine) sendNudge();
+    });
+    return box;
   }
   function receiptInfo(m, seen) {
     if (m.failed) return { cls: "rc-failed", label: "NOT SENT" };
@@ -3844,13 +3900,78 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const out = el("div", "scard");
       out.appendChild(setRow({ id: "signout", icon: "logout", label: "Sign out", danger: true, onClick: () => confirmSignOut("this") }));
       home.appendChild(out);
-      home.appendChild(el("p", "snote", "The Lees · private to the two of you"));
+      // Hidden: tap this line five times (or hold it) to open Recently deleted.
+      const foot = el("p", "snote", "The Lees · private to the two of you");
+      let taps = 0, tapT = 0, holdT = 0;
+      foot.addEventListener("click", () => { clearTimeout(tapT); taps++; tapT = setTimeout(() => { taps = 0; }, 1200); if (taps >= 5) { taps = 0; haptic("press"); openVault(); } });
+      foot.addEventListener("pointerdown", () => { clearTimeout(holdT); holdT = setTimeout(() => { haptic("press"); openVault(); }, 1100); });
+      ["pointerup", "pointerleave", "pointercancel"].forEach(ev => foot.addEventListener(ev, () => clearTimeout(holdT)));
+      home.appendChild(foot);
       body.append(home, results);
       if (settingsQ) draw(settingsQ);
       fillAvatars();
     }), "home");
   }
 
+  /* Recently deleted (hidden in Settings): everything removed from the conversation, by either of you, at any
+     time since the vault was added, plus anything hidden on your side. Both of you see the same vault.
+     Restore puts a message back where it was. */
+  function openVault() {
+    let filter = "all", rows = null, failed = "";
+    const load = async () => {
+      const client = cloudClient();
+      if (!client) { failed = "offline"; return; }
+      const r = await client.rpc("trash_list");
+      if (r.error) { failed = missingFn(r.error) ? "missing" : r.error.message; rows = []; return; }
+      rows = (r.data || []).map(x => {
+        const o = x.original || {};
+        return { id: x.id, scope: x.scope, by: x.deleted_by, at: Date.parse(x.deleted_at) || 0, from: rowSide(o.sender_id) || (o.sender_id === myUserId ? me : other()), ts: Date.parse(o.created_at) || 0, kind: o.kind || "text", text: o.text || "", mid: o.media_path || null, dur: o.dur || 0 };
+      });
+    };
+    openPanel("Recently deleted", "Shared · only the two of you can open this", stillPanel((body) => {
+      body.classList.add("v9", "vault11");
+      if (rows === null) { body.appendChild(el("p", "snote", "Loading…")); load().then(() => { if (view === "panel" && $("panelTitle").textContent === "Recently deleted") renderPanel(true); }); return; }
+      if (failed === "missing") { const e = el("div", "v9-empty small"); e.append(el("b", "", "One database update needed"), el("span", "", "Run the v11 SQL file once. From then on, everything deleted by either of you is kept here.")); body.appendChild(e); return; }
+      if (failed) { body.appendChild(el("p", "snote", "Couldn't load: " + failed)); return; }
+      const chips = el("div", "v8-chips wrap");
+      [["all", "All"], ["text", "Messages"], ["image", "Photos"], ["audio", "Voice"], ["video", "Videos"]].forEach(([k, t]) => {
+        const n = k === "all" ? rows.length : rows.filter(r => r.kind === k).length;
+        const c = el("button", "chip" + (filter === k ? " on" : ""), t + (n ? " · " + n : ""));
+        c.type = "button";
+        c.addEventListener("click", () => { filter = k; renderPanel(true); });
+        chips.appendChild(c);
+      });
+      body.appendChild(chips);
+      const list = rows.filter(r => filter === "all" || r.kind === filter);
+      if (!list.length) { const e = el("div", "v9-empty small"); e.append(el("b", "", "Nothing here"), el("span", "", "Deleted messages, photos and voice notes appear here and can be restored.")); body.appendChild(e); return; }
+      const card = el("div", "scard");
+      list.slice(0, 400).forEach(r => {
+        const row = el("div", "vault-row");
+        const th = el("div", "vault-th " + r.kind);
+        if (r.kind === "image" && r.mid) { const im = new Image(); im.alt = ""; im.loading = "lazy"; mediaURL(r.mid).then(u => { if (u) im.src = u; }); th.appendChild(im); }
+        else th.innerHTML = ic(r.kind === "audio" ? "mic" : r.kind === "video" ? "image" : "chat", "sm");
+        const tx = el("div", "vault-tx");
+        const what = r.kind === "text" ? (cardOf(r.text) ? cardPreview(cardOf(r.text)) : stickerOf(r.text) ? "Sticker" : r.text || "Message") : (r.kind === "image" ? "Photo" : r.kind === "audio" ? "Voice note · " + fmtDur(r.dur) : "Video") + (r.text ? " · " + r.text : "");
+        tx.append(el("b", "", what.slice(0, 140)), el("small", "", NAME[r.from] + " · sent " + fmtDateTime(r.ts) + " · " + (r.scope === "me" ? "hidden on your side" : r.scope === "hidden-both" ? "hidden on both sides" : "deleted by " + (r.by === me ? "you" : NAME[r.by] || "") + " " + fmtDay(r.at).toLowerCase())));
+        const go = el("button", "btn sm ghost", "Restore");
+        go.type = "button";
+        go.addEventListener("click", async () => {
+          go.disabled = true;
+          const res = await cloudClient().rpc("trash_restore", { p_id: r.id });
+          if (res.error) { go.disabled = false; notice("Couldn't restore", res.error.message, { error: true }); return; }
+          rows = rows.filter(x => x.id !== r.id);
+          await reloadAll(); render(); renderPanel(true);
+          notice("Restored", "It's back in the conversation.", { kind: "success", action: { label: "Show", run: () => jumpToMessage(r.id, "lp-glow-like") } });
+        });
+        if ((r.kind === "image" || r.kind === "video") && r.mid) th.addEventListener("click", async () => { const u = await mediaURL(r.mid); if (u) { if (r.kind === "image") { $("lbImg").src = u; $("lightbox").classList.remove("hidden"); } else window.open(u, "_blank", "noopener"); } });
+        if (r.kind === "audio" && r.mid) { th.classList.add("tap"); th.addEventListener("click", async () => { const u = await mediaURL(r.mid); if (u) { const a = new Audio(u); a.play().catch(() => {}); } }); }
+        row.append(th, tx, go);
+        card.appendChild(row);
+      });
+      body.appendChild(card);
+      if (list.length > 400) body.appendChild(el("p", "snote", "Showing the newest 400."));
+    }));
+  }
   function openArchive() {
     openPanel("Archive", "Older messages, kept safe", (body) => {
       const items = archivedList();
@@ -6207,25 +6328,58 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     try { vib = localStorage.getItem("pp-vibrate-" + row.side) !== "0"; } catch (e) {}
     return { vibrate: vib, lens: row.lens || "auto", status: row.status || "", tz: row.tz || "UTC", haptics: row.haptics !== false, sound: row.sound !== false, autoBlur: row.auto_blur !== false, shake: !!row.shake, blurWords: row.blur_words || [], avatar_path: row.avatar_path || "", chatTheme: row.chat_theme || "", chatStyle: row.chat_style || {} };
   }
+  // Supabase returns at most 1,000 rows per request, so the conversation is read in pages; without this, messages
+  // after the first 1,000 were silently missing.
+  const PAGE = 1000;
+  async function fetchAllMessages(client) {
+    let all = [];
+    for (let from = 0; from < 200000; from += PAGE) {
+      const r = await client.from("messages").select("*").eq("pair_id", pairId).order("created_at").order("id").range(from, from + PAGE - 1);
+      if (r.error) return { data: null, error: r.error };
+      all = all.concat(r.data || []);
+      if (!r.data || r.data.length < PAGE) break;
+    }
+    return { data: all, error: null };
+  }
+  let lastSnap = null;
+  const syncProblems = [];
   async function reloadAll() {
     const client = cloudClient();
     if (!client || !pairId) return;
     const [members, settings, messages, notes, scheduled, reads, nreads, journal] = await Promise.all([
       client.from("pair_members").select("*").eq("pair_id", pairId),
       client.from("pair_settings").select("*").eq("pair_id", pairId).maybeSingle(),
-      client.from("messages").select("*").eq("pair_id", pairId).order("created_at"),
+      fetchAllMessages(client),
       client.from("notes").select("*").eq("pair_id", pairId),
       client.from("scheduled_messages").select("*").eq("pair_id", pairId).eq("sender_id", myUserId).eq("cancelled", false).is("delivered_at", null),
       client.from("read_markers").select("*").eq("pair_id", pairId),
       client.from("note_reads").select("note_id").eq("user_id", myUserId),
       client.from("journal_entries").select("*").eq("pair_id", pairId).order("created_at", { ascending: false })
     ]);
-    if (members.error || messages.error) return false;
-    const snap = { members: members.data || [], settings: settings.data || null, messages: messages.data || [], notes: notes.data || [], scheduled: scheduled.data || [], reads: reads.data || [], nreads: nreads.data || [], journal: journal.data || [] };
+    if (members.error || messages.error) { reportSync("messages", members.error || messages.error); return false; }
+    // A part that fails to load keeps what was there before, instead of silently becoming empty.
+    const keep = (res, key, name, fallback) => {
+      if (res.error) { reportSync(name, res.error); return lastSnap ? lastSnap[key] : fallback; }
+      return res.data == null ? fallback : res.data;
+    };
+    const snap = {
+      members: members.data || [], messages: messages.data || [],
+      settings: keep(settings, "settings", "settings", null), notes: keep(notes, "notes", "notes", []),
+      scheduled: keep(scheduled, "scheduled", "scheduled messages", []), reads: keep(reads, "reads", "read receipts", []),
+      nreads: keep(nreads, "nreads", "note reads", []), journal: keep(journal, "journal", "journal", [])
+    };
+    lastSnap = snap;
     applyRows(snap);
     saveSnapshot(snap);
     await refreshUnread();
     return true;
+  }
+  // Sync problems are logged (and kept in LeesApp.syncProblems) instead of disappearing.
+  function reportSync(part, err) {
+    const msg = String((err && err.message) || err || "unknown");
+    syncProblems.push({ part, msg, at: Date.now() });
+    if (syncProblems.length > 50) syncProblems.shift();
+    try { console.warn("[The Lees] couldn't load " + part + ": " + msg); } catch (e) {}
   }
   // Offline copy: everything the app needs to open is kept on this device after each sync,
   // so the next sign-in paints at once and the app still opens without a connection.
@@ -6434,7 +6588,11 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
             const runFx = () => { if (m.effect && m.effect !== "none") playEffect(m); };
             if (window.LeesHooks && LeesHooks.afterArrival) LeesHooks.afterArrival(runFx); else runFx();
             const watching = view === "chat" && !document.hidden;
-            if (watching) { if (ppShouldAlert(m)) { chime(); arrivalBuzz(); } }
+            const crd = m.kind === "text" && cardOf(m.text);
+            if (crd && crd.t === "nudge") { /* its own heartbeat alert already played */ }
+            else if (watching) { if (ppShouldAlert(m)) { chime(); arrivalBuzz(); } }
+            else if (crd && crd.t === "letter") alertMe("letter", NAME[m.from] + " sealed a letter for you", (crd.title ? "“" + crd.title + "” · " : "") + "Opens " + fmtDateTime(Date.parse(crd.at) || Date.now()), { ref: m.id, side: m.from, action: { label: "See it", run: () => { if (window.LeesFeatures && LeesFeatures.openLetterById) LeesFeatures.openLetterById(crd.id); } }, actions: [{ label: "Open chat", run: () => openChat() }] });
+            else if (crd && crd.t === "game") alertMe("game", NAME[m.from] + " challenged you", "Tic-tac-toe, live", { ref: m.id, side: m.from, action: { label: "Play", run: () => { if (window.LeesFeatures) LeesFeatures.openGame(); } } });
             else alertMe("message", NAME[m.from], previewOf(m).slice(0, 140), { quiet: !!m.quiet, ref: m.id, side: m.from, noFeed: true, action: { label: "Reply", run: () => openChat() } });
             if (view === "chat" && !document.hidden) { if (wasNearRt) { scrollBottomInstant(); markRead(); } else passUnread(false); }
             else if (document.hidden) document.title = "(" + unreadN + ") " + baseTitle;
@@ -6469,6 +6627,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     nudgeChannel = client.channel("pair-" + pairId + "-nudge")
       .on("broadcast", { event: "nudge" }, (msg) => receiveNudge(msg && msg.payload))
       .on("broadcast", { event: "mood" }, (msg) => receiveMood(msg && msg.payload))
+      .on("broadcast", { event: "cleared" }, (msg) => { const p = (msg && msg.payload) || {}; if (!unlocked || p.from === me) return; const fromT = p.from ? Date.parse(p.from) : -Infinity, toT = p.to ? Date.parse(p.to) : Infinity; cacheThread = cacheThread.filter(m => m.pending || !(m.ts >= fromT && m.ts < toT)); reloadAll().then(() => { if (unlocked) render(); }); })
       .subscribe();
     if (presenceChannel) client.removeChannel(presenceChannel);
     presenceChannel = client.channel("presence-" + pairId, { config: { presence: { key: me } } });
@@ -6538,6 +6697,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (snap) {
       pairId = snap.pairId;
       cacheThread = cacheThread.filter(m => m.pending);
+      lastSnap = snap;
       applyRows(snap);
       localUnreadSync();
       // Sync behind the painted screen; render once fresh data is in.
@@ -6725,7 +6885,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   async function pushRead() {
     const client = cloudClient();
     if (!client || !pairId || !me) return;
-    await client.from("read_markers").upsert({ pair_id: pairId, user_id: myUserId, side: me, read_at: new Date(cacheSeen[me] || Date.now()).toISOString() });
+    const r = await client.from("read_markers").upsert({ pair_id: pairId, user_id: myUserId, side: me, read_at: new Date(cacheSeen[me] || Date.now()).toISOString() });
+    if (r && r.error) { reportSync("read receipt (save)", r.error); clearTimeout(pushRead._t); pushRead._t = setTimeout(() => { if (unlocked) pushRead(); }, 15000); }
   }
   function outbox() { return store.get(KEY.outbox, []); }
   function saveOutbox(list) { store.set(KEY.outbox, list); }
@@ -7087,7 +7248,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (m && m.mid && String(m.mid).startsWith("local-")) await delBlob(m.mid);
     voiceCache.get(id)?._audio.pause();
     voiceCache.delete(id);
-    const res = await client.rpc("delete_for_both", { p_id: id });
+    // The vault function keeps a recoverable copy; the older function is used until the database has it.
+    let res = await client.rpc("trash_delete_both", { p_id: id });
+    if (res.error && missingFn(res.error)) res = await client.rpc("delete_for_both", { p_id: id });
     if (res.error) { notice("Couldn't delete that", res.error.message, { error: true }); return; }
     if (res.data) { const rm = await client.storage.from("media").remove([res.data]); if (rm.error) notice("Message deleted, file kept", rm.error.message, { error: true }); }
     await reloadAll();
@@ -7954,10 +8117,19 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (!client || !pairId) return;
     const from = o.all || !o.from ? null : new Date(o.from + "T00:00:00").toISOString();
     const to = o.all || !o.to ? null : new Date(new Date(o.to + "T00:00:00").getTime() + 864e5).toISOString();
-    const r = await client.rpc("clear_conversation", { p_scope: o.scope === "both" ? "both" : "me", p_from: from, p_to: to });
+    const args = { p_scope: o.scope === "both" ? "both" : "me", p_from: from, p_to: to };
+    let r = await client.rpc("trash_clear", args), vault = true;
+    if (r.error && missingFn(r.error)) { vault = false; r = await client.rpc("clear_conversation", args); }
     if (r.error) { notice("Couldn't clear", r.error.message, { error: true }); return; }
+    if (o.scope === "both" && vault) {
+      // Gone for real: drop the local copies too, so nothing lingers on this device.
+      const fromT = from ? Date.parse(from) : -Infinity, toT = to ? Date.parse(to) : Infinity;
+      cacheThread = cacheThread.filter(m => m.pending || !(m.ts >= fromT && m.ts < toT));
+      if (cacheShared.pinnedId && !cacheThread.some(m => m.id === cacheShared.pinnedId)) cacheShared.pinnedId = null;
+      broadcast("cleared", { from: from, to: to });
+    }
     await reloadAll(); render();
-    notice("Conversation cleared", (r.data || 0) + " messages hidden" + (o.scope === "both" ? " on both sides." : " on your side."));
+    notice("Conversation cleared", (r.data || 0) + " messages " + (o.scope === "both" ? (vault ? "deleted for both of you." : "hidden on both sides.") : "hidden on your side."));
   };
   window.LeesApp = {
     get sb() { return cloudClient(); }, get me() { return me; }, get other() { return me ? other() : null; },
@@ -7980,7 +8152,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     reloadAll, render: () => render(), formPanel, choicePanel, saveTagline,
     markSeen: async () => { const latest = visibleList().reduce((mx, m) => Math.max(mx, m.ts || 0), cacheSeen[me] || 0); if (!latest) return; cacheSeen[me] = latest; unreadN = 0; renderBanner(); renderBellCount(); await syncReadCursor(latest); },
     openChatAt: (start, end) => openChat(false, { day: { start, end } }), fillAvatars, archiveMessage: async (id) => { const c = cloudClient(); const r = await c.rpc("archive_message", { p_id: id }); if (!r.error) { await reloadAll(); render(); } return !r.error; },
-    broadcast, forwardSheet, forwardMessages, saveMedia, shareMessages, likedByMe, heartCount, setEmoji, setMoment, openMoments, fmtDur, store, typeTagline, openDraw, setReply, jumpToMessage,
+    syncProblems: () => syncProblems.slice(), broadcast, openVault, sendCard: (o) => sendPlainText(cardText(o)), cardOf, forwardSheet, forwardMessages, saveMedia, shareMessages, likedByMe, heartCount, setEmoji, setMoment, openMoments, fmtDur, store, typeTagline, openDraw, setReply, jumpToMessage,
     get specialDays() { return specialDays; }, nudgeReady: () => Math.max(0, Number(store.get("pp-nudge-at", 0)) + NUDGE_GAP - Date.now())
   });
   // Live values: real getters, so callers always see the current data.
@@ -8007,9 +8179,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   })();
 })();
 </script>
+<script src="/lees-emoji.js?v=1" defer></script>
 <script src="/lees-patch.js?v=18" defer></script>
-<script src="/lees-v8.js?v=4" defer></script>
-<script src="/lees-v9.js?v=6" defer></script>
+<script src="/lees-v8.js?v=5" defer></script>
+<script src="/lees-v9.js?v=7" defer></script>
 <script src="/lees-v10.js?v=2" defer></script>
 <script src="/lees-v11.js?v=1" defer></script>
 <script>

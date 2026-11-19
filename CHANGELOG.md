@@ -142,3 +142,21 @@ New: lees-v11.js, lees-v11.css, fonts/ (Noto Color Emoji, SIL OFL). No database 
 - Listen once: voice notes sent once read "Listen once", play inside their bubble with pause and progress, and read
   "Played" when they finish (no full-screen viewer).
 - Fixed: Back then quickly opening another screen could leave a blank screen (a stale transition timer hid it).
+
+## v11.1 (2026-11-19)
+New: lees-emoji.js, emoji/ (Microsoft Fluent 3D emoji, MIT), supabase/migrations/2026-11-19_v11_trash_vault.sql.
+- One emoji look on every device: every emoji in the app (messages, reactions, stickers, picker, notices, banners,
+  games, mood, awards) is drawn with self-hosted 3D artwork, the same on iPhone, Android and old laptops. The real
+  character stays underneath (copy, search, screen readers); if an image can't load, the device's emoji shows.
+  Text boxes keep the device's emoji while typing (browsers can't put images in a text box).
+- Home: the Settings name and icon sit in their own card (lifts on hover).
+- Delete for both and Clear conversation (both sides) now really remove messages (needs the SQL file), and every
+  removed message is kept in a shared vault. Recently deleted is hidden: Settings → tap "The Lees · private to the
+  two of you" five times (or hold it). Both of you see the same vault; Restore puts a message back.
+- Sealed letters, game challenges and Thinking of you now arrive as messages: a card in the chat, notified through
+  the message pipeline (letter: "sealed a letter for you" with See it). Tapping the card opens the letter (or says
+  when it opens), the game, or sends love back.
+- Fixed (silent): conversations over 1,000 messages lost their newest messages (Supabase's per-request cap); the
+  thread now loads in pages. A part that fails to load (notes, journal, receipts…) keeps its last data instead of
+  going blank, and is logged. A failed read-receipt save retries.
+- Mood tile shows the full name ("Mrs Lees' mood").
