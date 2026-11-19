@@ -66,7 +66,7 @@ If the tagline save says "Saved on this device only", the migration has not reac
 - Database: the migration is additive and nothing is removed. Leave it in place. Only remove the tagline column or journal_entries table manually if you have checked that nothing depends on them.
 
 ## v11.1 database step (one file)
-Run supabase/migrations/2026-11-19_v11_trash_vault.sql once in the Supabase SQL editor (safe to run twice; additive).
+Run supabase/RUN_THIS_v11.sql once (same SQL as migrations/2026-11-19_v11_trash_vault.sql, with instructions and checks) in the Supabase SQL editor (safe to run twice; additive).
 Until it runs, the app keeps working with the old delete behaviour and Recently deleted shows "One database update
 needed". Messages deleted for both before this, by the old function, had their content wiped and can't be recovered;
 messages from an old "Clear for both" were only hidden and do appear in Recently deleted.
