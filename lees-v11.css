@@ -202,3 +202,13 @@
 .card11-cta{flex:none;padding:7px 12px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-size:12.5px;font-weight:600}
 .card11.k-nudge .card11-cta{background:#e0245e;color:#fff}
 .msg.card11-msg .stack{padding:4px 8px 0}
+
+.mic-steps{margin:6px 0 14px;padding-left:22px;display:flex;flex-direction:column;gap:8px;font-size:15px;line-height:1.45;color:var(--ink)}
+
+/* ---------- Clear conversation: undo / restore ---------- */
+.v11-lastclear{display:flex;align-items:center;gap:12px;margin:0 0 12px;padding:12px 14px;border-radius:18px;background:color-mix(in srgb,var(--accent) 10%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 30%,var(--line))}
+.v11-lastclear > div{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.v11-lastclear b{font-size:14.5px}.v11-lastclear span{font-size:12.5px;color:var(--muted)}
+.vault-all{margin:0 0 10px}
+.card11-tx span[data-open]{font-variant-numeric:tabular-nums}
+.v8-env-meta span[data-open]{font-variant-numeric:tabular-nums}

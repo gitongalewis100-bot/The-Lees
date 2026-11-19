@@ -160,3 +160,16 @@ New: lees-emoji.js, emoji/ (Microsoft Fluent 3D emoji, MIT), supabase/migrations
   thread now loads in pages. A part that fails to load (notes, journal, receipts…) keeps its last data instead of
   going blank, and is logged. A failed read-receipt save retries.
 - Mood tile shows the full name ("Mrs Lees' mood").
+
+## v11.2 (2026-11-19) - no database change
+- Microphone: errors are told apart instead of always saying "blocked": blocked by the browser (with a "How to
+  allow" guide for Chrome, Edge, Firefox and Safari, and Try again), permission box closed (tap again and choose
+  Allow), no microphone found, microphone busy in another app or tab.
+- Clear conversation now always clears for both of you (the "Just me" choice is gone). Right after, a 20-second
+  Undo; in the Clear screen, "Restore them" for the last clear and a link to Recently deleted; Recently deleted
+  has Restore all. Restored messages arrive quietly on the other side (no alerts, no sounds).
+- "Still sealed" shows a live countdown (2 days 4 h 12 min 08 s), as does the letter card in the chat and the
+  envelopes in Sealed letters; the card flips to Ready to open by itself.
+- Themes: the chat look (chat theme, bubble colour, text size, corners) is now shared by both of you and updates
+  live; the app theme is personal. Existing shared app theme becomes each person's starting app theme. The
+  wallpaper photo, dimming and blur stay personal (the photo is stored on the device).

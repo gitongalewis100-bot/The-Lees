@@ -96,7 +96,7 @@
     loadEnvelopes().then(function () {
       var e = D.env.find(function (x) { return x.id === id; });
       if (!e) { a.notice("Letter not found", "It may have been withdrawn.", { error: true }); return; }
-      if (e.to === a.me && e.openAt > Date.now()) { a.haptic("error"); a.notice("Still sealed", "This letter opens " + fmtWhen(e.openAt) + ".", { kind: "letter", action: { label: "See it", run: function () { openLetters("in"); } } }); return; }
+      if (e.to === a.me && e.openAt > Date.now()) { a.haptic("error"); LeesV11.sealedNotice(e.openAt, function () { openLetters("in"); }); return; }
       openLetter(e);
     });
   }
@@ -218,14 +218,16 @@
     var meta = el("div", "v8-env-meta");
     meta.appendChild(el("b", "", e.title || "A letter"));
     var line = mine ? (e.openedAt ? "Opened " + fmtWhen(e.openedAt) : ready ? "Delivered · not opened yet" : until(e.openAt)) : (e.openedAt ? "Opened " + fmtWhen(e.openedAt) : ready ? "Ready to open" : until(e.openAt));
-    meta.appendChild(el("span", "", line));
+    var ls = el("span", "", line);
+    if (!ready && !e.openedAt) { ls.dataset.open = String(e.openAt); ls.dataset.mine = mine ? "1" : "0"; ls.textContent = "Opens in " + LeesV11.countdown(e.openAt - Date.now()); }
+    meta.appendChild(ls);
     meta.appendChild(el("small", "mono", (ready ? "Opened on " : "Opens ") + fmtWhen(e.openAt)));
     card.appendChild(meta);
     card.addEventListener("click", function () {
       if (!mine && !ready) {
         card.classList.remove("shake"); void card.offsetWidth; card.classList.add("shake");
         a.haptic("error");
-        a.notice("Still sealed", "This letter opens " + fmtWhen(e.openAt) + ".");
+        LeesV11.sealedNotice(e.openAt);
         return;
       }
       openLetter(e);

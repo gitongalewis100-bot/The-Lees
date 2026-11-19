@@ -4,7 +4,7 @@ Method: Playwright (Chromium) against the real index.html and scripts, with a fa
 signed-in browser contexts (Mr Lees and Mrs Lees), so realtime inserts, updates, broadcasts and presence flow between
 them. Fake microphone for recording. Desktop 1280x860 and phone 390x844.
 
-Result: 62 of 62 checks passed, 0 console errors on either side. The vault SQL was also run on a real Postgres engine (PGlite) with a replica schema: runs twice cleanly; clear-for-both removes every row and unpins; both sides list the same vault; restore brings back text, voice notes and transcripts; direct writes and outsiders are refused.
+Result: 84 of 84 checks passed (v11.2 added: shared chat theme / personal app theme, four microphone error cases and the guide, clear-for-both with undo and restore, quiet restores, live countdowns), 0 console errors on either side. The vault SQL was also run on a real Postgres engine (PGlite) with a replica schema: runs twice cleanly; clear-for-both removes every row and unpins; both sides list the same vault; restore brings back text, voice notes and transcripts; direct writes and outsiders are refused.
 
 Covered: sign-in both sides; hover lift on home tiles and settings cards; typing banner in Settings (compact);
 recording banner on home, home line, recording bubble in the thread, cleared on stop; six photos → one album card

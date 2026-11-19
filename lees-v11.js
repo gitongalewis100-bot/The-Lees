@@ -88,6 +88,49 @@
     });
     close.focus();
   }
+  /* ---------- Countdown to a sealed letter ---------- */
+  function pad(n) { return n < 10 ? "0" + n : String(n); }
+  // "2 d 4 h 12 min 08 s": every unit from the biggest non-zero one down to seconds.
+  function countdown(ms) {
+    var t = Math.max(0, Math.floor(ms / 1000)), d = Math.floor(t / 86400), h = Math.floor(t % 86400 / 3600), m = Math.floor(t % 3600 / 60), sec = t % 60;
+    var out = [];
+    if (d) out.push(d + (d === 1 ? " day" : " days"));
+    if (d || h) out.push(h + " h");
+    if (d || h || m) out.push((d || h ? pad(m) : m) + " min");
+    out.push((d || h || m ? pad(sec) : sec) + " s");
+    return out.join(" ");
+  }
+  // A notice whose second line counts down live until the letter can be opened.
+  function sealedNotice(openAt, onSee) {
+    var a = A();
+    a.notice("Still sealed", "Opens in " + countdown(openAt - Date.now()), { kind: "letter", duration: 12000, action: onSee ? { label: "See it", run: onSee } : undefined });
+    var n = document.getElementById("notice");
+    var d = n && n.querySelector(".d");
+    if (!d) return;
+    var id = setInterval(function () {
+      var cur = document.getElementById("notice");
+      var dd = cur && cur.querySelector(".d");
+      if (!dd || cur.classList.contains("hidden") || !/^Opens in|^Ready/.test(dd.textContent)) { clearInterval(id); return; }
+      var left = openAt - Date.now();
+      dd.textContent = left > 0 ? "Opens in " + countdown(left) : "It can be opened now";
+      if (left <= 0) clearInterval(id);
+    }, 1000);
+  }
+  // Letter cards and envelopes mark their countdown line with data-open (epoch ms); one clock keeps them all live.
+  function tick() {
+    document.querySelectorAll("[data-open]").forEach(function (n) {
+      var at = Number(n.dataset.open), left = at - Date.now();
+      if (!at) return;
+      if (left > 0) n.textContent = "Opens in " + countdown(left);
+      else if (n.dataset.done !== "1") {
+        n.dataset.done = "1";
+        n.textContent = n.dataset.mine === "1" ? "Can be opened now" : "Ready to open";
+        var cta = n.closest(".card11, .v8-env");
+        if (cta) { var c = cta.querySelector(".card11-cta"); if (c && n.dataset.mine !== "1") c.textContent = "Open"; cta.classList.add("ready"); }
+      }
+    });
+  }
+  setInterval(tick, 1000);
   document.addEventListener("lees:locked", function () { document.querySelectorAll(".al11").forEach(function (n) { n.remove(); }); });
-  window.LeesV11 = { openAlbum: openAlbum };
+  window.LeesV11 = { openAlbum: openAlbum, countdown: countdown, sealedNotice: sealedNotice };
 })();

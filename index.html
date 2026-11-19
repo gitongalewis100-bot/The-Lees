@@ -497,7 +497,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 </style>
 <link rel="stylesheet" href="/lees-v8.css?v=4">
 <link rel="stylesheet" href="/lees-v9.css?v=8">
-<link rel="stylesheet" href="/lees-v11.css?v=3">
+<link rel="stylesheet" href="/lees-v11.css?v=4">
 </head>
 <body>
 
@@ -804,6 +804,37 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   const sched = () => cacheSched;
   const SH = () => ({ theme: "warm", archiveDays: 0, ...cacheShared });
   const setSH = (p) => { cacheShared = { ...SH(), ...p }; void pushShared(); };
+  /* Two kinds of theme. The CHAT look (chat theme, bubble colour, text size, corners) is shared: both of you see
+     the same chat. The APP theme (colours of the app itself) is personal. The shared chat look is stored as JSON
+     in pair_settings.theme; a plain theme id there is the older "shared app theme", kept as each person's
+     starting app theme until they pick their own. */
+  function parseThemeCol(raw) {
+    raw = String(raw || "");
+    if (raw.charAt(0) === "{") { try { const o = JSON.parse(raw); return { legacy: o.a || "warm", chat: { t: o.t || "", b: o.b || "", s: o.s || "", c: o.c || "" } }; } catch (e) {} }
+    return { legacy: raw || "warm", chat: null };
+  }
+  function appThemeId() {
+    const own = me ? (S(me).chatStyle || {}).appTheme : "";
+    let loc = "";
+    try { loc = me ? localStorage.getItem("pp-apptheme-" + me) || "" : ""; } catch (e) {}
+    return own || loc || SH().theme || "warm";
+  }
+  function setAppTheme(id) {
+    try { localStorage.setItem("pp-apptheme-" + me, id); } catch (e) {}
+    setS(me, { chatStyle: { ...(S(me).chatStyle || {}), appTheme: id } });
+    applyTheme();
+  }
+  function chatLook() {
+    const sh = cacheShared.chat;
+    if (sh) return sh;
+    const cs = me ? (S(me).chatStyle || {}) : {};
+    return { t: me ? (S(me).chatTheme || "") : "", b: cs.bubble || "", s: cs.size || "", c: cs.corners || "" };
+  }
+  function setChatLook(patch) {
+    cacheShared = { ...SH(), chat: { ...chatLook(), ...patch } };
+    void pushShared();
+    applyTheme();
+  }
   const DEF = () => ({ haptics: true, vibrate: true, sound: true, autoBlur: true, status: "", tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", blurWords: [], shake: false, lens: "scan" });
   const S = (side) => ({ ...DEF(), ...(cacheMembers[side] || {}) });
   const setS = (side, p) => { cacheMembers[side] = { ...S(side), ...p }; if (side === me) void pushMember(); };
@@ -2354,7 +2385,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (c.t === "letter") {
       art.innerHTML = '<svg viewBox="0 0 64 44" aria-hidden="true"><rect x="2" y="2" width="60" height="40" rx="5" class="env"/><path d="M3 4l29 21L61 4" class="flap"/><circle cx="32" cy="25" r="7" class="seal"/></svg>';
       const at = Date.parse(c.at || "") || 0, ready = at && at <= Date.now();
-      tx.append(el("small", "mono", mine ? "You sealed a letter" : "A sealed letter for you"), el("b", "", c.title || "A letter"), el("span", "", ready ? (mine ? "Can be opened now" : "Ready to open") : "Opens " + fmtDateTime(at)));
+      const when = el("span", "", ready ? (mine ? "Can be opened now" : "Ready to open") : "Opens in " + (window.LeesV11 ? LeesV11.countdown(at - Date.now()) : fmtDateTime(at)));
+      if (!ready) { when.dataset.open = String(at); when.dataset.mine = mine ? "1" : "0"; }
+      tx.append(el("small", "mono", mine ? "You sealed a letter" : "A sealed letter for you"), el("b", "", c.title || "A letter"), when);
       cta = mine ? "View" : ready ? "Open" : "Sealed";
     } else if (c.t === "game") {
       art.textContent = "🎮";
@@ -2917,15 +2950,15 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     closeActions();
     const acts = $("themeActs");
     acts.textContent = "";
-    const cur = scope === "chat" ? (S(me).chatTheme || "") : SH().theme;
+    const cur = scope === "chat" ? (chatLook().t || "") : appThemeId();
     for (const t of THEMES) {
       const b = el("button", "tchip" + (cur === t.id ? " on" : ""));
       const sw = el("span", "swatch");
       sw.style.background = t.sw;
       b.append(sw, el("span", "", t.name));
       b.addEventListener("click", () => {
-        if (scope === "chat") setS(me, { chatTheme: t.id });
-        else setSH({ theme: t.id });
+        if (scope === "chat") setChatLook({ t: t.id });
+        else setAppTheme(t.id);
         applyTheme();
         openThemeBar(scope);
         haptic("press");
@@ -2945,20 +2978,20 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
   function darkTheme(id) { return id === "ink" || id === "glass" || id === "forest-ink" || id === "night-bloom"; }
   function applyTheme() {
-    const name = resolvedTheme(SH().theme);
+    const name = resolvedTheme(appThemeId());
     document.documentElement.dataset.theme = name;
     const meta = document.querySelector('meta[name="color-scheme"]');
     if (meta) meta.content = darkTheme(name) ? "dark" : "light";
     const chat = $("chat");
     if (!chat) return;
-    const raw = me ? (S(me).chatTheme || "") : "";
-    if (raw) chat.dataset.theme = resolvedTheme(raw);
+    const look = me ? chatLook() : { t: "", b: "", s: "", c: "" };
+    if (look.t) chat.dataset.theme = resolvedTheme(look.t);
     else delete chat.dataset.theme;
-    const st = me ? (S(me).chatStyle || {}) : {};
-    if (st.bubble && st.bubble !== "default") chat.dataset.bubble = st.bubble; else delete chat.dataset.bubble;
-    if (st.size) chat.dataset.size = st.size; else delete chat.dataset.size;
-    if (st.corners) chat.dataset.corners = st.corners; else delete chat.dataset.corners;
-    applyWallpaper(st);
+    if (look.b && look.b !== "default") chat.dataset.bubble = look.b; else delete chat.dataset.bubble;
+    if (look.s) chat.dataset.size = look.s; else delete chat.dataset.size;
+    if (look.c) chat.dataset.corners = look.c; else delete chat.dataset.corners;
+    // The wallpaper photo, its dimming and blur stay personal (the photo lives on this device).
+    applyWallpaper(me ? (S(me).chatStyle || {}) : {});
   }
   // Chat wallpaper: a photo chosen on this device (kept on the device), with brightness and blur.
   let wallUrl = null;
@@ -2976,13 +3009,15 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     list.style.removeProperty("--wall-img");
   }
   function openChatLook() {
-    const st = { bubble: "default", size: "medium", corners: "round", ...(S(me).chatStyle || {}) };
+    const look0 = chatLook();
+    const st = { bubble: look0.b || "default", size: look0.s || "medium", corners: look0.c || "round" };
     const groups = [
       ["Bubble colour", "bubble", [["default", "Default"], ["rose", "Rose"], ["sage", "Sage"], ["sky", "Sky"], ["sand", "Sand"]]],
       ["Text size", "size", [["small", "Small"], ["medium", "Medium"], ["large", "Large"]]],
       ["Bubble corners", "corners", [["round", "Round"], ["soft", "Soft"]]]
     ];
     sheetOpen((body) => {
+      body.appendChild(el("p", "fp-desc", "Shared: " + NAME[other()] + " sees the same chat look."));
       for (const [title, key, options] of groups) {
         body.appendChild(el("div", "gh", title));
         const row = el("div", "kinds");
@@ -2993,8 +3028,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
             c.type = "button";
             c.addEventListener("click", () => {
               st[key] = id;
-              setS(me, { chatStyle: { ...(S(me).chatStyle || {}), bubble: st.bubble, size: st.size, corners: st.corners } });
-              applyTheme();
+              setChatLook({ b: st.bubble, s: st.size, c: st.corners });
               paint();
             });
             row.appendChild(c);
@@ -3724,8 +3758,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function pickImage(fn) { const f = el("input"); f.type = "file"; f.accept = "image/*"; f.addEventListener("change", () => { if (f.files[0]) fn(f.files[0]); }); f.click(); }
   async function confirmAct(title, desc, okLabel) { return centredBanner({ title, desc, okLabel: okLabel || "Continue" }); }
   function openThemeSheet() {
-    choiceSheet({ title: "Theme", desc: "Shared: it changes the app for both of you.", value: SH().theme, options: THEMES.map(t => [t.id, t.name, t.id === "auto" ? "Light by day, dark at night" : "", t.sw]) })
-      .then(v => { if (v == null) return; setSH({ theme: v }); applyTheme(); haptic("press"); if (view === "panel") renderPanel(); });
+    choiceSheet({ title: "Theme", desc: "Just for you. It changes the app on your side only. The chat look is shared.", value: appThemeId(), options: THEMES.map(t => [t.id, t.name, t.id === "auto" ? "Light by day, dark at night" : "", t.sw]) })
+      .then(v => { if (v == null) return; setAppTheme(v); haptic("press"); if (view === "panel") renderPanel(); });
   }
   const LENS_OPTS = [["auto", "Surprise me", "A different scanner every sign-in, none repeats until all have played"], ["scan", "Light beam"], ["prism", "Prism sweep"], ["ripple", "Ripples"], ["orbit", "Orbit"], ["pulse", "Heartbeat"], ["constellation", "Constellation"], ["bars", "Laser grid"], ["ink", "Ink drop"], ["aurora", "Aurora"], ["round", "Round lens"], ["star", "Star"]];
   function settingsRegistry() {
@@ -3742,8 +3776,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     add("profile", { id: "taglines", label: "Lock-screen lines", keywords: "tagline rotate auto quotes sign-in text extras", build: () => setRow({ id: "taglines", icon: "text", label: "Lock-screen lines", sub: "One line, or several that take turns", value: (() => { try { return localStorage.getItem("pp-tagline-mode") === "rotate" ? "Rotating" : "One line"; } catch (e) { return ""; } })(), onClick: () => { if (window.LeesV9) LeesV9.openTaglines(); } }) });
     add("profile", { id: "appicon", label: "App icon", keywords: "home screen icon logo", build: () => setRow({ id: "appicon", icon: "image", label: "App icon", sub: shared, onClick: () => pickImage(setAppIcon) }) });
     // Appearance
-    add("look", { id: "theme", label: "Theme", keywords: "colour color dark light night", build: () => setRow({ id: "theme", icon: "palette", label: "Theme", sub: shared, value: (THEMES.find(t => t.id === SH().theme) || THEMES[0]).name, onClick: () => openThemeSheet() }) });
-    add("look", { id: "chatlook", label: "Chat look", keywords: "bubbles text size corners wallpaper font", build: () => setRow({ id: "chatlook", icon: "chat", label: "Chat look", sub: "Bubbles, text size and corners on your side", onClick: () => openChatLook() }) });
+    add("look", { id: "theme", label: "Theme", keywords: "colour color dark light night", build: () => setRow({ id: "theme", icon: "palette", label: "Theme", sub: "Just for you", value: (THEMES.find(t => t.id === appThemeId()) || THEMES[0]).name, onClick: () => openThemeSheet() }) });
+    add("look", { id: "chatlook", label: "Chat look", keywords: "bubbles text size corners wallpaper font", build: () => setRow({ id: "chatlook", icon: "chat", label: "Chat look", sub: "Shared: theme, bubbles, text size and corners for both of you", onClick: () => openChatLook() }) });
     // Notifications
     add("alerts", { id: "mute", label: "Mute notifications", keywords: "silent quiet do not disturb", build: () => choiceRow({ id: "mute", icon: "bell", label: "Mute notifications", sub: "Silences sound and buzz for you", get: () => ppMuteChoice(), options: () => [["off", "Not muted"], ["8h", "For 8 hours"], ["1w", "For 1 week"]], set: (v) => ppSetMute(v) }) });
     add("alerts", { id: "sysnotify", label: "Phone and desktop alerts", keywords: "push notification system banner background lock screen", build: () => switchRow({ id: "sysnotify", icon: "bell", label: "Phone and desktop alerts", sub: "Alerts when The Lees is open but in the background", get: () => "Notification" in window && Notification.permission === "granted" && store.get("pp-sysnotify", true), set: async (v) => {
@@ -3918,6 +3952,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
      Restore puts a message back where it was. */
   function openVault() {
     let filter = "all", rows = null, failed = "";
+    openVault._reload = () => { rows = null; if (view === "panel" && $("panelTitle").textContent === "Recently deleted") renderPanel(true); };
     const load = async () => {
       const client = cloudClient();
       if (!client) { failed = "offline"; return; }
@@ -3943,6 +3978,12 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       });
       body.appendChild(chips);
       const list = rows.filter(r => filter === "all" || r.kind === filter);
+      if (list.length > 1) {
+        const all = el("button", "btn sm ghost vault-all", "Restore all " + list.length);
+        all.type = "button";
+        all.addEventListener("click", async () => { if (await confirmAct("Restore " + list.length + " messages?", "They go back into the conversation for both of you.", "Restore all")) { all.disabled = true; await restoreMany(list.map(r => r.id), ""); rows = null; renderPanel(true); } });
+        body.appendChild(all);
+      }
       if (!list.length) { const e = el("div", "v9-empty small"); e.append(el("b", "", "Nothing here"), el("span", "", "Deleted messages, photos and voice notes appear here and can be restored.")); body.appendChild(e); return; }
       const card = el("div", "scard");
       list.slice(0, 400).forEach(r => {
@@ -5751,6 +5792,51 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       return await navigator.mediaDevices.getUserMedia({ audio: true });
     }
   }
+  /* Microphone problems, told apart. The browser's permission box can be Allowed, Blocked or just closed, and
+     the mic can also be missing or busy; each needs a different fix, so each gets its own message. */
+  async function micState() {
+    try { const st = await navigator.permissions.query({ name: "microphone" }); return st.state; } catch (e) { return ""; }
+  }
+  function micBrowserSteps() {
+    const ua = navigator.userAgent || "";
+    if (/Firefox/i.test(ua)) return ["Click the microphone icon in the address bar (left of the web address).", "Remove the Blocked setting for this site, or choose Allow.", "Reload the page."];
+    if (/Edg\//i.test(ua)) return ["Click the lock icon in the address bar, then Permissions for this site.", "Set Microphone to Allow.", "Reload the page."];
+    if (/Chrome|CriOS/i.test(ua)) return ["Click the lock (or tune) icon left of the address bar.", "Turn Microphone on, or open Site settings and set Microphone to Allow.", "Reload the page."];
+    if (/Safari/i.test(ua)) return ["Open Safari, then Settings, then Websites, then Microphone.", "Set this site to Allow.", "Reload the page."];
+    return ["Open this site's permissions from the address bar.", "Set Microphone to Allow.", "Reload the page."];
+  }
+  function micGuide() {
+    sheetOpen((b) => {
+      b.classList.add("v9-sheet");
+      b.appendChild(el("h3", "fp-title", "Allow the microphone"));
+      b.appendChild(el("p", "fp-desc", "Your browser is blocking the microphone for this site. It only takes a moment to turn it on:"));
+      const ol = el("ol", "mic-steps");
+      micBrowserSteps().forEach(t => ol.appendChild(el("li", "", t)));
+      b.appendChild(ol);
+      const row = el("div", "fp-acts");
+      const again = el("button", "btn", "Try again");
+      again.type = "button";
+      again.addEventListener("click", () => { sheetClose(); setTimeout(() => { if (!rec && !startRecording.busy) startRecording(); }, 150); });
+      const later = el("button", "btn ghost", "Not now");
+      later.type = "button";
+      later.addEventListener("click", () => sheetClose());
+      row.append(later, again);
+      b.appendChild(row);
+    });
+  }
+  async function micFail(e) {
+    const name = (e && e.name) || "", msg = String((e && e.message) || "");
+    if (name === "NotAllowedError" || name === "SecurityError" || name === "PermissionDeniedError") {
+      const st = await micState();
+      if (st === "prompt" || /dismiss/i.test(msg)) { notice("Choose Allow to record", "You closed the permission box. Tap the mic again and choose Allow.", { error: true }); return; }
+      if (location.protocol !== "https:" && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") { notice("Recording needs a secure connection", "Open the site with https.", { error: true }); return; }
+      notice("Microphone is blocked", "Your browser is blocking it for this site.", { error: true, duration: 9000, action: { label: "How to allow", run: micGuide } });
+      return;
+    }
+    if (name === "NotFoundError" || name === "DevicesNotFoundError") { notice("No microphone found", "Plug in or enable a microphone, then try again. You can also attach an audio file.", { error: true }); return; }
+    if (name === "NotReadableError" || name === "TrackStartError") { notice("The microphone is busy", "Another app or tab may be using it. Close it and try again.", { error: true }); return; }
+    notice("Couldn't start the microphone", msg || name || "Try again.", { error: true });
+  }
   let micPrimed = false, micGestureTried = false;
   async function primeMic(fromGesture) {
     if (micPrimed || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
@@ -5759,10 +5845,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       stream.getTracks().forEach(t => t.stop());
       micPrimed = true;
     } catch {
-      if (fromGesture) {
-        micGestureTried = true;
-        notice("Microphone is blocked", "Allow the microphone for this site, then tap the mic again.", { error: true });
-      }
+      if (fromGesture) micGestureTried = true;
     }
   }
 
@@ -5783,7 +5866,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       try { stream = await getMic(); }
       catch (e) {
         restore();
-        notice("Microphone is blocked", "Allow the microphone for this site in your browser settings, then tap the mic again.", { error: true });
+        micFail(e);
         return;
       }
       if (recWantStop) { stream.getTracks().forEach(t => t.stop()); restore(); recWantStop = false; return; }
@@ -6423,7 +6506,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       otherReadReceipts = !otherRow || otherRow.read_receipts !== false;
     }
     if (settings.data) {
-      cacheShared = { theme: settings.data.theme || "warm", archiveDays: settings.data.archive_days || 0, appIcon: settings.data.app_icon || null, pinnedId: settings.data.pinned_message_id || null };
+      const tc = parseThemeCol(settings.data.theme);
+      cacheShared = { theme: tc.legacy, chat: tc.chat, archiveDays: settings.data.archive_days || 0, appIcon: settings.data.app_icon || null, pinnedId: settings.data.pinned_message_id || null };
       if (settings.data.tagline) { try { localStorage.setItem("pp-tagline", settings.data.tagline); } catch (e) {} }
       if (Array.isArray(settings.data.special_days)) specialDays = settings.data.special_days;
       try {
@@ -6575,7 +6659,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
           if (known && m.from !== me && m.editedAt && m.editedAt !== prevEditAt && Date.now() - m.editedAt < 60000) partnerEdited(m);
           if (known && m.from === me) announceReactions(m, prevHearts);
           if (i < 0) cacheThread = cacheThread.concat([m]).sort((a, b) => a.ts - b.ts);
-          const fresh = !known && m.from && m.from !== me && !m.deleted && !(m.deletedFor || []).includes(me);
+          // Restored messages arrive as new rows too, but they're old: they show up quietly, with no alert or sound.
+          const fresh = !known && m.from && m.from !== me && !m.deleted && !(m.deletedFor || []).includes(me) && Date.now() - m.ts < 3 * 60 * 1000;
           if (fresh) {
             partnerTypingUntil = 0;
             dropPresenceTyping = true;
@@ -6740,7 +6825,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   async function pushShared() {
     const client = cloudClient();
     if (!client || !pairId) return;
-    const upd = await client.from("pair_settings").update({ theme: cacheShared.theme, archive_days: Number(cacheShared.archiveDays) || 0 }).eq("pair_id", pairId);
+    const themeCol = cacheShared.chat ? JSON.stringify({ a: cacheShared.theme || "warm", ...cacheShared.chat }) : (cacheShared.theme || "warm");
+    const upd = await client.from("pair_settings").update({ theme: themeCol, archive_days: Number(cacheShared.archiveDays) || 0 }).eq("pair_id", pairId);
     if (upd.error) notice("Couldn't save that", upd.error.message, { error: true });
   }
 
@@ -8117,11 +8203,14 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (!client || !pairId) return;
     const from = o.all || !o.from ? null : new Date(o.from + "T00:00:00").toISOString();
     const to = o.all || !o.to ? null : new Date(new Date(o.to + "T00:00:00").getTime() + 864e5).toISOString();
-    const args = { p_scope: o.scope === "both" ? "both" : "me", p_from: from, p_to: to };
+    const args = { p_scope: o.scope === "me" ? "me" : "both", p_from: from, p_to: to };
+    // Remember exactly what this clear removes, so it can be undone.
+    const fromT0 = from ? Date.parse(from) : -Infinity, toT0 = to ? Date.parse(to) : Infinity;
+    const clearedIds = cacheThread.filter(m => !m.pending && !m.deleted && !String(m.id).startsWith("local-") && m.ts >= fromT0 && m.ts < toT0).map(m => m.id);
     let r = await client.rpc("trash_clear", args), vault = true;
     if (r.error && missingFn(r.error)) { vault = false; r = await client.rpc("clear_conversation", args); }
     if (r.error) { notice("Couldn't clear", r.error.message, { error: true }); return; }
-    if (o.scope === "both" && vault) {
+    if (args.p_scope === "both" && vault) {
       // Gone for real: drop the local copies too, so nothing lingers on this device.
       const fromT = from ? Date.parse(from) : -Infinity, toT = to ? Date.parse(to) : Infinity;
       cacheThread = cacheThread.filter(m => m.pending || !(m.ts >= fromT && m.ts < toT));
@@ -8129,8 +8218,26 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       broadcast("cleared", { from: from, to: to });
     }
     await reloadAll(); render();
-    notice("Conversation cleared", (r.data || 0) + " messages " + (o.scope === "both" ? (vault ? "deleted for both of you." : "hidden on both sides.") : "hidden on your side."));
+    if (args.p_scope === "both" && vault && clearedIds.length) store.set("pp-last-clear", { ids: clearedIds, at: Date.now(), by: me });
+    notice("Conversation cleared", (r.data || 0) + " messages " + (args.p_scope === "both" ? (vault ? "cleared for both of you. They're kept in Recently deleted." : "hidden on both sides.") : "hidden on your side."), vault && clearedIds.length ? { duration: 20000, action: { label: "Undo", run: () => restoreMany(clearedIds, "clear") } } : undefined);
   };
+  /* Restore a batch from the vault (the Undo after a clear, Restore all, and Restore last clear). */
+  async function restoreMany(ids, why) {
+    const client = cloudClient();
+    if (!client || !ids || !ids.length) return 0;
+    notice("Restoring…", ids.length + (ids.length === 1 ? " message" : " messages"), { duration: 60000, kind: "info" });
+    let ok = 0, bad = 0, firstErr = "";
+    for (let i = 0; i < ids.length; i += 6) {
+      const res = await Promise.all(ids.slice(i, i + 6).map(id => client.rpc("trash_restore", { p_id: id })));
+      res.forEach(x => { if (x.error) { bad++; firstErr = firstErr || x.error.message; } else if (x.data) ok++; });
+    }
+    if (why === "clear") store.set("pp-last-clear", null);
+    await reloadAll(); render();
+    if (view === "panel" && $("panelTitle").textContent === "Recently deleted") { try { openVault._reload && openVault._reload(); } catch (e) {} }
+    if (bad) notice("Restored " + ok + ", " + bad + " couldn't be", firstErr, { error: true });
+    else notice(ok === 1 ? "Restored" : ok + " restored", "They're back in the conversation for both of you.", { kind: "success" });
+    return ok;
+  }
   window.LeesApp = {
     get sb() { return cloudClient(); }, get me() { return me; }, get other() { return me ? other() : null; },
     get pairId() { return pairId; }, get userId() { return myUserId; }, get unlocked() { return unlocked; }, get view() { return view; },
@@ -8152,7 +8259,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     reloadAll, render: () => render(), formPanel, choicePanel, saveTagline,
     markSeen: async () => { const latest = visibleList().reduce((mx, m) => Math.max(mx, m.ts || 0), cacheSeen[me] || 0); if (!latest) return; cacheSeen[me] = latest; unreadN = 0; renderBanner(); renderBellCount(); await syncReadCursor(latest); },
     openChatAt: (start, end) => openChat(false, { day: { start, end } }), fillAvatars, archiveMessage: async (id) => { const c = cloudClient(); const r = await c.rpc("archive_message", { p_id: id }); if (!r.error) { await reloadAll(); render(); } return !r.error; },
-    syncProblems: () => syncProblems.slice(), broadcast, openVault, sendCard: (o) => sendPlainText(cardText(o)), cardOf, forwardSheet, forwardMessages, saveMedia, shareMessages, likedByMe, heartCount, setEmoji, setMoment, openMoments, fmtDur, store, typeTagline, openDraw, setReply, jumpToMessage,
+    appThemeId, setAppTheme, chatLook, setChatLook, restoreMany, syncProblems: () => syncProblems.slice(), broadcast, openVault, sendCard: (o) => sendPlainText(cardText(o)), cardOf, forwardSheet, forwardMessages, saveMedia, shareMessages, likedByMe, heartCount, setEmoji, setMoment, openMoments, fmtDur, store, typeTagline, openDraw, setReply, jumpToMessage,
     get specialDays() { return specialDays; }, nudgeReady: () => Math.max(0, Number(store.get("pp-nudge-at", 0)) + NUDGE_GAP - Date.now())
   });
   // Live values: real getters, so callers always see the current data.
@@ -8181,10 +8288,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 </script>
 <script src="/lees-emoji.js?v=1" defer></script>
 <script src="/lees-patch.js?v=18" defer></script>
-<script src="/lees-v8.js?v=5" defer></script>
-<script src="/lees-v9.js?v=7" defer></script>
+<script src="/lees-v8.js?v=6" defer></script>
+<script src="/lees-v9.js?v=8" defer></script>
 <script src="/lees-v10.js?v=2" defer></script>
-<script src="/lees-v11.js?v=1" defer></script>
+<script src="/lees-v11.js?v=2" defer></script>
 <script>
   // Offline shell: the app opens without a connection after one visit. Data comes from the on-device copy.
   if ("serviceWorker" in navigator && location.protocol === "https:") {

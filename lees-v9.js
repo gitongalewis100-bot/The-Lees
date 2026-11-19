@@ -627,18 +627,22 @@
   /* ======================= Clear conversation ======================= */
   function ymd(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
   function openClear() {
-    var a = A(), scope = "me", range = "7";
+    var a = A(), scope = "both", range = "7";
     a.openPanel("Clear conversation", "Tidy the chat safely", still(function (body) {
       body.classList.add("v9");
-      body.appendChild(el("div", "v9-lab", "Clear it for"));
-      var who = el("div", "v9-choice2");
-      var mk = function (k, title, sub) {
-        var b = btn("v9-c2" + (scope === k ? " on" : ""), "", function () { scope = k; who.querySelectorAll(".v9-c2").forEach(function (x) { x.classList.toggle("on", x === b); }); sum(); });
-        b.append(el("b", "", title), el("span", "", sub));
-        return b;
-      };
-      who.append(mk("me", "Just me", "Hidden on your side. " + a.name(a.other) + " keeps everything."), mk("both", "Both of us", "Hidden on both sides."));
-      body.appendChild(who);
+      var last = a.store.get("pp-last-clear", null);
+      if (last && last.ids && last.ids.length && Date.now() - last.at < 30 * 864e5) {
+        var lc = el("div", "v11-lastclear");
+        var lt = el("div", "");
+        lt.append(el("b", "", "Last clear: " + last.ids.length + (last.ids.length === 1 ? " message" : " messages")), el("span", "", (last.by === a.me ? "You" : a.name(last.by)) + " cleared them " + fmtDay(last.at).toLowerCase() + ", " + hm(last.at) + ". Nothing is lost."));
+        var lb = btn("btn sm", "Restore them", async function () { lb.disabled = true; await a.restoreMany(last.ids, "clear"); a.renderPanel(); });
+        lc.append(lt, lb);
+        body.appendChild(lc);
+      }
+      var rd = btn("v9-write", "", function () { a.openVault(); });
+      rd.innerHTML = '<span class="v9-write-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"/></svg></span><span><b>Recently deleted</b><small>Restore anything that was cleared or deleted</small></span>';
+      body.appendChild(rd);
+      body.appendChild(el("p", "v9-hint", "Clearing removes the messages for both of you. They are kept, and either of you can bring them back."));
       body.appendChild(el("div", "v9-lab", "Which messages"));
       var custom = el("div", "v9-range hidden");
       var f1 = el("input", "in plain"); f1.type = "date"; f1.setAttribute("aria-label", "From");
@@ -653,7 +657,7 @@
       hold.type = "button";
       hold.innerHTML = '<i></i><span></span>';
       body.appendChild(hold);
-      body.appendChild(el("p", "v9-hint center", "Messages are hidden, not destroyed. Hold the button to confirm, so nothing is cleared by accident."));
+      body.appendChild(el("p", "v9-hint center", "Hold the button to confirm, so nothing is cleared by accident. You can undo it right after."));
       function bounds() {
         var to = Date.now() + 1, from = 0, f = null, t = null;
         if (range === "custom") {
@@ -669,7 +673,7 @@
         box.textContent = "";
         if (!b) { box.appendChild(el("span", "", "Choose both dates.")); hold.disabled = true; target = 0; hold.querySelector("span").textContent = "Choose a range"; return; }
         target = msgs().filter(function (m) { return m.ts >= b.from && m.ts < b.to; }).length;
-        box.append(el("b", "", target + (target === 1 ? " message" : " messages")), el("span", "", (scope === "both" ? " will be hidden for both of you" : " will be hidden on your side") + (range === "all" ? " (everything)" : "")));
+        box.append(el("b", "", target + (target === 1 ? " message" : " messages")), el("span", "", " will be cleared for both of you" + (range === "all" ? " (everything)" : "")));
         hold.disabled = !target;
         hold.querySelector("span").textContent = target ? "Hold to clear " + target : "Nothing to clear";
       }
@@ -703,8 +707,9 @@
   function openStudio() {
     var a = A();
     var me = a.me, s0 = a.S(me);
-    var st = Object.assign({ bubble: "default", size: "medium", corners: "round", wall: "none", dim: 0.25, wblur: 0 }, s0.chatStyle || {});
-    var theme = s0.chatTheme || "";
+    var look = a.chatLook();
+    var st = Object.assign({ bubble: "default", size: "medium", corners: "round", wall: "none", dim: 0.25, wblur: 0 }, s0.chatStyle || {}, { bubble: look.b || "default", size: look.s || "medium", corners: look.c || "round" });
+    var theme = look.t || "";
     var ov = el("div", "v9-studio");
     ov.setAttribute("role", "dialog"); ov.setAttribute("aria-label", "Chat style");
     var top = el("div", "v9-st-top");
@@ -724,7 +729,7 @@
     document.body.appendChild(ov);
     var wallUrl = null;
     async function paintPreview() {
-      var t = theme ? a.resolvedTheme(theme) : a.resolvedTheme(a.SH().theme);
+      var t = theme ? a.resolvedTheme(theme) : a.resolvedTheme(a.appThemeId());
       pv.dataset.theme = t;
       pv.dataset.bubble = st.bubble;
       pv.dataset.size = st.size;
@@ -747,13 +752,14 @@
         opts.forEach(function (t) {
           var c = btn("v9-st-th" + (theme === t.id ? " on" : ""), "", function () { theme = t.id; grid.querySelectorAll(".v9-st-th").forEach(function (x) { x.classList.toggle("on", x === c); }); paintPreview(); });
           var mini = el("div", "v9-st-mini");
-          mini.dataset.theme = t.id ? a.resolvedTheme(t.id) : a.resolvedTheme(a.SH().theme);
+          mini.dataset.theme = t.id ? a.resolvedTheme(t.id) : a.resolvedTheme(a.appThemeId());
           mini.innerHTML = "<i class='a'></i><i class='b'></i><i class='c'></i>";
           c.append(mini, el("span", "", t.name));
           grid.appendChild(c);
         });
         panel.appendChild(grid);
-        var both = btn("v9-link center", "Use the chosen theme for the whole app (both of you)", function () { if (!theme) return; a.setSH({ theme: theme }); a.applyTheme(); a.notice("App theme changed", "Both of you see it now.", { kind: "success" }); });
+        panel.appendChild(el("p", "v9-hint center", "The chat look is shared: " + a.name(a.other) + " sees the same chat."));
+        var both = btn("v9-link center", "Also use this theme for the app on my side", function () { if (!theme) return; a.setAppTheme(theme); a.notice("App theme changed", "Only on your side.", { kind: "success" }); });
         panel.appendChild(both);
       } else if (tab === "wall") {
         var row = el("div", "v9-st-walls");
@@ -803,9 +809,10 @@
     }
     function shut(save) {
       if (save) {
-        a.setS(me, { chatTheme: theme, chatStyle: Object.assign({}, a.S(me).chatStyle || {}, { bubble: st.bubble, size: st.size, corners: st.corners, wall: st.wall, dim: st.dim, wblur: st.wblur }) });
+        a.setChatLook({ t: theme, b: st.bubble, s: st.size, c: st.corners });
+        a.setS(me, { chatStyle: Object.assign({}, a.S(me).chatStyle || {}, { wall: st.wall, dim: st.dim, wblur: st.wblur }) });
         a.applyTheme();
-        a.notice("Chat style saved", "", { kind: "success" });
+        a.notice("Chat style saved", "Shared with " + a.name(a.other) + ". The wallpaper photo stays on your device.", { kind: "success" });
       }
       ov.classList.add("out");
       setTimeout(function () { ov.remove(); }, 220);
