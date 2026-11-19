@@ -57,7 +57,7 @@ drop policy if exists trash_read on public.message_trash;
 create policy trash_read on public.message_trash for select to authenticated
   using (pair_id in (select public.my_pair_ids()));
 revoke all on public.message_trash from anon;
-revoke insert, update, delete on public.message_trash from authenticated;
+revoke all on public.message_trash from authenticated;
 grant select on public.message_trash to authenticated;
 
 -- ---------- Delete one message for both ----------
