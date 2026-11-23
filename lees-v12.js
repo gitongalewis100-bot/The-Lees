@@ -76,7 +76,7 @@
         if (r.error) { if (missingFn(r.error)) this.server = false; else this.q = items.concat(this.q); }
       } catch (e) { this.q = items.concat(this.q); }
     },
-    touch: function () { var a = A(); if (!a || !a.unlocked || !a.sb || !this.server || document.hidden) return; if (a.idleFor && a.idleFor() > 5 * 60 * 1000) return; a.sb.rpc("touch_last_seen").then(function (r) { if (r && r.error && missingFn(r.error)) Act.server = false; }, function () {}); },
+    touch: function () { var a = A(); if (!a || !a.unlocked || !a.sb || !this.server || document.hidden) return; if (a.idleFor && a.idleFor() > 10 * 60 * 1000) return; a.sb.rpc("touch_last_seen").then(function (r) { if (r && r.error && missingFn(r.error)) Act.server = false; }, function () {}); },
     load: async function () {
       var a = A(); if (!a || !a.sb || !a.pairId) return;
       var r = await a.sb.from("activity_log").select("*").eq("pair_id", a.pairId).order("at", { ascending: false }).limit(600);
@@ -148,7 +148,7 @@
     if (diff < 6) return d.toLocaleDateString([], { weekday: "long" });
     return d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short", year: d.getFullYear() === now.getFullYear() ? undefined : "numeric" });
   }
-  function hm(t) { return new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+  function hm(t) { return hm12(t); }
   function hm12(t) { return new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }); }
   function ago(t) {
     var s = Math.max(0, (Date.now() - t) / 1000);
@@ -158,7 +158,10 @@
   function isOnline(side) {
     var a = A(); if (!a) return false;
     var p = a.presence && a.presence[side];
-    return !!(p && !p.away);
+    if (!p || p.away) return false;
+    var ts = Number(p.ts || 0);
+    if (ts && Date.now() - ts > 10 * 60 * 1000) return false;
+    return true;
   }
   function lastSeenOf(side) {
     var a = A(); if (!a) return 0;
@@ -187,16 +190,14 @@
     if (card) {
       var strip = card.querySelector(".seen12");
       if (!strip) { strip = el("button", "seen12"); strip.type = "button"; strip.addEventListener("click", function (e) { e.stopPropagation(); var app = A(); if (app && app.openChat) app.openChat(); }); card.appendChild(strip); }
-      var on = isOnline(o), t = lastSeenOf(o), last = Act.list(o)[0];
+      var on = isOnline(o), t = lastSeenOf(o);
       var text = on ? "Online now" : t ? seenText(o) : "Not seen yet";
-      var sub = !on && last ? (ACT[last.action] || ACT.panel)[0] + (last.detail ? " · " + last.detail : "") : on ? "In The Lees right now" : "";
-      var sig = text + "|" + sub + "|" + on;
+      var sig = text + "|" + on;
       if (strip.dataset.sig !== sig) {
         strip.dataset.sig = sig;
         strip.className = "seen12" + (on ? " on" : "");
-        strip.innerHTML = '<i class="seen12-dot"></i><span class="seen12-t"></span>' + (sub ? '<span class="seen12-s"></span>' : "") + svg(P.next, "i seen12-chev");
+        strip.innerHTML = '<i class="seen12-dot"></i><span class="seen12-t"></span>' + svg(P.next, "i seen12-chev");
         strip.querySelector(".seen12-t").textContent = text;
-        if (sub) strip.querySelector(".seen12-s").textContent = sub;
         strip.setAttribute("aria-label", text + ". Open the chat");
       }
     }
@@ -226,69 +227,121 @@
     });
     return out.reverse();
   }
+  var NOTE_KINDS = { letter: 1, letter_open: 1, send_media: 1, send_photo: 1, send_video: 1, send_text: 1, nudge: 1, game: 1 };
   function openActivity(side) {
     var a = A(); if (!a) return;
     try { localStorage.setItem("lees-activity-opened-v13", "1"); } catch (e) {}
     try { if (a.renderHome) a.renderHome(); } catch (e) {}
-    Activity.side = side || a.other;
     Act.flush(); Act.load();
-    a.openPanel("Activity", "Last seen and what happened", Object.assign(function (body) {
-      Activity.body = body; Activity.open = true;
-      body.classList.add("act12");
-      Activity.paint = function () {
-        // The panel area is shared by every page: paint only while it is still showing Activity.
-        if (!Activity.body || !Activity.body.isConnected || !Activity.body.classList.contains("act12") || document.getElementById("panelTitle").textContent !== "Activity") { Activity.open = false; return; }
-        var b = Activity.body, s = Activity.side, a2 = A();
-        b.textContent = "";
-        var tabs = el("div", "act12-tabs");
-        [a2.other, a2.me].forEach(function (sd) {
-          var t = btn("act12-tab" + (sd === s ? " on" : ""), "", null, function () { Activity.side = sd; Activity.paint(); });
-          t.textContent = sd === a2.me ? "You" : a2.name(sd);
-          tabs.appendChild(t);
+    var old = document.querySelector(".act14"); if (old) old.remove();
+    var root = el("div", "act14");
+    root.setAttribute("role", "dialog");
+    root.setAttribute("aria-label", "Activity");
+    Activity.side = "all";
+    Activity.open = true;
+    Activity.root = root;
+    var head = el("header", "act14-head");
+    var back = btn("act14-x", svg(P.back), "Back", function () { closeAct(); });
+    var ttl = el("div", "act14-ttl");
+    ttl.append(el("b", "", "Activity"), el("small", "", "Last seen and what happened"));
+    var x = btn("act14-x", svg(P.close), "Close", function () { closeAct(); });
+    head.append(back, ttl, x);
+    var filters = el("div", "act14-filters");
+    var scroller = el("div", "act14-list");
+    var jump = btn("act14-jump", "Top", "Back to the top", function () { scroller.scrollTo({ top: 0, behavior: reduce() ? "auto" : "smooth" }); });
+    jump.hidden = true;
+    root.append(head, filters, scroller, jump);
+    document.body.appendChild(root);
+    function closeAct() {
+      Activity.open = false; Activity.detail = null;
+      root.classList.add("out");
+      setTimeout(function () { root.remove(); }, 180);
+    }
+    function rows() {
+      var a2 = A(); if (!a2) return [];
+      var sides = Activity.side === "mine" ? [a2.me] : Activity.side === "theirs" ? [a2.other] : [a2.me, a2.other];
+      var all = [];
+      sides.forEach(function (sd) { Act.list(sd).forEach(function (x) { all.push(x); }); });
+      all.sort(function (x, y) { return y.at - x.at; });
+      return all.slice(0, 600);
+    }
+    function sessionOf(item) {
+      var list = Act.list(item.side);
+      var sessions = sessionsOf(list);
+      for (var i = 0; i < sessions.length; i++) {
+        if (sessions[i].items.some(function (x) { return x.at === item.at && x.action === item.action; })) return sessions[i];
+      }
+      return { start: item.at, end: item.at, items: [item] };
+    }
+    function openDetail(item) {
+      Activity.detail = item;
+      var a2 = A();
+      var d = ACT[item.action] || ACT.panel;
+      var page = el("div", "act14-detail");
+      var bar = el("header", "act14-head");
+      bar.append(
+        btn("act14-x", svg(P.back), "Back", function () { page.remove(); Activity.detail = null; }),
+        (function () { var t = el("div", "act14-ttl"); t.append(el("b", "", "Entry"), el("small", "", hm12(item.at))); return t; })(),
+        btn("act14-x", svg(P.close), "Close", closeAct)
+      );
+      var body = el("div", "act14-dbody");
+      body.append(el("h3", "", d[0]), el("p", "", hm12(item.at) + " · " + dayLabel(item.at)), el("p", "", item.detail || "No extra detail."));
+      var sess = sessionOf(item);
+      body.appendChild(el("h4", "", "Same session"));
+      var ol = el("ol", "act14-rel");
+      sess.items.slice().reverse().forEach(function (x) {
+        var lab = (ACT[x.action] || ACT.panel)[0];
+        ol.appendChild(el("li", "", hm12(x.at) + " · " + lab + (x.detail ? " · " + x.detail : "")));
+      });
+      body.appendChild(ol);
+      if (NOTE_KINDS[item.action]) {
+        var box = el("div", "act14-note");
+        var ta = el("textarea", "in");
+        ta.maxLength = 500;
+        ta.placeholder = "A short note for " + a2.name(a2.other);
+        ta.setAttribute("aria-label", "Note");
+        var send = el("button", "btn", "Send a note");
+        send.type = "button";
+        send.addEventListener("click", async function () {
+          var text = ta.value.trim();
+          if (!text) return;
+          send.disabled = true;
+          var msg = "Note about: " + d[0] + "\n" + text;
+          var ok = a2.sendText ? await a2.sendText(msg) : false;
+          send.disabled = false;
+          if (ok !== false) { ta.value = ""; if (a2.notice) a2.notice("Note sent", a2.name(a2.other) + " will see it in the chat."); }
         });
-        b.appendChild(tabs);
-        var on = isOnline(s), t = lastSeenOf(s), list = Act.list(s);
-        var hero = el("div", "act12-hero" + (on ? " on" : ""));
-        var av = el("div", "avatar " + s.toLowerCase(), s === "Lewis" ? "L" : "A");
-        var tx = el("div", "act12-htx");
-        tx.appendChild(el("small", "", s === a2.me ? "You were last active" : a2.name(s) + (on ? " is" : " was last seen")));
-        if (on) tx.appendChild(el("b", "", "Online now"));
-        else if (t) {
-          tx.appendChild(el("b", "", new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })));
-          tx.appendChild(el("span", "act12-date", new Date(t).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long", year: "numeric" }) + " · " + ago(t)));
-        } else tx.appendChild(el("b", "", "Not seen yet"));
-        if (list[0]) tx.appendChild(el("span", "act12-last", "Last thing: " + (ACT[list[0].action] || ACT.panel)[0].toLowerCase() + (list[0].detail ? " (" + list[0].detail + ")" : "")));
-        hero.append(av, tx);
-        b.appendChild(hero);
-        if (!Act.server) b.appendChild(note("One database update needed", "Run supabase/RUN_THIS_v12.sql once. Until then this page shows only what happened on this phone, and the other side can't see it."));
-        var scroller = el("div", "act12-list");
-        var sessions = sessionsOf(list);
-        if (!sessions.length) { var e = el("div", "act12-empty"); e.append(el("b", "", "Nothing yet"), el("span", "", "Sign-ins, messages, photos, letters, games and pages opened will show here.")); scroller.appendChild(e); }
-        sessions.forEach(function (ss, i) {
-          var card = el("section", "act12-sess" + (i === 0 ? " first" : ""));
-          var head = el("header", "act12-sh");
-          var mins = Math.max(1, Math.round((ss.end - ss.start) / 60000));
-          var live = i === 0 && on;
-          head.append(el("b", "", dayLabel(ss.start).replace(/^./, function (c) { return c.toUpperCase(); })), el("span", "", hm(ss.start) + " – " + (live ? "now" : hm(ss.end)) + " · " + (live ? "in progress" : mins + " min")));
-          card.appendChild(head);
-          var ol = el("ol", "act12-tl");
-          ss.items.slice().reverse().forEach(function (x) {
-            var li = el("li", "act12-it k-" + x.action);
-            var d = ACT[x.action] || ACT.panel;
-            li.innerHTML = '<span class="act12-ic">' + svg(d[1]) + "</span>";
-            var w = el("div", "act12-w"); w.appendChild(el("span", "act12-a", d[0] + (x.action === "panel" && x.detail ? ": " + x.detail : "")));
-            if (x.detail && x.action !== "panel") w.appendChild(el("small", "", x.detail));
-            li.append(w, el("time", "mono", hm(x.at)));
-            ol.appendChild(li);
-          });
-          card.appendChild(ol);
-          scroller.appendChild(card);
-        });
-        scroller.appendChild(el("p", "snote", "You both see each other's activity. It is kept for the newest 600 actions each."));
-        b.appendChild(scroller);
-      };
-      Activity.paint();
-    }, { still: true }));
+        box.append(el("b", "", "Send a note"), ta, send);
+        body.appendChild(box);
+      }
+      page.append(bar, body);
+      root.appendChild(page);
+    }
+    Activity.paint = function () {
+      if (!root.isConnected) { Activity.open = false; return; }
+      var a2 = A(); if (!a2) return;
+      filters.textContent = "";
+      [["all", "All"], ["mine", "Mine"], ["theirs", "Theirs"]].forEach(function (f) {
+        var b = btn("act14-f" + (Activity.side === f[0] ? " on" : ""), f[1], f[1], function () { Activity.side = f[0]; Activity.paint(); });
+        filters.appendChild(b);
+      });
+      var keep = scroller.scrollTop;
+      scroller.textContent = "";
+      var list = rows();
+      if (!list.length) scroller.appendChild(el("p", "act14-empty", "Nothing in this filter yet."));
+      list.forEach(function (item) {
+        var d = ACT[item.action] || ACT.panel;
+        var row = el("button", "act14-row");
+        row.type = "button";
+        var who = item.side === a2.me ? "You" : a2.name(item.side);
+        row.append(el("b", "", who + " · " + d[0]), el("span", "", (item.detail ? item.detail + " · " : "") + hm12(item.at)));
+        row.addEventListener("click", function () { openDetail(item); });
+        scroller.appendChild(row);
+      });
+      scroller.scrollTop = keep;
+    };
+    scroller.addEventListener("scroll", function () { jump.hidden = scroller.scrollTop < 240; }, { passive: true });
+    Activity.paint();
   }
   function note(title, text) { var n = el("div", "v12-note"); n.append(el("b", "", title), el("span", "", text)); return n; }
 
@@ -660,9 +713,9 @@
     { id: "photos", title: "Photos and videos as one set", kw: "photo photos picture pictures image images video videos attach gallery camera stack set album batch many multiple send", q: ["send many photos", "send photos at once", "why do i get many notifications for photos", "stacked photos"], tour: "photos", go: "attach",
       a: "In the chat, tap + and then Attach, and pick as many photos and videos as you like, up to 30. They open in a preview where you can swipe between them, rotate, flip, crop, choose HD, mark View once or Quiet, and add one caption. Send delivers them as one set: one album card in the chat and one notification on their phone, not one per photo.", steps: ["Open the chat", "Tap + and choose photos or videos", "Adjust any of them, add a caption", "Tap Send once"], more: "Tap the album in the chat to see every photo full size. Each one can be loved, replied to, saved, shared or forwarded on its own." },
     { id: "voice", title: "Voice notes", kw: "voice note record recording audio mic microphone speak listen transcript transcribe", q: ["record a voice note", "send audio"], tour: "voice", go: "mic",
-      a: "In the chat, tap the microphone to start recording. Tap the square to stop and listen back (you can drag along the waveform and change speed), then tap Send. Or tap the plane while recording to send at once.", steps: ["Open the chat", "Tap the microphone", "Tap the square to stop", "Listen, then Send"], more: "If the microphone is blocked, The Lees shows a short how-to for your browser. Transcripts can be switched on in Settings › Privacy." },
+      a: "In the chat, tap the microphone to start recording. Tap the square to stop and listen back (you can drag along the waveform and change speed), then tap Send. Or tap the plane while recording to send at once.", steps: ["Open the chat", "Tap the microphone", "Tap the square to stop", "Listen, then Send"], more: "If the microphone is not allowed, The Lees shows a short how-to for your browser. Transcripts can be switched on in Settings › Privacy." },
     { id: "lastseen", title: "Online and last seen", kw: "last seen online offline active status presence time date hour", q: ["when were they last online", "when was she last online", "when was he last online", "are they online now", "show last seen", "last seen today", "online now status", "what time were they last seen"], tour: "lastseen", go: "activity",
-      a: "Online shows only after about 3 seconds of activity, and only while they have been active in the last 5 minutes. After that The Lees shows Last seen with a 12-hour time, such as Last seen today at 3:42 PM, Last seen yesterday at 9:05 AM, or Last seen Mon 12 Nov at 9:05 PM. The line under their name on the home card opens the chat. If you are both online, each of you sees You're both online once every 30 minutes.", steps: ["Look under their name on the home card", "Tap that line to open the chat"] },
+      a: "Online shows only after about 3 seconds of activity, and while they have been active in the last 10 minutes. After 10 minutes with no activity, The Lees shows Last seen with a 12-hour time, such as Last seen today at 3:42 pm. The line under their name on the home card opens the chat. If you are both online, each of you sees You're both online once every 30 minutes.", steps: ["Look under their name on the home card", "Tap that line to open the chat"] },
     { id: "activity", title: "Activity", kw: "activity session sessions actions what did doing history list did they do page opened", q: ["what did they do", "see activity", "open activity", "what are they doing", "activity list", "their activity history", "what did she do today", "show me their sessions"], tour: "lastseen", go: "activity",
       a: "The ACTIVITY button sits on the top right of the chat card on the home screen. It opens Activity: every session, newest first, up to the last 600 actions. Switch between them and you at the top. The list scrolls. The chat header line also opens Activity.", steps: ["Home", "Tap ACTIVITY on their card", "Scroll the list"] },
     { id: "unread", title: "The unread line", kw: "unread new messages blur blurred read count badge seen", q: ["why are messages blurred", "how do messages get marked read"], tour: "chat", go: "chat",
@@ -680,11 +733,11 @@
     { id: "journal", title: "Journal", kw: "journal diary write entry entries notes prompt pages page", q: ["write in the journal", "open the journal", "how do i add a journal page", "where is the diary", "journal prompts", "search the journal", "edit a journal page", "shared journal"], tour: "journal", go: "journal",
       a: "Home › Journal. Tap + to write a page; there are prompts if you're stuck, and it saves as you type. Search and filters are at the top. You both see every page." },
     { id: "stickers", title: "Stickers", kw: "sticker stickers emoji reaction send sticker luck congrats cuddle sparkle rainy", q: ["send a sticker", "where are stickers", "open the sticker picker", "how do i send stickers", "good luck sticker", "sticker menu", "emoji stickers", "more stickers"], go: "stickers",
-      a: "In the chat, tap + and choose Stickers & emoji. The grid shows every sticker, including Good luck, Congrats, Cuddle, Rainy day and Sparkle. Tap one to send it. If reduced motion is on, the sticker stays still with no particles." },
+      a: "In the chat, tap + and choose Stickers & emoji. The grid shows all 46 stickers. Tap one to send it. If reduced motion is on, the sticker stays still with no particles." },
     { id: "idle", title: "Idle sign-out", kw: "idle inactive inactivity timeout signout warning countdown minutes automatic autosign", q: ["will i be signed out if i leave it", "still there warning", "idle sign out", "signed out after 5 minutes", "inactivity limit", "why was i signed out", "30 second warning", "auto sign out"], go: null,
       a: "After 5 minutes with no taps, keys or scrolling, The Lees asks Still there? and counts down 30 seconds. Cancel, or any tap, key or scroll, keeps you signed in and starts the 5 minutes again. Sign out, or doing nothing until the countdown ends, signs you out and locks the app. Coming back after the app was hidden for more than 5 minutes shows the same warning. It does not sign you out instantly. The unsend window is unchanged." },
     { id: "facts", title: "Partner facts", kw: "partner facts fact know about favourite favorite boyfriend girlfriend husband wife remember note things name", q: ["what do you know about my partner", "whats my partners name", "remember that she likes sushi", "note that he likes running", "things we know", "facts about her", "what does my partner like", "tell me about them"], go: "facts",
-      a: "Ask me what I know about your partner and I'll say their name first, then up to five facts you saved. Say remember that she likes sushi, or note that he likes running, and I'll keep it for this pair. Settings › Things we know is where you add, read and delete your own facts. There is no separate things-I-like list; facts live here. I can also mention a line from their journal." },
+      a: "Things we know has two notes: About me, and About your partner. Ask me and I'll answer in full sentences from those notes. Your partner's name comes first. Say remember that she likes sushi, or note that he likes running, and I'll add that sentence to the partner note. Open Settings › Things we know to write, edit or delete either note. Each note holds up to 4000 characters." },
     { id: "history", title: "Chat history", kw: "history arten conversations clock past questions earlier asked", q: ["show chat history", "arten history", "what did i ask you", "past questions", "open chat history", "clock history", "previous conversation with arten", "see earlier questions"], go: null,
       a: "In the ARTEN panel, the clock button labelled Chat history opens a full-screen list. Each row is the date and time and the first question, cut at 80 characters. Tap a row to read that whole conversation. History lasts for this sign-in only. Signing out or locking clears it." },
     { id: "notifications", title: "Notifications", kw: "notifications alerts bell feed sound buzz mute quiet push telegram", q: ["turn off notifications", "mute", "why so many notifications"], tour: "notifications", go: "notifications",
@@ -896,31 +949,61 @@
   var HIST_KEY = "lees-arten-history-v13";
   function histRead() { try { var v = JSON.parse(sessionStorage.getItem(HIST_KEY) || "[]"); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
   function histWrite(list) { try { sessionStorage.setItem(HIST_KEY, JSON.stringify(list.slice(-40))); } catch (e) {} }
-  function clearArtenHistory() { try { sessionStorage.removeItem(HIST_KEY); } catch (e) {} try { Arten.convo = null; } catch (e2) {} }
+  function clearArtenHistory() {
+    try { sessionStorage.removeItem(HIST_KEY); } catch (e) {}
+    try {
+      var drop = [];
+      for (var i = 0; i < sessionStorage.length; i++) { var k = sessionStorage.key(i); if (k && k.indexOf("lees-arten") === 0) drop.push(k); }
+      drop.forEach(function (k) { sessionStorage.removeItem(k); });
+    } catch (e2) {}
+    try { Arten.convo = null; Arten.history = []; } catch (e3) {}
+  }
   function histWhen(t) {
     var d = new Date(t);
     return d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" }) + ", " + d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
   }
   function openArtenHistory() {
-    var a = A(); if (!a || !a.openPanel) return;
-    a.openPanel("Chat history", "This sign-in", function (body) {
-      var items = histRead().slice().reverse();
-      if (!items.length) { body.appendChild(el("p", "snote", "No conversations yet. Ask ARTEN something and it stays until you sign out.")); return; }
-      items.forEach(function (c) {
-        var b = el("button", "ah13"); b.type = "button";
-        var q0 = (c.turns && c.turns[0] && c.turns[0].q) || "";
-        b.append(el("b", "", histWhen(c.at || Date.now())), el("span", "", String(q0).slice(0, 80)));
-        b.addEventListener("click", function () {
-          a.openPanel("Chat history", histWhen(c.at || Date.now()), function (body2) {
-            (c.turns || []).forEach(function (turn) {
-              body2.appendChild(el("p", "ah13-q", turn.q || ""));
-              body2.appendChild(el("p", "ah13-a", turn.a || ""));
-            });
-          });
-        });
-        body.appendChild(b);
-      });
-    });
+    if (!Arten.open_) { Arten.open(); setTimeout(function () { Arten.showHistory(); }, 80); return; }
+    Arten.showHistory();
+  }
+  function sentenceOf(raw, subjectName) {
+    var s = String(raw || "").replace(/\s+/g, " ").trim();
+    if (!s) return "";
+    var name = subjectName ? String(subjectName).trim() : "";
+    var lowName = name.toLowerCase();
+    if (name && s.toLowerCase() === lowName) return "";
+    var startsNamed = name && s.toLowerCase().indexOf(lowName) === 0;
+    var hasSubject = /^(i|i'm|i’m|we|he|she|they|you|my|mr |mrs |the |a |an )\b/i.test(s) || startsNamed;
+    var hasVerb = /\b(is|are|was|were|am|be|been|like|likes|liked|love|loves|loved|has|have|had|enjoy|enjoys|write|writes|play|plays|want|wants|live|lives|works|know|knows|miss|misses|prefer|prefers)\b/i.test(s);
+    if (!hasSubject && name) {
+      var rest = s.charAt(0).toLowerCase() + s.slice(1);
+      if (name === "You") rest = rest.replace(/^(likes|loves|has|writes|plays|wants|lives|knows|misses|prefers)\b/, function (w) { return w.slice(0, -1); });
+      s = hasVerb ? (name + " " + rest) : (name + " " + (name === "You" ? "like" : "likes") + " " + rest);
+    }
+    if (!/[.!?]$/.test(s)) s += ".";
+    if (name) {
+      var escName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      if (new RegExp("^" + escName + " is " + escName + "\\.?$", "i").test(s)) return "";
+      if (new RegExp("^" + escName + " likes " + escName + "\\.?$", "i").test(s)) return "";
+    }
+    return s;
+  }
+  function splitNote(body, subjectName) {
+    return String(body || "").split(/\n+|(?<=[.!?])\s+/).map(function (s) { return sentenceOf(s, subjectName); }).filter(Boolean);
+  }
+  function composePersonal(q, ctx) {
+    ctx = ctx || {};
+    var meName = ctx.meName || "you";
+    var otherName = ctx.otherName || "your partner";
+    var aboutMe = /\b(about me|know about me|who am i|my facts|things about me)\b/i.test(q) && !/\b(partner|him|her|boyfriend|girlfriend|husband|wife)\b/i.test(q);
+    var body = aboutMe ? (ctx.meBody || "") : (ctx.otherBody || "");
+    var lines = splitNote(body, aboutMe ? "You" : otherName);
+    if (!lines.length) {
+      if (aboutMe) return "I don't have anything saved about you yet. Open Things we know and write it under About me, and I'll use it next time.";
+      return "I don't have anything saved about " + otherName + " yet. You can add it under Things we know, and I'll remember it.";
+    }
+    if (aboutMe) return "Here is what you saved about yourself. " + lines.join(" ");
+    return otherName + " is your partner. " + lines.join(" ");
   }
   var FACT_WORDS = /\b(name|know|about|like|favourite|favorite|him|her|boyfriend|girlfriend|partner|husband|wife)\b/i;
   var REMEMBER_RE = /\b(?:remember|note)\s+that\s+(?:she|he|they|my partner|partner|her|him)\s+(?:likes|like|loves|love)\s+(.{1,180})/i;
@@ -931,71 +1014,102 @@
     if (/\b(how|where|send|delete|message|letter|sticker|setting|settings|journal|reset|theme)\b/i.test(q) && !/\b(partner|boyfriend|girlfriend|husband|wife)\b/i.test(q) && !/\babout (her|him|them|my)\b/i.test(q)) return true;
     return false;
   }
+  async function loadNote(subject) {
+    var a = A(); if (!a || !a.sb || !a.pairId || !a.me) return "";
+    var r = await a.sb.from("arten_notes").select("body").eq("pair_id", a.pairId).eq("owner_side", a.me).eq("subject", subject).maybeSingle();
+    return (r && r.data && r.data.body) || "";
+  }
+  async function saveNote(subject, body) {
+    var a = A(); if (!a || !a.sb || !a.pairId || !a.me) return { error: { message: "Sign in first." } };
+    return a.sb.from("arten_notes").upsert({ pair_id: a.pairId, owner_side: a.me, subject: subject, body: String(body || "").slice(0, 4000), updated_at: new Date().toISOString() }, { onConflict: "pair_id,owner_side,subject" });
+  }
   async function factsReply(q) {
-    if (!FACT_WORDS.test(q) || skipFacts(q)) return null;
+    var remembering = REMEMBER_RE.test(String(q || ""));
+    if (!remembering && (!FACT_WORDS.test(q) || skipFacts(q))) return null;
     var a = A(); if (!a) return null;
     var name = a.name(a.other);
     var mem = REMEMBER_RE.exec(String(q || ""));
     if (mem) {
       var fact = mem[1].replace(/[.?!]+$/, "").trim().slice(0, 300);
-      if (!fact) return name + " is " + name + ". Tell me a short fact and I'll remember it.";
-      if (a.sb && a.pairId && a.me && a.other) {
-        var ins = await a.sb.from("arten_facts").insert({ pair_id: a.pairId, owner_side: a.me, subject_side: a.other, category: "like", fact: fact, source: "arten" });
-        if (ins.error) return "I couldn't save that. " + (ins.error.message || "Try Things we know.");
-      }
+      if (!fact) return "Tell me a short fact about " + name + " and I'll remember it.";
+      var prev = await loadNote("other");
+      var line = sentenceOf(name + " likes " + fact, name);
+      var body = (prev ? prev.replace(/\s+$/, "") + "\n" : "") + line;
+      var ins = await saveNote("other", body.slice(0, 4000));
+      if (ins && ins.error) return "I couldn't save that. " + (ins.error.message || "Try Things we know.");
       return "I'll remember that " + name + " likes " + fact + ".";
     }
-    var facts = [];
-    if (a.sb && a.pairId && a.me) {
-      var r = await a.sb.from("arten_facts").select("fact").eq("pair_id", a.pairId).eq("owner_side", a.me).order("created_at", { ascending: false }).limit(5);
-      facts = ((r && r.data) || []).map(function (x) { return x.fact; }).filter(Boolean);
+    var meBody = "", otherBody = "";
+    try { meBody = await loadNote("me"); otherBody = await loadNote("other"); } catch (e) {}
+    if (!otherBody && a.sb) {
+      try {
+        var r = await a.sb.from("arten_facts").select("fact").eq("pair_id", a.pairId).eq("owner_side", a.me).order("created_at", { ascending: true });
+        var facts = ((r && r.data) || []).map(function (x) { return x.fact; }).filter(Boolean);
+        if (facts.length) otherBody = facts.join("\n");
+      } catch (e2) {}
     }
-    var journal = [];
-    try { journal = (a.journal || []).filter(function (j) { return j && j.side === a.other && j.text; }).slice(0, 3); } catch (e) {}
-    if (!facts.length && !journal.length) return name + " is " + name + ". I don't have any saved facts about them yet. Tell me one and I'll remember it.";
-    var lines = facts.slice(0, 5).map(function (f) { return name + " likes " + f + "."; });
-    journal.forEach(function (j) { if (lines.length < 5) lines.push(name + " wrote in the journal: " + String(j.text).replace(/\s+/g, " ").slice(0, 90) + "."); });
-    return name + ". " + lines.slice(0, 5).join(" ");
+    return composePersonal(q, { meName: a.name(a.me), otherName: name, meBody: meBody, otherBody: otherBody });
   }
   function openFacts() {
     var a = A(); if (!a || !a.openPanel) return;
-    a.openPanel("Things we know", "Facts you keep about " + a.name(a.other), function (body) {
-      body.classList.add("facts13");
-      var form = el("form", "facts13-form");
-      var input = el("input", "in");
-      input.maxLength = 300;
-      input.placeholder = "Something you know about " + a.name(a.other);
-      input.setAttribute("aria-label", "A fact about " + a.name(a.other));
-      var add = el("button", "btn", "Add"); add.type = "submit";
-      form.append(input, add);
-      var list = el("div", "facts13-list");
-      body.append(form, list);
-      var draw = async function () {
-        list.textContent = "";
-        if (!a.sb || !a.pairId) { list.appendChild(el("p", "snote", "Sign in to save facts.")); return; }
-        var r = await a.sb.from("arten_facts").select("id,fact").eq("pair_id", a.pairId).eq("owner_side", a.me).order("created_at", { ascending: false });
-        var rows = (r && r.data) || [];
-        if (!rows.length) list.appendChild(el("p", "snote", "Nothing saved yet. There is no separate things-I-like list. Add a fact here, or tell ARTEN to remember one."));
-        rows.forEach(function (row) {
-          var line = el("div", "facts13-row");
-          line.appendChild(el("span", "", row.fact));
-          var del = el("button", "btn ghost sm", "Delete"); del.type = "button";
-          del.addEventListener("click", async function () { await a.sb.from("arten_facts").delete().eq("id", row.id); draw(); });
-          line.appendChild(del);
-          list.appendChild(line);
+    a.openPanel("Things we know", "About you and " + a.name(a.other), function (body) {
+      body.classList.add("facts14");
+      var partner = a.name(a.other);
+      function area(subject, title) {
+        var box = el("section", "facts14-box");
+        box.appendChild(el("h3", "", title));
+        var ta = el("textarea", "in");
+        ta.maxLength = 4000;
+        ta.readOnly = true;
+        ta.setAttribute("aria-label", title);
+        var count = el("span", "facts14-n", "0 / 4000");
+        var row = el("div", "facts14-row");
+        var save = el("button", "btn sm", "Save"); save.type = "button";
+        var edit = el("button", "btn ghost sm", "Edit"); edit.type = "button";
+        var del = el("button", "btn ghost sm", "Delete"); del.type = "button";
+        function paintCount() { count.textContent = ta.value.length + " / 4000"; }
+        ta.addEventListener("input", paintCount);
+        edit.addEventListener("click", function () { ta.readOnly = false; ta.focus(); });
+        save.addEventListener("click", async function () {
+          save.disabled = true;
+          var r = await saveNote(subject, ta.value.slice(0, 4000));
+          save.disabled = false;
+          ta.readOnly = true;
+          if (r && r.error) { a.notice("Couldn't save", r.error.message, { error: true }); return; }
+          a.notice("Saved", title + " is saved.");
         });
-      };
-      form.addEventListener("submit", async function (ev) {
-        ev.preventDefault();
-        var fact = input.value.trim();
-        if (!fact || !a.sb) return;
-        var ins = await a.sb.from("arten_facts").insert({ pair_id: a.pairId, owner_side: a.me, subject_side: a.other, category: "like", fact: fact.slice(0, 300), source: "manual" });
-        if (ins.error) { a.notice("Couldn't save that", ins.error.message, { error: true }); return; }
-        input.value = "";
-        a.notice("Saved", "");
-        draw();
-      });
-      draw();
+        del.addEventListener("click", async function () {
+          var ok = await a.centredBanner({ title: "Delete this note?", desc: "The text in " + title + " will be cleared.", okLabel: "Delete" });
+          if (!ok) return;
+          ta.value = "";
+          paintCount();
+          ta.readOnly = true;
+          var r = await saveNote(subject, "");
+          if (r && r.error) a.notice("Couldn't delete", r.error.message, { error: true });
+          else a.notice("Deleted", title + " is empty.");
+        });
+        row.append(save, edit, del, count);
+        box.append(ta, row);
+        box._ta = ta;
+        box._subject = subject;
+        return box;
+      }
+      var meBox = area("me", "About me");
+      var otBox = area("other", "About " + partner);
+      body.append(meBox, otBox);
+      (async function () {
+        var meBody = await loadNote("me");
+        var ot = await loadNote("other");
+        if (!ot && a.sb) {
+          var r = await a.sb.from("arten_facts").select("fact").eq("pair_id", a.pairId).eq("owner_side", a.me).order("created_at", { ascending: true });
+          var facts = ((r && r.data) || []).map(function (x) { return x.fact; }).filter(Boolean);
+          if (facts.length) ot = facts.join("\n");
+        }
+        meBox._ta.value = meBody;
+        otBox._ta.value = ot;
+        meBox.querySelector(".facts14-n").textContent = meBody.length + " / 4000";
+        otBox.querySelector(".facts14-n").textContent = ot.length + " / 4000";
+      })();
     });
   }
 
@@ -1006,7 +1120,7 @@
       if (this.built) return; this.built = true;
       var fab = btn("ar12-fab", "", "Ask ARTEN, your guide");
       fab.id = "ar12Fab";
-      fab.innerHTML = '<span class="ar12-unit"><canvas width="112" height="112" aria-hidden="true"></canvas><span class="ar12-msgic" aria-hidden="true"><svg viewBox="0 0 28 28"><rect x="2.5" y="5" width="23" height="15" rx="6"></rect><circle cx="9" cy="12.5" r="1.3"></circle><circle cx="14" cy="12.5" r="1.3"></circle><circle cx="19" cy="12.5" r="1.3"></circle></svg></span></span>';
+      fab.innerHTML = '<span class="ar12-unit"><canvas width="112" height="112" aria-hidden="true"></canvas></span>';
       document.body.appendChild(fab);
       this.fab = fab;
       var cv = fab.querySelector("canvas");
@@ -1021,12 +1135,13 @@
       var head = el("header", "ar12-head");
       var mk = el("span", "ar12-mark"); var mcv = document.createElement("canvas"); mcv.width = mcv.height = 80; mk.appendChild(mcv); this.mark = mcv;
       var ttl = el("div", "ar12-ttl"); ttl.append(el("b", "", "ARTEN"), el("small", "", "Your guide to The Lees"));
+      var back = btn("ar12-hb", svg(P.back), "Back", function () { if (self.mode === "history") self.leaveHistory(); else self.close(); });
       var modeBtn = btn("ar12-hb", svg(P.arrow), "Take me to…", function () { self.setMode(self.mode === "go" ? "ask" : "go"); });
       modeBtn.title = "Take me to…";
       var histBtn = btn("ar12-hb", svg(P.clock), "Chat history", function () { openArtenHistory(); });
       histBtn.title = "Chat history";
       var x = btn("ar12-hb", svg(P.close), "Close ARTEN", function () { self.close(); });
-      head.append(mk, ttl, histBtn, modeBtn, x);
+      head.append(back, mk, ttl, histBtn, modeBtn, x);
       this.modeBtn = modeBtn;
       var list = el("div", "ar12-list"); list.setAttribute("aria-live", "polite");
       var chips = el("div", "ar12-chips");
@@ -1045,11 +1160,12 @@
       this.root = root; this.panel = pan; this.list = list; this.input = inp; this.chips = chips; this.form = form;
       root.addEventListener("click", function (e) { if (e.target === root) self.close(); });
       document.addEventListener("keydown", function (e) { if (e.key === "Escape" && self.open_ && !Guide.on) { e.preventDefault(); e.stopPropagation(); self.close(); } }, true);
+      window.addEventListener("popstate", function () { if (self.open_ && !(history.state && history.state.arten)) self.close(); });
       this.theme();
       new MutationObserver(function () { self.theme(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
       this.welcome();
       this.setMode("ask");
-      Ask.init(fab);
+      this.bindSwipe();
     },
     theme: function () {
       var cs = getComputedStyle(document.documentElement), g = function (n) { return hexOf(cs.getPropertyValue(n)); };
@@ -1078,6 +1194,7 @@
       var a = A(); if (!a) return "default";
       var t = "";
       try { t = (document.getElementById("panelTitle") || {}).textContent || ""; } catch (e) {}
+      if (document.querySelector(".act14")) return "activity";
       if (a.view === "panel") {
         if (t === "Activity") return "activity";
         if (t === "Sealed letters" || t === "New sealed letter" || t === "Edit sealed letter") return "letters";
@@ -1101,7 +1218,7 @@
       };
       var list = map[this.screenOf()] || map.default;
       list.forEach(function (it) {
-        var b = btn("ar12-chip", "", null, function () { self.go(it[1], it[0]); });
+        var b = btn("ar12-chip", "", null, function () { self.explainChip(it[0], it[1]); });
         b.textContent = it[0];
         c.appendChild(b);
       });
@@ -1122,27 +1239,25 @@
     bubble: function (who) { var b = el("div", "ar12-msg " + who); this.list.appendChild(b); this.scroll(); return b; },
     say: function (who, text) { var b = this.bubble(who); b.textContent = text; return b; },
     scroll: function () { var l = this.list; requestAnimationFrame(function () { l.scrollTop = l.scrollHeight; }); },
-    think: function (q, problem) {
-      var b = this.bubble("bot think"), self = this;
+    think: function (b, q, problem) {
+      var self = this;
       var words = ["Thinking", "Cooking", "ARTENING"].concat(problem ? ["Troubleshooting"] : []);
       var pool = ["Almost there", "One moment", "Looking it up", "With you", "Just a second", "On it", "Warming up", "Piecing it", "Checking now", "Finding it", "Quietly looking", "Nearly ready", "Hold on", "Sorting it", "Reading carefully", "Matching words", "Turning pages", "Softly thinking", "Right with you", "Gathering steps", "Little pause", "Opening up"];
       var seq = words.concat(pool);
       var pairAt = 0;
-      var steps = ["Reading your question", "Matching every word to each part of The Lees", problem ? "Looking for what could be going wrong" : "Weighing the closest answers", "Checking the steps", "Writing the answer"];
-      b.innerHTML = '<button type="button" class="ar12-th" aria-expanded="false"><span class="ar12-orb"></span><b>Thinking</b><span class="ar12-dots"><i></i><i></i><i></i></span><svg class="i ar12-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button><ol class="ar12-tsteps"></ol>';
-      var head = b.querySelector(".ar12-th"), label = head.querySelector("b"), ol = b.querySelector("ol");
-      head.addEventListener("click", function () { var o = !b.classList.contains("expanded"); b.classList.toggle("expanded", o); head.setAttribute("aria-expanded", String(o)); self.scroll(); });
-      if (this.flower) this.flower.target = 7;   // the spikes race while it thinks
-      var si = 0;
+      b.classList.add("think");
+      b.innerHTML = '<div class="ar12-think"><b>Thinking</b><span class="ar12-thinksub"></span></div>';
+      var label = b.querySelector("b"), sub = b.querySelector(".ar12-thinksub");
+      if (this.flower) this.flower.target = 7;
       var showPair = function () {
         var a1 = seq[pairAt % seq.length], b1 = seq[(pairAt + 1) % seq.length];
-        label.textContent = a1 === b1 ? a1 : a1 + " · " + b1;
+        label.textContent = a1;
+        sub.textContent = a1 === b1 ? "" : b1;
       };
       showPair();
       var wt = setInterval(function () { pairAt = (pairAt + 1) % seq.length; showPair(); }, 520);
-      var st = setInterval(function () { if (si >= steps.length) return; ol.appendChild(el("li", "", steps[si++])); if (ol.children.length > 1) ol.children[ol.children.length - 2].classList.add("done"); }, 420);
       var t0 = performance.now();
-      return { el: b, done: function (ms) { return new Promise(function (r) { setTimeout(function () { clearInterval(wt); clearInterval(st); while (si < steps.length) ol.appendChild(el("li", "", steps[si++])); [].forEach.call(ol.children, function (x) { x.classList.add("done"); }); label.textContent = "Thought for " + ((performance.now() - t0) / 1000).toFixed(1) + " s"; b.classList.add("collapsed"); if (self.flower) self.flower.target = 1; r(); }, Math.max(0, ms)); }); } };
+      return { el: b, done: function (ms) { return new Promise(function (r) { setTimeout(function () { clearInterval(wt); b.classList.remove("think"); b.textContent = ""; if (self.flower) self.flower.target = 1; r(); }, Math.max(0, ms)); }); } };
     },
     ask: async function (q) {
       if (this.busy) return; this.busy = true;
@@ -1151,11 +1266,11 @@
       var t0 = performance.now();
       var factText = null;
       try { factText = await factsReply(q); } catch (e) {}
-      var hits = factText ? [{ e: { id: "facts", title: "Partner facts", a: factText, go: "facts" }, s: 9 }] : search(q);
-      var th = this.think(q, /not work|doesn.?t|broken|error|problem|can.?t|cannot|fail|wrong|issue|stuck/i.test(q));
-      var wait = Math.max(2000, Math.min(3400, 1600 + q.length * 20 + (hits.length ? 0 : 500)));
-      await th.done(wait - (performance.now() - t0));
+      var hits = factText ? [{ e: { id: "facts", title: "Things we know", a: factText, go: "facts" }, s: 9 }] : search(q);
       var b = this.bubble("bot");
+      var th = this.think(b, q, /not work|doesn.?t|broken|error|problem|can.?t|cannot|fail|wrong|issue|stuck/i.test(q));
+      var wait = Math.max(900, Math.min(1600, 700 + q.length * 8));
+      await th.done(wait - (performance.now() - t0));
       if (!hits.length) {
         b.innerHTML = "<p>I couldn't match that to a part of The Lees. Here's what I can help with:</p>";
         var ul = el("div", "ar12-sugg");
@@ -1203,6 +1318,80 @@
       if (!e) { b = this.bubble("bot"); b.innerHTML = "<p>I'm not sure where that is. Try words like <i>letter</i>, <i>photos</i>, <i>last seen</i>, <i>theme</i> or <i>reset</i>.</p>"; return; }
       this.go(e.e.go, e.e.title);
     },
+    explainChip: function (label, where) {
+      var hits = search(label);
+      var text = hits.length ? hits[0].e.a : "This is " + label + ".";
+      var b = this.bubble("bot");
+      var p = el("p", "", text);
+      b.appendChild(p);
+      var acts = el("div", "ar12-acts");
+      var self = this;
+      acts.appendChild(btn("ar12-act primary", "<span>Take me there</span>", null, function () { self.close().then(function () { goTo(where); }); }));
+      acts.appendChild(btn("ar12-act", "<span>Not now</span>", null, function () { acts.remove(); }));
+      b.appendChild(acts);
+      this.scroll();
+    },
+    showHistory: function () {
+      var self = this;
+      this.mode = "history";
+      this._askHtml = null;
+      this.list.textContent = "";
+      var items = histRead().slice().reverse();
+      this.list.appendChild(el("p", "ar12-histlead", "Chat history"));
+      if (!items.length) { this.list.appendChild(el("p", "snote", "No conversations yet")); return; }
+      items.forEach(function (c) {
+        var b = el("button", "ah13"); b.type = "button";
+        var q0 = (c.turns && c.turns[0] && c.turns[0].q) || "";
+        b.append(el("b", "", histWhen(c.at || Date.now())), el("span", "", String(q0).slice(0, 80)));
+        b.addEventListener("click", function () {
+          self.list.textContent = "";
+          self.list.appendChild(btn("ar12-act", "Back to the list", null, function () { self.showHistory(); }));
+          (c.turns || []).forEach(function (turn) {
+            self.list.appendChild(el("p", "ah13-q", turn.q || ""));
+            self.list.appendChild(el("p", "ah13-a", turn.a || ""));
+          });
+        });
+        self.list.appendChild(b);
+      });
+    },
+    leaveHistory: function () {
+      this.mode = "ask";
+      this.list.textContent = "";
+      this.welcome();
+      this.paintChips();
+    },
+    bindSwipe: function () {
+      var self = this, host = this.root, startY = 0, dy = 0, tracking = false, t0 = 0;
+      host.addEventListener("pointerdown", function (e) {
+        if (!self.open_ || e.clientY > 120) return;
+        tracking = true; startY = e.clientY; dy = 0; t0 = performance.now();
+        self.panel.style.transition = "none";
+      });
+      host.addEventListener("pointermove", function (e) {
+        if (!tracking) return;
+        dy = Math.max(0, e.clientY - startY);
+        var cap = innerHeight * 0.55;
+        var rubber = dy > cap ? cap + (dy - cap) * 0.3 : dy;
+        self.panel.style.transform = "translateY(" + rubber + "px)";
+      });
+      var end = function () {
+        if (!tracking) return;
+        tracking = false;
+        var dt = Math.max(1, performance.now() - t0);
+        var v = dy / dt;
+        self.panel.style.transition = "transform .28s cubic-bezier(.2,.8,.2,1)";
+        if (dy > innerHeight * 0.25 || v > 0.7) {
+          self.panel.style.transform = "";
+          self.panel.style.transition = "";
+          self.close();
+        } else {
+          self.panel.style.transform = "translateY(0)";
+          setTimeout(function () { self.panel.style.transform = ""; self.panel.style.transition = ""; }, 280);
+        }
+      };
+      host.addEventListener("pointerup", end);
+      host.addEventListener("pointercancel", end);
+    },
     go: function (where, title) {
       var b = this.bubble("bot"); b.innerHTML = "<p>Opening <b>" + esc(title) + "</b>…</p>";
       var self = this;
@@ -1223,6 +1412,7 @@
       var sx = R0.width / P1.width, sy = R0.height / P1.height, tx = R0.left - P1.left, ty = R0.top - P1.top;
       fab.classList.add("under");
       this.open_ = true;
+      try { history.pushState({ arten: 1 }, ""); } catch (e) {}
       this.flower.sync(true);
       if (!reduce() && pan.animate) {
         var anim = pan.animate([{ transform: "translate(" + tx + "px," + ty + "px) scale(" + sx + "," + sy + ")", borderRadius: (28 / sx) + "px / " + (28 / sy) + "px", opacity: 0.6 }, { transform: "none", borderRadius: "26px", opacity: 1 }], { duration: 420, easing: "cubic-bezier(.16,1,.3,1)" });
@@ -1251,24 +1441,23 @@
       root.classList.add("closed"); root.inert = true; root.setAttribute("aria-hidden", "true");
       this.fab.classList.remove("under");
       this.open_ = false; this.animating = false;
+      if (history.state && history.state.arten && !this._fromPop) { this._fromPop = true; try { history.back(); } catch (e) {} this._fromPop = false; }
       if (this.convo && this.convo.turns && this.convo.turns.length) this.convo.closed = true;
       Ask.lastQuiet = Date.now(); Ask.schedule();
       try { this.fab.focus({ preventScroll: true }); } catch (e) {}
     },
     placePanel: function () {
-      var f = this.fab.getBoundingClientRect(), vw = innerWidth, vh = innerHeight;
-      var w = Math.min(380, vw - 24), maxH = Math.min(560, vh - 24 - (vh - f.bottom) - 8);
-      var h = Math.max(340, Math.min(maxH, vh * 0.66));
-      var right = Math.max(12, vw - f.right), bottom = Math.max(12, vh - f.bottom);
       var s = this.panel.style;
-      s.width = w + "px"; s.height = Math.min(h, vh - 24) + "px"; s.right = right + "px"; s.bottom = bottom + "px";
+      s.top = "0"; s.right = "0"; s.bottom = "0"; s.left = "0";
+      s.width = "100%"; s.height = "100%";
+      s.borderRadius = "0";
       s.transformOrigin = "bottom right";
     },
     // Where the flower sits: bottom right, lifted above the chat's message box and any bottom bar.
     position: function () {
       if (!this.fab) return;
       var a = A(), fab = this.fab;
-      var show = !!(a && a.unlocked) && a.view !== "chat" && !document.querySelector("#mediaPreview, .v9-viewer, .al11, .av12, .v8-overlay, .love9");
+      var show = !!(a && a.unlocked) && a.view !== "chat" && !document.querySelector("#mediaPreview, .v9-viewer, .al11, .av12, .v8-overlay, .love9, .act14, .once-viewer");
       fab.classList.toggle("gone", !show);
       var bottom = 18;
       if (a && a.view === "chat") {
@@ -1284,7 +1473,7 @@
           var cb = card.getBoundingClientRect().bottom;
           var fabH = fab.offsetHeight || 64;
           var top = innerHeight - bottom - fabH;
-          if (top < cb + 16) bottom = Math.max(8, innerHeight - (cb + 16) - fabH);
+          if (top < cb + 24) bottom = Math.max(8, innerHeight - (cb + 24) - fabH);
         }
       }
       fab.style.setProperty("--ar-bottom", Math.round(bottom) + "px");
@@ -1311,24 +1500,9 @@
     set: function (w) { if (!this.body || !this.unit) return; this.curW = w; var s = Math.max(0, Math.min(1, (w - 56) / this.L)); this.body.style.transform = "scaleX(" + s + ")"; this.unit.style.transform = "translate3d(" + (-this.L * s) + "px,0,0)"; },
     tween: function (to, ms, ease) { var self = this; return new Promise(function (res) { var from = self.curW, t0 = performance.now(); var step = function (now) { var k = Math.min(1, (now - t0) / ms); self.set(from + (to - from) * ease(k)); if (k < 1) requestAnimationFrame(step); else res(); }; requestAnimationFrame(step); }); },
     ok: function () { var a = A(); return !reduce() && !document.hidden && !Arten.isOpen() && !Guide.on && a && a.unlocked && a.view !== "chat" && !Arten.fab.classList.contains("gone"); },
-    play: async function () {
-      if (!this.ok() || this.busy) { this.lastQuiet = Date.now(); return this.schedule(); }
-      this.busy = true;
-      await this.tween(this.widthFor("ASK"), 380, function (k) { return 1 - Math.pow(1 - k, 3); });
-      await sleep(60);
-      for (var i = 1; i <= 3; i++) { this.typed.textContent = "ASK".slice(0, i); if (i < 3) await sleep(150); }
-      this.text.classList.add("blink"); await sleep(2000); this.text.classList.remove("blink");
-      this.typed.classList.add("nocaret"); this.typed.style.transition = "opacity 200ms ease-out"; this.typed.style.opacity = "0";
-      await this.tween(56, 260, function (k) { return k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; });
-      this.typed.textContent = ""; this.typed.style.transition = "none"; this.typed.style.opacity = "1"; this.typed.classList.remove("nocaret");
-      this.busy = false; this.lastQuiet = Date.now(); this.schedule();
-    },
-    schedule: function () {
-      if (!this.body || !this.text) return;
-      var self = this; clearTimeout(this.t); if (this.busy) return;
-      this.t = setTimeout(function () { if (self.busy) return; if (Date.now() - self.lastQuiet >= self.IDLE) self.play(); else self.schedule(); }, Math.max(400, this.IDLE - (Date.now() - this.lastQuiet)));
-    },
-    reset: function () { clearTimeout(this.t); this.busy = false; if (!this.typed) return; this.typed.textContent = ""; this.typed.style.opacity = "1"; this.text.classList.remove("blink"); this.set(56); this.lastQuiet = Date.now(); }
+    play: async function () { this.lastQuiet = Date.now(); },
+    schedule: function () { clearTimeout(this.t); },
+    reset: function () { clearTimeout(this.t); this.busy = false; this.lastQuiet = Date.now(); }
   };
 
   /* =====================================================================================================
@@ -1349,7 +1523,7 @@
     var top = el("header", "av12-top");
     var first = list[0];
     var who = el("div", "av12-who");
-    who.append(el("b", "", list.length + " " + noun), el("span", "", (first.from === a.me ? "From you" : "From " + a.name(first.from)) + " · " + new Date(first.ts).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })));
+    who.append(el("b", "", list.length + " " + noun), el("span", "", (first.from === a.me ? "From you" : "From " + a.name(first.from)) + " · " + new Date(first.ts).toLocaleString([], { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true })));
     var modeB = btn("av12-ib", svg(mode === "grid" ? AP.feed : AP.grid), mode === "grid" ? "Show as a feed" : "Show as a grid", function () { mode = mode === "grid" ? "feed" : "grid"; LS.set("v12-album-mode", mode); modeB.innerHTML = svg(mode === "grid" ? AP.feed : AP.grid); modeB.setAttribute("aria-label", mode === "grid" ? "Show as a feed" : "Show as a grid"); paint(); });
     var more = el("div", "av12-all");
     more.append(
@@ -1593,7 +1767,7 @@
   setTimeout(wrapSettings, 0);
 
   window.LeesV12 = {
-    presenceLine: presenceLine, openActivity: openActivity, openReset: openReset, guide: Guide, arten: Arten, ask: search, log: function (k, d) { Act.log(k, d); },
+    presenceLine: presenceLine, openActivity: openActivity, openReset: openReset, guide: Guide, arten: Arten, ask: search, composePersonal: composePersonal, factsReply: factsReply, log: function (k, d) { Act.log(k, d); },
     beforeSignOut: async function (why) { Act.log(why === "idle" ? "idle" : "signout"); clearArtenHistory(); await Act.flush(); },
     _act: Act, _usage: Usage, _kb: KB, maybeTip: maybeTip
   };

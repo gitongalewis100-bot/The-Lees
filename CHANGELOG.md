@@ -186,3 +186,23 @@ New: lees-v12.js, lees-v12.css, flower.webp, supabase/RUN_THIS_v12.sql (run once
 - ARTEN: flower icon (rotating, breathing petals, theme-coloured), zoom-open mini panel, on-device answers with a 2 s+ thinking state, Show me how / Take me there, Take-me-to mode. Hidden in the conversation view.
 - Sign-in: two identity cards; the field names whose passphrase it wants.
 - Media preview and album viewer redesigned (labelled tools, switches, feed/grid, full-screen pager).
+
+## v14 (2026-11-23)
+- Online stays on for 10 minutes after the last screen activity, then Last seen in 12-hour time. The 3-second delay before Online stays. Idle sign-out stays at 5 minutes.
+- The activity-log line under the home chat card is gone. The Online / Last seen line stays.
+- Home tiles and stat cards share one resting style: surface fill, 1px ink border, ink text, and a darker pressed state.
+- Theme sheet stays open while you preview. Cancel restores the theme from when it opened. Keep saves user_prefs and lees-theme-v14.
+- Activity is its own full-screen page: Back, Close, All / Mine / Theirs, jump to top, a detail page, and Send a note on message and letter rows.
+- View-once countdown runs only while the screen is idle, pauses on touch, key, wheel or scroll, and resumes after 3 seconds. The image is not draggable, the page turns off the right-click menu, and it hides when the window is hidden. A website still cannot stop the phone's own screenshot.
+- The flower is canvas only: no message icon and no idle Ask ARTEN typing. On home its top sits at least 24 px under the chat card.
+- ARTEN opens full screen and zooms out from the flower, and zooms back on close. Back, Close, Escape, history back, and a downward swipe from the top all close it.
+- One thinking bubble, then the answer replaces it. Thinking text is 15 px in ink.
+- Feature chips explain first, then Take me there or Not now.
+- Things we know is two notes, About me and About your partner, with Save, Edit, Delete, and a 4000-character count, stored in arten_notes.
+- Personal answers are full sentences from those notes. The partner's name leads. The app never says a name is itself.
+- Chat history stays inside the ARTEN page. Sign-out and lock clear lees-arten session keys.
+- Sticker sheet and ARTEN dismiss on a long downward swipe and snap back on a short one.
+- Every user-facing clock is 12-hour with am/pm.
+- 25 new stickers (46 in total). Reduced motion keeps them still.
+- Shell cache is lees-shell-v14-1.
+

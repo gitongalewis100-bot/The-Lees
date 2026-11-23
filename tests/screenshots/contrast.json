@@ -1,0 +1,30 @@
+{
+  "measured": [
+    {
+      "theme": "warm",
+      "borderWidth": "1px",
+      "borderVsPage": 13.97,
+      "textVsFill": 15.07,
+      "smallVsFill": 15.07,
+      "fillVsPage": 1.08
+    },
+    {
+      "theme": "ink",
+      "borderWidth": "1px",
+      "borderVsPage": 15.49,
+      "textVsFill": 14.13,
+      "smallVsFill": 14.13,
+      "fillVsPage": 1.1
+    },
+    {
+      "theme": "sage",
+      "borderWidth": "1px",
+      "borderVsPage": 13.08,
+      "textVsFill": 14.37,
+      "smallVsFill": 14.37,
+      "fillVsPage": 1.1
+    }
+  ],
+  "stickers": 46,
+  "consoleErrors": []
+}

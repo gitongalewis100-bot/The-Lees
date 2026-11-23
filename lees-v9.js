@@ -28,7 +28,7 @@
     if (d === d0 - DAY) return "Yesterday";
     return new Date(t).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long", year: new Date(t).getFullYear() !== new Date().getFullYear() ? "numeric" : undefined });
   }
-  var hm = function (t) { return new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); };
+  var hm = function (t) { return new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }); };
   function avatar(side) { var a = el("div", "avatar " + String(side).toLowerCase(), side === "Lewis" ? "L" : "A"); a.dataset.side = side; return a; }
   function seg(options, value, onPick, cls) {
     var w = el("div", "v9-seg" + (cls ? " " + cls : ""));
@@ -891,7 +891,7 @@
     var now = new Date();
     return msgs().filter(function (m) { var d = new Date(m.ts); return d.getDate() === now.getDate() && day0(m.ts) < day0(Date.now()); });
   }
-  function hourLabel(h) { return new Date(2020, 0, 1, h).toLocaleTimeString([], { hour: "numeric" }); }
+  function hourLabel(h) { return new Date(2020, 0, 1, h).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }); }
   function homeExtras(box) {
     var a = A(); if (!a || !a.me) return;
     var them = a.S(a.other), mine = a.S(a.me);
@@ -1088,10 +1088,46 @@
     "Hands": "👍 👎 👏 🙌 🫶 👐 🤲 🙏 🤞 ✌️ 🤟 🤘 👌 🤌 🤏 👈 👉 👆 👇 ☝️ ✋ 🤚 🖐 🖖 👋 🤙 💪 🫡 🤗",
     "Life": "☀️ 🌙 ⭐ 🌟 ✨ ⚡ 🔥 🌈 ☁️ 🌧 ❄️ 🌊 🍕 🍔 🍟 🌮 🍜 🍣 🍩 🍪 🎂 🍰 🍫 🍿 ☕ 🍵 🧋 🍷 🥂 🍾 🎉 🎊 🎁 🎈 🎵 🎶 📸 🎬 📚 ✈️ 🚗 🏠 🛏 ⏰ 💤 💯 ✅ ❌ ❓ ❗"
   };
+  function bindSheetSwipe(host, dismiss) {
+    if (!host || host._swipe14) return;
+    host._swipe14 = true;
+    var startY = 0, dy = 0, tracking = false, t0 = 0;
+    host.addEventListener("pointerdown", function (e) {
+      var top = host.getBoundingClientRect().top;
+      if (e.clientY > top + 120) return;
+      tracking = true; startY = e.clientY; dy = 0; t0 = performance.now();
+      host.style.transition = "none";
+    });
+    host.addEventListener("pointermove", function (e) {
+      if (!tracking) return;
+      dy = Math.max(0, e.clientY - startY);
+      var cap = innerHeight * 0.5;
+      var rubber = dy > cap ? cap + (dy - cap) * 0.3 : dy;
+      host.style.transform = "translateY(" + rubber + "px)";
+    });
+    var end = function () {
+      if (!tracking) return;
+      tracking = false;
+      var dt = Math.max(1, performance.now() - t0);
+      var v = dy / dt;
+      host.style.transition = "transform .28s cubic-bezier(.2,.8,.2,1)";
+      if (dy > innerHeight * 0.25 || v > 0.7) {
+        host.style.transform = "translateY(110%)";
+        setTimeout(function () { host.style.transform = ""; host.style.transition = ""; dismiss(); }, 240);
+      } else {
+        host.style.transform = "translateY(0)";
+        setTimeout(function () { host.style.transform = ""; host.style.transition = ""; }, 280);
+      }
+    };
+    host.addEventListener("pointerup", end);
+    host.addEventListener("pointercancel", end);
+  }
   function openPicker() {
     var a = A(), tab = "stickers";
     a.sheetOpen(function (body) {
       body.classList.add("v9-sheet", "v9-picker");
+      var sheet = document.getElementById("sheet");
+      if (sheet) bindSheetSwipe(sheet, function () { a.sheetClose(); });
       var tabsBox = el("div", ""), grid = el("div", "");
       body.append(tabsBox, grid);
       function draw() {

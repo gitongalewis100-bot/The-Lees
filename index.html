@@ -496,9 +496,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
 <link rel="stylesheet" href="/lees-v8.css?v=4">
-<link rel="stylesheet" href="/lees-v9.css?v=9">
+<link rel="stylesheet" href="/lees-v9.css?v=10">
 <link rel="stylesheet" href="/lees-v11.css?v=5">
-<link rel="stylesheet" href="/lees-v12.css?v=3">
+<link rel="stylesheet" href="/lees-v12.css?v=4">
 </head>
 <body>
 
@@ -732,7 +732,32 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     congrats: { e: "🎊", fx: "confetti", bits: "🎉", label: "Congrats" },
     cuddle: { e: "🧸", fx: "cuddle", bits: "💗", label: "Cuddle" },
     rain: { e: "🌧️", fx: "rain", bits: "💧", label: "Rainy day" },
-    sparkle: { e: "✨", fx: "sparkle", bits: "⭐", label: "Sparkle" }
+    sparkle: { e: "✨", fx: "sparkle", bits: "⭐", label: "Sparkle" },
+    blush: { e: "😊", fx: "sway", bits: "💗", label: "Blush" },
+    sweetheart: { e: "💘", fx: "beat", bits: "💕", label: "Sweetheart" },
+    roses: { e: "🌹", fx: "sway", bits: "🌷", label: "Roses" },
+    snuggle: { e: "🤗", fx: "cuddle", bits: "💛", label: "Snuggle" },
+    heartbeat: { e: "💓", fx: "beat", bits: "❤️", label: "Heartbeat" },
+    cake: { e: "🎂", fx: "bounce", bits: "🕯️", label: "Cake" },
+    gift: { e: "🎁", fx: "bounce", bits: "🎀", label: "Gift" },
+    balloon: { e: "🎈", fx: "bob", bits: "🎉", label: "Balloon" },
+    cheers: { e: "🥂", fx: "tilt", bits: "✨", label: "Cheers" },
+    trophy: { e: "🏆", fx: "twinkle", bits: "⭐", label: "Trophy" },
+    tea: { e: "🍵", fx: "steam", bits: "♨️", label: "Tea" },
+    reading: { e: "📖", fx: "breathe", bits: "✨", label: "Reading" },
+    home: { e: "🏠", fx: "bob", bits: "💛", label: "Home" },
+    music: { e: "🎵", fx: "wave", bits: "🎶", label: "Music" },
+    pillow: { e: "🛌", fx: "breathe", bits: "💤", label: "Pillow" },
+    sunrise: { e: "🌅", fx: "spin", bits: "☀️", label: "Sunrise" },
+    moonlight: { e: "🌙", fx: "twinkle", bits: "⭐", label: "Moonlight" },
+    forest: { e: "🌲", fx: "sway", bits: "🍃", label: "Forest" },
+    ocean: { e: "🌊", fx: "bob", bits: "💧", label: "Ocean" },
+    leaf: { e: "🍃", fx: "luck", bits: "🌿", label: "Leaf" },
+    wink: { e: "😉", fx: "tilt", bits: "✨", label: "Wink" },
+    dance: { e: "💃", fx: "wave", bits: "🎶", label: "Dance" },
+    playful: { e: "😜", fx: "shake", bits: "😆", label: "Playful" },
+    pizza: { e: "🍕", fx: "bounce", bits: "🧀", label: "Pizza" },
+    comet: { e: "☄️", fx: "sparkle", bits: "✨", label: "Comet" }
   };
   const STICKER_RE = /^\[\[sticker:([a-z0-9]+)\]\]$/;
   /* Cards: letters, game challenges and "thinking of you" also arrive as a message, so they show in the chat and
@@ -780,7 +805,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   const ZONES = ["Africa/Nairobi", "Europe/London", "America/New_York", "America/Los_Angeles", "Asia/Dubai", "Asia/Tokyo", "Australia/Sydney", "UTC"];
   const ARCHIVE = [[0, "Never"], [1, "After 1 day"], [7, "After 7 days"], [30, "After 30 days"]];
   const PATTERNS = { send: [8], recv: [8, 40, 8], heart: [20, 30, 20], press: [12], error: [40, 60, 40, 60, 40], schedule: [10, 20, 10], pin: [15, 25, 15] };
-  const IDLE_MS = 5 * 60 * 1000, UNSEND_MS = 5 * 60 * 1000, DELETE_ALL_MS = 24 * 60 * 60 * 1000, UNDO_MS = 5000;
+  const IDLE_MS = 5 * 60 * 1000, ONLINE_MS = 10 * 60 * 1000, UNSEND_MS = 5 * 60 * 1000, DELETE_ALL_MS = 24 * 60 * 60 * 1000, UNDO_MS = 5000;
   const REC_MAX_MS = 90 * 1000, IMG_MAX = 1600, MAX_TRIES = 5, LOCK_MS = 30 * 1000, NOTE_MAX = 280;
   const EFFECT_RE = /\b(i love you|love you|miss you|missing you|darling|honey|thinking of you)\b/i;
   const SENSITIVE_BUILTIN = "love you,i love you,miss you,missing you,darling,honey,dear,babe,baby,sweetheart,sweetie,my love,my heart,beautiful,gorgeous,handsome,cutie,princess,prince,angel,kiss,kisses,hug,hugs,cuddle,cuddles,snuggle,hold you,hold your hand,holding hands,thinking of you,think about you,dream about you,dreaming of you,forever,always yours,yours,mine,only you,you're mine,my everything,my world,my person,soulmate,proposal,propose,marry,marriage,wedding,ring,engagement,promise,future,together,our future,move in,meet my family,my mum,my mom,my dad,my family,your family,parents,relationship,girlfriend,boyfriend,partner,wife,husband,fiance,fiancee,crush,butterflies,blush,shy,nervous,secret,our secret,don't tell,between us,nobody knows,hide,private,personal,cry,crying,tears,sad,lonely,scared,afraid,worried,hurt,hurting,sorry,forgive,apologize,fight,argument,upset,jealous,jealousy,trust,cheat,lie,lied,ex,exes,past,rumour,rumor,gossip,pregnant,body,nude,naked,undress,sexy,hot,turn me on,miss your touch,your voice,your smile,your eyes,your laugh,i dream,i need you,need you,want you,wish you were here,come home,home soon,i'm coming,visit,visa,flight,airport,goodbye,bye love,good night,goodnight,sleep well,sweet dreams,morning love,good morning my,i'm proud,proud of you,so proud,you're amazing,you're special,special,precious,treasure,cherish,adore,adorable,cute,lovely,pretty,stunning,my queen,my king,queen,king,mine forever,yes i do,i'm yours,hold me,miss your hugs,sweet,my sweet,my darling,my honey,my babe,my dear,dearest,beloved,love of my life,my star,my moon,my sunshine,sunshine,sugar,pumpkin,sweetness,bae,boo,hun,luv,ily,ilysm,xoxo,mwah,smooch,flirt,flirting,date,dating,romance,romantic,candle,candlelight,dinner for two,just us,our night,our day,alone with you,you and me,just you and me,secret love,crush on you,your touch,your kiss,your hug,your arms,your lips,lips,arms,shoulder,neck,hair,bed,bedroom,shower,bath,lingerie,tease,teasing,naughty,wink,wicked";
@@ -819,16 +844,42 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (raw.charAt(0) === "{") { try { const o = JSON.parse(raw); return { legacy: o.a || "warm", chat: { t: o.t || "", b: o.b || "", s: o.s || "", c: o.c || "" } }; } catch (e) {} }
     return { legacy: raw || "warm", chat: null };
   }
+  function mapThemeId(id) {
+    const m = { "ink-night": "ink", "warm-paper": "warm", "sage-morning": "sage" };
+    return m[id] || id || "warm";
+  }
   function appThemeId() {
-    const own = me ? (S(me).chatStyle || {}).appTheme : "";
     let loc = "";
-    try { loc = me ? localStorage.getItem("pp-apptheme-" + me) || "" : ""; } catch (e) {}
-    return own || loc || SH().theme || "warm";
+    try { loc = localStorage.getItem("lees-theme-v14") || ""; } catch (e) {}
+    const own = me ? (S(me).chatStyle || {}).appTheme : "";
+    let legacy = "";
+    try { legacy = me ? localStorage.getItem("pp-apptheme-" + me) || "" : ""; } catch (e) {}
+    return mapThemeId(loc || own || legacy || SH().theme || "warm");
   }
   function setAppTheme(id) {
-    try { localStorage.setItem("pp-apptheme-" + me, id); } catch (e) {}
-    setS(me, { chatStyle: { ...(S(me).chatStyle || {}), appTheme: id } });
+    id = mapThemeId(id);
+    try { localStorage.setItem("lees-theme-v14", id); } catch (e) {}
+    try { if (me) localStorage.setItem("pp-apptheme-" + me, id); } catch (e) {}
+    if (me) setS(me, { chatStyle: { ...(S(me).chatStyle || {}), appTheme: id } });
     applyTheme();
+  }
+  async function loadSavedTheme() {
+    let cached = "";
+    try { cached = localStorage.getItem("lees-theme-v14") || ""; } catch (e) {}
+    if (cached) setAppTheme(cached);
+    const client = cloudClient();
+    if (!client || !myUserId) return;
+    const r = await client.from("user_prefs").select("theme").eq("user_id", myUserId).maybeSingle();
+    if (r && !r.error && r.data && r.data.theme) {
+      setAppTheme(r.data.theme);
+    }
+  }
+  async function saveUserTheme(id) {
+    id = mapThemeId(id);
+    setAppTheme(id);
+    const client = cloudClient();
+    if (!client || !myUserId) return;
+    await client.from("user_prefs").upsert({ user_id: myUserId, theme: id, updated_at: new Date().toISOString() });
   }
   function chatLook() {
     const sh = cacheShared.chat;
@@ -853,8 +904,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (d.toDateString() === y.toDateString()) return "Yesterday";
     return d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short", year: d.getFullYear() === now.getFullYear() ? undefined : "numeric" });
   };
-  const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const fmtDateTime = (ts) => new Date(ts).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
+  const fmtDateTime = (ts) => new Date(ts).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
   const fmtDur = (s) => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
   const previewOf = (m) => (m.kind === "text" && cardOf(m.text)) ? cardPreview(cardOf(m.text)) : (m.kind === "text" && stickerOf(m.text)) ? "Sticker" : m.deleted ? "Deleted" : (m.effect === "doodle" || m.effect === "doodle-glow") ? "Doodle" : m.kind === "image" ? "Photo" : m.kind === "video" ? "Video" : m.kind === "audio" ? ((m.text || "").trim() || "Voice note") : (m.text || "").slice(0, 60);
   const hash = (s) => { let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
@@ -1051,7 +1102,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const s = S(me);
     if (s.haptics !== false && s.vibrate !== false) { try { navigator.vibrate?.([60, 120, 60, 420, 60, 120, 60]); } catch {} }
     loveBurst(true);
-    alertMe("love", NAME[payload.from] + " is thinking of you", "Right now, " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + ".", {
+    alertMe("love", NAME[payload.from] + " is thinking of you", "Right now, " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }) + ".", {
       priority: true, side: payload.from, ref: "nudge-" + (payload.at || Date.now()),
       action: { label: "Send one back", run: () => sendNudge() },
       actions: [{ label: "Open chat", run: () => openChat() }]
@@ -1991,7 +2042,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     let node;
     if (kind === "video") { node = el("video"); node.playsInline = true; node.autoplay = true; node.controls = false; node.disablePictureInPicture = true; node.setAttribute("controlsList", "nodownload noplaybackrate noremoteplayback"); }
     else if (kind === "audio") { node = el("audio"); node.autoplay = true; }
-    else { node = el("img"); node.alt = "One-time photo"; node.draggable = false; }
+    else { node = el("img"); node.alt = "One-time photo"; }
+    node.draggable = false;
+    node.setAttribute("draggable", "false");
     node.src = blobUrl;
     node.classList.add("ov9-media");
     const top = el("div", "ov9-top");
@@ -2002,7 +2055,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     close.type = "button"; close.setAttribute("aria-label", "Close");
     close.innerHTML = ic("close");
     top.appendChild(close);
-    const mark = el("div", "ov9-mark", NAME[me] + " · " + new Date().toLocaleString([], { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" }));
+    const mark = el("div", "ov9-mark", NAME[me] + " · " + new Date().toLocaleString([], { hour: "numeric", minute: "2-digit", hour12: true, day: "numeric", month: "short" }));
     const shade = el("div", "ov9-shade", "Hidden while the app isn't in front");
     const stage = el("div", "ov9-stage");
     if (kind === "audio") {
@@ -2031,6 +2084,15 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     document.addEventListener("visibilitychange", vis);
     window.addEventListener("blur", hide); window.addEventListener("focus", show);
     wrap.addEventListener("contextmenu", (e) => e.preventDefault());
+    node.addEventListener("contextmenu", (e) => e.preventDefault());
+    wrap.style.webkitTouchCallout = "none";
+    node.style.webkitTouchCallout = "none";
+    node.style.webkitUserSelect = "none";
+    let lastTouch = 0;
+    const poke = () => { lastTouch = Date.now(); };
+    ["pointerdown", "touchstart", "keydown", "wheel"].forEach((ev) => wrap.addEventListener(ev, poke, { passive: true }));
+    wrap.addEventListener("scroll", poke, { passive: true });
+    try { if (!localStorage.getItem("lees-once-note-v14")) { localStorage.setItem("lees-once-note-v14", "1"); notice("This photo is for view once. Screenshots and recordings can't be fully stopped by a website.", "", { duration: 7000 }); } } catch (e) {}
     wrap.addEventListener("keydown", (e) => { if (e.key === "Escape") done(); if (e.key === "PrintScreen") hide(); });
     close.addEventListener("click", done);
     if (kind !== "image") node.addEventListener("ended", () => setTimeout(done, 400));
@@ -2038,6 +2100,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const circ = 100.5;
       tick = setInterval(() => {
         if (wrap.classList.contains("veiled")) return;
+        if (Date.now() - lastTouch < 3000) return;
         left -= 100;
         ring.querySelector("circle").style.strokeDashoffset = String(circ * (1 - left / limit));
         ring.querySelector("span").textContent = String(Math.ceil(left / 1000));
@@ -2771,7 +2834,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const p = $("presence");
     p.classList.remove("live");
     let zoneTime = "";
-    try { zoneTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZone: S(other()).tz }); } catch {}
+    try { zoneTime = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true, timeZone: S(other()).tz }); } catch {}
     const status = S(other()).status;
     const line = window.LeesV12 && LeesV12.presenceLine ? LeesV12.presenceLine(remote, zoneTime, status) : null;
     if (line) { if (p.textContent !== line.text) p.textContent = line.text; p.classList.toggle("live", !!line.live); p.classList.toggle("away12", !line.live); }
@@ -3801,8 +3864,43 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function pickImage(fn) { const f = el("input"); f.type = "file"; f.accept = "image/*"; f.addEventListener("change", () => { if (f.files[0]) fn(f.files[0]); }); f.click(); }
   async function confirmAct(title, desc, okLabel) { return centredBanner({ title, desc, okLabel: okLabel || "Continue" }); }
   function openThemeSheet() {
-    choiceSheet({ title: "Theme", desc: "Just for you. It changes the app on your side only. The chat look is shared.", value: appThemeId(), options: THEMES.map(t => [t.id, t.name, t.id === "auto" ? "Light by day, dark at night" : "", t.sw]) })
-      .then(v => { if (v == null) return; setAppTheme(v); haptic("press"); if (view === "panel") renderPanel(); });
+    const start = appThemeId();
+    let current = start;
+    const paint = (grid) => grid.querySelectorAll(".th14-sw").forEach((b) => b.classList.toggle("on", b.dataset.id === current));
+    sheetOpen((body) => {
+      body.classList.add("th14");
+      body.appendChild(el("h3", "fp-title", "Theme"));
+      body.appendChild(el("p", "fp-desc", "Just for you. Tap a theme to preview it here. Cancel puts the old one back. Keep saves it on your account."));
+      const grid = el("div", "th14-grid");
+      THEMES.forEach((t) => {
+        const b = el("button", "th14-sw");
+        b.type = "button";
+        b.dataset.id = t.id;
+        const sw = el("i", "th14-dot");
+        sw.style.background = t.sw;
+        b.append(sw, el("span", "", t.name));
+        b.addEventListener("click", () => { current = t.id; setAppTheme(t.id); paint(grid); haptic("press"); });
+        grid.appendChild(b);
+      });
+      paint(grid);
+      const row = el("div", "th14-row");
+      const cancel = el("button", "btn ghost", "Cancel");
+      cancel.type = "button";
+      const keep = el("button", "btn", "Keep");
+      keep.type = "button";
+      cancel.addEventListener("click", () => { setAppTheme(start); sheetClose(); });
+      keep.addEventListener("click", async () => {
+        keep.disabled = true;
+        await saveUserTheme(current);
+        sheetClose();
+        if (view === "panel") renderPanel();
+      });
+      row.append(cancel, keep);
+      body.append(grid, row);
+      const scrim = $("sheetScrim");
+      const onScrim = () => { setAppTheme(start); sheetClose(); };
+      scrim.addEventListener("click", onScrim, { once: true });
+    });
   }
   const LENS_OPTS = [["auto", "Surprise me", "A different scanner every sign-in, none repeats until all have played"], ["scan", "Light beam"], ["prism", "Prism sweep"], ["ripple", "Ripples"], ["orbit", "Orbit"], ["pulse", "Heartbeat"], ["constellation", "Constellation"], ["bars", "Laser grid"], ["ink", "Ink drop"], ["aurora", "Aurora"], ["round", "Round lens"], ["star", "Star"]];
   function settingsRegistry() {
@@ -3825,7 +3923,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     add("alerts", { id: "mute", label: "Mute notifications", keywords: "silent quiet do not disturb", build: () => choiceRow({ id: "mute", icon: "bell", label: "Mute notifications", sub: "Silences sound and buzz for you", get: () => ppMuteChoice(), options: () => [["off", "Not muted"], ["8h", "For 8 hours"], ["1w", "For 1 week"]], set: (v) => ppSetMute(v) }) });
     add("alerts", { id: "sysnotify", label: "Phone and desktop alerts", keywords: "push notification system banner background lock screen", build: () => switchRow({ id: "sysnotify", icon: "bell", label: "Phone and desktop alerts", sub: "Alerts when The Lees is open but in the background", get: () => "Notification" in window && Notification.permission === "granted" && store.get("pp-sysnotify", true), set: async (v) => {
       if (!("Notification" in window)) { notice("Not supported here", "Add The Lees to your home screen first, then try again.", { error: true }); return false; }
-      if (v && Notification.permission !== "granted") { const r = await Notification.requestPermission(); if (r !== "granted") { notice("Alerts are blocked", "Allow notifications for this site in your settings.", { error: true }); return false; } }
+      if (v && Notification.permission !== "granted") { const r = await Notification.requestPermission(); if (r !== "granted") { notice("Alerts were not allowed", "Allow notifications for this site in your settings.", { error: true }); return false; } }
       store.set("pp-sysnotify", v);
     } }) });
     add("alerts", { id: "sound", label: "Sounds", keywords: "chime tone audio", build: () => switchRow({ id: "sound", icon: "sound", label: "Sounds", sub: "A soft chime when a message arrives", get: () => S(me).sound, set: (v) => { setS(me, { sound: v }); } }) });
@@ -4566,7 +4664,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const ready = window.LeesFeatures && LeesFeatures.readyCount ? LeesFeatures.readyCount() : 0;
     items.splice(Math.min(items.length, (ai < 0 ? items.length - 2 : ai) + 2), 0, ["plus", "Create", () => { if (window.LeesFeatures) LeesFeatures.openCreate(); }, false, ready]);
     for (const [icon, label, fn, on, badge] of items) {
-      const b = el("button", "navbtn lift" + (icon === "book" ? " journal-tool" : "") + (icon === "plus" ? " create-tool" : "") + (on === true ? " on" : "") + (icon === "logout" ? " danger" : ""));
+      const b = el("button", "navbtn lift" + (on === true ? " on" : "") + (icon === "logout" ? " danger" : ""));
       b.type = "button";
       b.dataset.key = icon;
       applyTileSize(b, store.get("pp-home-sizes", {})[icon] || "s");
@@ -5238,7 +5336,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       return;
     }
     if (kind === "md") {
-      const lines = ["# Our conversation", "", "_Exported " + new Date().toLocaleString() + "_", ""];
+      const lines = ["# Our conversation", "", "_Exported " + new Date().toLocaleString([], { hour: "numeric", minute: "2-digit", hour12: true, day: "numeric", month: "short", year: "numeric" }) + "_", ""];
       let day = "";
       for (const m of list) {
         const d = fmtDay(m.ts);
@@ -5296,7 +5394,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         ${journal ? "<h2>Journal</h2>" + journal : ""}
       </body></html>`;
       const w = window.open("", "_blank");
-      if (!w) { notice("Pop-ups are blocked", "Allow pop-ups for this page, then try again.", { error: true }); return; }
+      if (!w) { notice("Pop-ups were not allowed", "Allow pop-ups for this page, then try again.", { error: true }); return; }
       w.document.open(); w.document.write(html); w.document.close();
       setTimeout(() => { try { w.focus(); w.print(); } catch {} }, 500);
       notice("Print dialog opened", "Choose Save as PDF.");
@@ -5980,7 +6078,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const st = await micState();
       if (st === "prompt" || /dismiss/i.test(msg)) { notice("Choose Allow to record", "You closed the permission box. Tap the mic again and choose Allow.", { error: true }); return; }
       if (location.protocol !== "https:" && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") { notice("Recording needs a secure connection", "Open the site with https.", { error: true }); return; }
-      notice("Microphone is blocked", "Your browser is blocking it for this site.", { error: true, duration: 9000, action: { label: "How to allow", run: micGuide } });
+      notice("Microphone is not allowed", "Your browser is not allowing it for this site.", { error: true, duration: 9000, action: { label: "How to allow", run: micGuide } });
       return;
     }
     if (name === "NotFoundError" || name === "DevicesNotFoundError") { notice("No microphone found", "Plug in or enable a microphone, then try again. You can also attach an audio file.", { error: true }); return; }
@@ -6516,7 +6614,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   let presenceStreak = 0, presenceOnline = false, presenceDelayTimer = 0;
   function publishPresence(forceAway) {
     if (!presenceChannel) return;
-    const idle = Date.now() - lastActivity > 5 * 60 * 1000;
+    const idle = Date.now() - lastActivity > ONLINE_MS;
     const elapsed = presenceStreak ? Date.now() - presenceStreak : 0;
     const online = !forceAway && !document.hidden && !idle && elapsed >= 3000;
     presenceOnline = online;
@@ -6530,7 +6628,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
   function noteUserActivity() {
     const gap = Date.now() - lastActivity;
-    if (!presenceStreak || gap > 5 * 60 * 1000) presenceStreak = Date.now();
+    if (!presenceStreak || gap > ONLINE_MS) presenceStreak = Date.now();
     lastActivity = Date.now();
     if (!idleWarnOn) publishPresence(false);
   }
@@ -7590,7 +7688,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     try {
       await navigator.clipboard.writeText(m.text || "");
       notice("Copied");
-    } catch { notice("Couldn't copy", "The browser blocked the clipboard.", { error: true }); }
+    } catch { notice("Couldn't copy", "The browser did not allow the clipboard.", { error: true }); }
   }
   async function setPinned(id) {
     if (String(id).startsWith("local-")) { notice("Send it first", "Pin waits until the message is sent."); return; }
@@ -8228,6 +8326,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     rememberSide(side);
     prevUnread = unreadN;
     applyTheme();
+    await loadSavedTheme();
+    applyTheme();
     showView("home");
     renderHome();
     deliverDue();
@@ -8566,6 +8666,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     appThemeId, setAppTheme, chatLook, setChatLook, restoreMany, syncProblems: () => syncProblems.slice(), broadcast, openVault, sendCard: (o) => sendPlainText(cardText(o)), cardOf, forwardSheet, forwardMessages, saveMedia, shareMessages, likedByMe, heartCount, setEmoji, setMoment, openMoments, fmtDur, store, typeTagline, openDraw, setReply, jumpToMessage,
     switchRow, choiceSheet, confirmAct, openSettings, openSettingsCategory, openNotifications: () => openNotifications(), openJournal: () => openJournal(), openCalendar: () => openCalendar(), openMedia: () => openMedia(), openArchive: () => openArchive(), openLockSetup: () => openLockSetup(), renderHome: () => renderHome(), lockNow: () => lock(), countCards,
     passUnread: (allow) => passUnread(allow), presenceTrack: (o) => { try { if (presenceChannel) return presenceChannel.track(o); } catch (e) {} return null; },
+    setActivityAt: (t) => { lastActivity = Number(t) || Date.now(); if (Date.now() - lastActivity > ONLINE_MS) presenceStreak = 0; else if (!presenceStreak) presenceStreak = lastActivity; publishPresence(false); },
     presenceAway, presenceBack, idleFor: () => Date.now() - lastActivity,
     get specialDays() { return specialDays; }, nudgeReady: () => Math.max(0, Number(store.get("pp-nudge-at", 0)) + NUDGE_GAP - Date.now())
   });
@@ -8600,10 +8701,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 <script src="/lees-emoji.js?v=2" defer></script>
 <script src="/lees-patch.js?v=18" defer></script>
 <script src="/lees-v8.js?v=8" defer></script>
-<script src="/lees-v9.js?v=8" defer></script>
+<script src="/lees-v9.js?v=9" defer></script>
 <script src="/lees-v10.js?v=2" defer></script>
 <script src="/lees-v11.js?v=2" defer></script>
-<script src="/lees-v12.js?v=3" defer></script>
+<script src="/lees-v12.js?v=4" defer></script>
 <script>
   // Offline shell: the app opens without a connection after one visit. Data comes from the on-device copy.
   if ("serviceWorker" in navigator && location.protocol === "https:") {

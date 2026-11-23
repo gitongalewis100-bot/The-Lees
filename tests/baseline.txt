@@ -1,0 +1,22 @@
+v13-baseline tag SHA: 32803cd7e86d954e568014a1a219755375a87b46
+notify-message/index.ts sha256: e9c60624a32106a9a19f35b541a1862a0b1e444f0de209d29ae2022d237ec123
+notify-message deployed: version 6, verify_jwt false, ACTIVE, platform ezbr_sha256 9c9bcaf5de31b990dba8037d41c6ca8b580c7df535879568670be9d5f5a31655
+vercel.json sha256: 0875fa41466fc4798b7597d261c0f30129ffd9cd9bf1284ab523fabaeec740c7
+arten-v13 score before this round's final run: 97/100
+arten-v13 score after: 97/100
+arten-personal: 14/14 (10 composePersonal questions plus remember, note, empty, and X-is-X)
+SQL checks: arten_notes_exists true, arten_notes_rls true, user_prefs_exists true, user_prefs_rls true, notes_cover_facts true, notes_n 1, fact_groups 1
+sealed_envelopes def_md5 7b79f848cae0c63e26bb93b4196767c5 (unchanged, not edited)
+sealed_hide def_md5 556c3f329acdaad2898932a840921271 (unchanged, not edited)
+Production before this push: https://the-lees-sandy.vercel.app serves lees-v12.js?v=3
+Screenshots:
+- tests/screenshots/baseline/lock.png (live v13 lock, 390x844, console errors 0)
+- tests/screenshots/v14-lock-warm.png
+- tests/screenshots/v14-lock-ink.png
+- tests/screenshots/v14-lock-sage.png
+- tests/screenshots/v14-tiles-probe.png
+- tests/screenshots/contrast.json
+Signed-in screens (home, chat, ARTEN, stickers, sealed letters, activity, settings): NOT RUN. No passphrase was available and sign-in was not bypassed.
+Cache bumps in index.html: lees-v9.css?v=10, lees-v12.css?v=4, lees-v9.js?v=9, lees-v12.js?v=4. sw.js CACHE lees-shell-v14-1.
+Online rule used: Online while last activity is within 10 minutes. An injected idle of 6 minutes still shows Online. Last seen starts after 10 minutes. The 5-minute idle warning still forces presence away while the Still there banner is up.
+View-once notice does not contain the word blocked. The spec's sample sentence did. Item marked PARTIAL.
