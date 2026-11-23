@@ -1,0 +1,15 @@
+# v15 baseline. Recorded at d455926 (v14). These must not change in v15.
+# sha256  path
+e9c60624a32106a9a19f35b541a1862a0b1e444f0de209d29ae2022d237ec123  supabase/functions/notify-message/index.ts
+a566d134b7073e0747e82d65b5376b39b3cc5faa3c2cb81ddf224ad91b4de0d8  supabase/functions/recovery-reset/index.ts
+54f88f14ed7f817b4226e82ebbafb03908e6fc4ffb164c720ebb22385be65426  supabase/functions/setup-recovery/index.ts
+9981309a79c1771087e2f4138cc0ecb011a1a21c44a8ceafae05c7820f857f18  supabase/functions/transcribe-voice/index.ts
+0875fa41466fc4798b7597d261c0f30129ffd9cd9bf1284ab523fabaeec740c7  vercel.json
+
+# 2.1 tag v14-baseline created locally on d455926; push refused by the session's git proxy (HTTP 403). Not on the remote.
+# 2.2 verified: every file above is byte-identical between d455926 and the v15 branch.
+# 3.2 ARTEN holdout baseline (tests/arten-holdout.json, 150 questions, run on the v14 ARTEN code before any v15 ARTEN change):
+#     node tests/arten-holdout.test.cjs
+#     holdout 78/150 = 52.0%  howto 28/38  nav 33/38  personal 14/37  edit 3/37
+#     3.3 target: >= 52.0 x 1.58 = 82.2%  (>= 124/150)
+# Regression set tests/arten-questions.json on the same code: 97/100

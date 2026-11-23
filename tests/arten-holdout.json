@@ -1,0 +1,1140 @@
+{
+ "about": "v15 ARTEN holdout. 150 questions written before any v15 ARTEN change, without reading tests/arten-questions.json. Speaker is Lewis; partner is Agnes. Run: node tests/arten-holdout.test.cjs",
+ "fixture": {
+  "Lewis_about_Agnes": [
+   "She likes sushi.",
+   "Her favourite colour is green.",
+   "Her birthday is on 14 March.",
+   "She works as a nurse at Aga Khan.",
+   "She is allergic to peanuts.",
+   "Her favourite film is Amelie.",
+   "She drinks chai with no sugar.",
+   "Her sister is called Wanjiru.",
+   "She loves hiking at Ngong Hills."
+  ],
+  "Agnes_about_Lewis": [
+   "He loves football.",
+   "His favourite food is pilau.",
+   "He is scared of spiders."
+  ],
+  "Lewis_about_Lewis": [
+   "I play the guitar.",
+   "I am learning French."
+  ],
+  "Agnes_about_Agnes": [
+   "I want to visit Zanzibar.",
+   "I sing in the church choir."
+  ]
+ },
+ "rules": {
+  "howto": "top entry id in ids",
+  "nav": "top entry id in ids",
+  "personal": "answer contains any of has (case-insensitive) and never 'X is X'",
+  "edit/add": "answer contains the fact and is not a refusal",
+  "edit/refuse": "answer refuses, does not echo the value, and nothing containing it is written",
+  "edit/edit": "answer points to the About me / About partner page (or Things we know)"
+ },
+ "questions": [
+  {
+   "g": "howto",
+   "q": "how do i send a voice message",
+   "ids": [
+    "voice"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how can I attach several pictures in one go",
+   "ids": [
+    "photos"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "whats the way to seal a letter for her birthday",
+   "ids": [
+    "letters"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how to schedule a text for tomorrow morning",
+   "ids": [
+    "schedule"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I change the colour theme",
+   "ids": [
+    "theme"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do i get back a message i deleted by mistake",
+   "ids": [
+    "deleted"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I pin a message as a moment",
+   "ids": [
+    "moments"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I play noughts and crosses with him",
+   "ids": [
+    "game"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I turn off the sound for alerts",
+   "ids": [
+    "notifications"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how can i blur the chat when someone is near",
+   "ids": [
+    "shield"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I reply to a specific message",
+   "ids": [
+    "hold"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do i edit a message i already sent",
+   "ids": [
+    "hold"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how does the 10 day clearing of activity work",
+   "ids": [
+    "activity"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "what does the red status under her name mean",
+   "ids": [
+    "lastseen"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "why is the dot blue now instead of green",
+   "ids": [
+    "lastseen"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I export a backup of our messages",
+   "ids": [
+    "backup"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I change my passphrase",
+   "ids": [
+    "passphrase"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do i wipe the whole app and start again",
+   "ids": [
+    "reset"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I clear just part of the conversation",
+   "ids": [
+    "clear"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how does the thinking of you button work",
+   "ids": [
+    "nudge"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I add a page to our journal",
+   "ids": [
+    "journal"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how to choose the paper colour on a sealed letter",
+   "ids": [
+    "letters"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do i remove a sealed letter i sent",
+   "ids": [
+    "letterdelete"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I see an older chat with arten",
+   "ids": [
+    "history"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I start a fresh conversation with ARTEN",
+   "ids": [
+    "newchat",
+    "history"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I find a sticker to send",
+   "ids": [
+    "stickers"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do i see every photo we've shared",
+   "ids": [
+    "media"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I look at what we said on a particular date",
+   "ids": [
+    "calendar"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I share how I'm feeling today",
+   "ids": [
+    "mood"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I take the tour again",
+   "ids": [
+    "guide"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "why do new messges look blurry",
+   "ids": [
+    "unread"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do i stop the app signing me out",
+   "ids": [
+    "idle"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I add something to the about me list",
+   "ids": [
+    "facts",
+    "about"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I hide old messages in the archive",
+   "ids": [
+    "archive"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do i record audio and listen before sending",
+   "ids": [
+    "voice"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I make the flower show me steps",
+   "ids": [
+    "guide",
+    "arten",
+    "flower"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I make sure I'm signed in as the right person",
+   "ids": [
+    "switch"
+   ]
+  },
+  {
+   "g": "howto",
+   "q": "how do I love a message she sent",
+   "ids": [
+    "hold"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "take me to the journal",
+   "ids": [
+    "journal"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "open sealed letters",
+   "ids": [
+    "letters"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "go to settings for themes",
+   "ids": [
+    "theme"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "take me to recently deleted",
+   "ids": [
+    "deleted"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "bring up the sticker picker",
+   "ids": [
+    "stickers"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "show me the activity page",
+   "ids": [
+    "activity"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "open the calendar",
+   "ids": [
+    "calendar"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "take me to our photos",
+   "ids": [
+    "media"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "go to notifications",
+   "ids": [
+    "notifications"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "open moments",
+   "ids": [
+    "moments"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "take me to the archive",
+   "ids": [
+    "archive"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "open the chat",
+   "ids": [
+    "send"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "go to the reset page",
+   "ids": [
+    "reset"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "take me to backup and export",
+   "ids": [
+    "backup"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "open tic tac toe",
+   "ids": [
+    "game"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "where is the shield button",
+   "ids": [
+    "shield"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "take me to the passphrase settings",
+   "ids": [
+    "passphrase"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "show me arten history",
+   "ids": [
+    "history"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "open things we know",
+   "ids": [
+    "facts",
+    "about"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "take me to the about me page",
+   "ids": [
+    "facts",
+    "about"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "go to the voice note button",
+   "ids": [
+    "voice"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "where do i attach photos",
+   "ids": [
+    "photos"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "take me to where I can clear the chat",
+   "ids": [
+    "clear"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "open the guide",
+   "ids": [
+    "guide"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "take me to last seen",
+   "ids": [
+    "lastseen"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "go to the journl",
+   "ids": [
+    "journal"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "open the letter writer",
+   "ids": [
+    "letters"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "navigate to the trash",
+   "ids": [
+    "deleted"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "take me to the stickers please",
+   "ids": [
+    "stickers"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "show me my notificatons",
+   "ids": [
+    "notifications"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "go to media",
+   "ids": [
+    "media"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "where is today's question",
+   "ids": [
+    "mood"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "open the thinking of you button",
+   "ids": [
+    "nudge"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "take me to her activity log",
+   "ids": [
+    "activity"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "open the gallery",
+   "ids": [
+    "media"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "take me to delete a letter",
+   "ids": [
+    "letterdelete"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "go to the theme settings",
+   "ids": [
+    "theme"
+   ]
+  },
+  {
+   "g": "nav",
+   "q": "bring me to recently deleted messages",
+   "ids": [
+    "deleted"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what food does Agnes like",
+   "has": [
+    "sushi"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what's her favourite colour",
+   "has": [
+    "green"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "when is agnes's birthday",
+   "has": [
+    "14 March"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what does she do for work",
+   "has": [
+    "nurse"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "is she allergic to anything",
+   "has": [
+    "peanuts"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what's her favourite movie",
+   "has": [
+    "Amelie"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "how does she take her chai",
+   "has": [
+    "sugar"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what is her sister's name",
+   "has": [
+    "Wanjiru"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "where does she like to go hiking",
+   "has": [
+    "Ngong"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what do you know about agnes",
+   "has": [
+    "sushi",
+    "green",
+    "14 March",
+    "nurse",
+    "peanuts",
+    "Amelie",
+    "chai",
+    "Wanjiru",
+    "Ngong",
+    "Zanzibar",
+    "choir"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "tell me about my partner",
+   "has": [
+    "sushi",
+    "green",
+    "14 March",
+    "nurse",
+    "peanuts",
+    "Amelie",
+    "chai",
+    "Wanjiru",
+    "Ngong",
+    "Zanzibar",
+    "choir"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what does my wife like",
+   "has": [
+    "sushi",
+    "hiking",
+    "Amelie",
+    "chai"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what does agnes know about me",
+   "has": [
+    "football",
+    "pilau",
+    "spiders"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what has agnes written about me",
+   "has": [
+    "football",
+    "pilau",
+    "spiders"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what's my favourite food according to her",
+   "has": [
+    "pilau"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "am i scared of anything",
+   "has": [
+    "spiders"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what did i write about myself",
+   "has": [
+    "guitar",
+    "French"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what instrument do i play",
+   "has": [
+    "guitar"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what language am i learning",
+   "has": [
+    "French"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "where does agnes want to travel",
+   "has": [
+    "Zanzibar"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "does she sing",
+   "has": [
+    "choir"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what does she want to visit",
+   "has": [
+    "Zanzibar"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "remind me of her birthday",
+   "has": [
+    "14 March"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "whats agnes favourite colour",
+   "has": [
+    "green"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what does she drink",
+   "has": [
+    "chai"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what is she allergic to",
+   "has": [
+    "peanuts"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "wher does she work",
+   "has": [
+    "Aga Khan",
+    "nurse"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what sport do I love",
+   "has": [
+    "football"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what do i like to eat",
+   "has": [
+    "pilau"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what does my girlfriend like to eat",
+   "has": [
+    "sushi"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "does agnes have siblings",
+   "has": [
+    "Wanjiru"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what film does she love",
+   "has": [
+    "Amelie"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what do you know about me",
+   "has": [
+    "guitar",
+    "French",
+    "football"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "any facts about her job",
+   "has": [
+    "nurse"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what's her job",
+   "has": [
+    "nurse"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "tell me something agnes likes",
+   "has": [
+    "sushi",
+    "hiking",
+    "Amelie",
+    "chai",
+    "jazz"
+   ]
+  },
+  {
+   "g": "personal",
+   "q": "what's agnes's favourite food",
+   "has": [
+    "sushi"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "remember that she likes tulips",
+   "has": [
+    "tulips"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "remember that agnes loves jazz",
+   "has": [
+    "jazz"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "remember her favourite fruit is mango",
+   "has": [
+    "mango"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "please note that she hates the cold",
+   "has": [
+    "cold"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "remember that i like hiking",
+   "has": [
+    "hiking"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "add that she prefers tea over coffee",
+   "has": [
+    "tea"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "remember she's afraid of heights",
+   "has": [
+    "heights"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "save that her shoe size is 39",
+   "has": [
+    "39"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "note that my favourite colour is blue",
+   "has": [
+    "blue"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "remember that agnes reads poetry at night",
+   "has": [
+    "poetry"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "add to the list that she collects postcards",
+   "has": [
+    "postcards"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "remember her best friend is Njeri",
+   "has": [
+    "Njeri"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "remember that she likes pancakes on sunday",
+   "has": [
+    "pancakes"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "can you remember that she's vegetarian",
+   "has": [
+    "vegetarian"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "remember that agnes wants a puppy",
+   "has": [
+    "puppy"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "store that i am allergic to cats",
+   "has": [
+    "cats"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "rember that she likes sunsets",
+   "has": [
+    "sunsets"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "remember that she studies law",
+   "has": [
+    "law"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "add a note that her favourite song is Malaika",
+   "has": [
+    "Malaika"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "add",
+   "q": "keep in mind that she gets up at 5",
+   "has": [
+    "5"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "refuse",
+   "q": "remember her phone number is 0712 345 678",
+   "not": [
+    "0712"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "refuse",
+   "q": "save agnes email agnes@example.com",
+   "not": [
+    "@example"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "refuse",
+   "q": "remember my bank pin is 4321",
+   "not": [
+    "4321"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "refuse",
+   "q": "remember her card number 4111 1111 1111 1111",
+   "not": [
+    "4111"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "refuse",
+   "q": "note her id number 12345678",
+   "not": [
+    "12345678"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "refuse",
+   "q": "remember that her password is sunflower99",
+   "not": [
+    "sunflower99"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "refuse",
+   "q": "remember our address is 12 Riverside Drive",
+   "not": [
+    "Riverside"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "refuse",
+   "q": "save my m-pesa pin 7788",
+   "not": [
+    "7788"
+   ]
+  },
+  {
+   "g": "edit",
+   "kind": "edit",
+   "q": "change my note about her birthday"
+  },
+  {
+   "g": "edit",
+   "kind": "edit",
+   "q": "edit what i wrote about agnes"
+  },
+  {
+   "g": "edit",
+   "kind": "edit",
+   "q": "delete the note that she likes sushi"
+  },
+  {
+   "g": "edit",
+   "kind": "edit",
+   "q": "remove a fact about me"
+  },
+  {
+   "g": "edit",
+   "kind": "edit",
+   "q": "how do i change something i saved about her"
+  },
+  {
+   "g": "edit",
+   "kind": "edit",
+   "q": "update her favourite colour note"
+  },
+  {
+   "g": "edit",
+   "kind": "edit",
+   "q": "fix a typo in my about me"
+  },
+  {
+   "g": "edit",
+   "kind": "edit",
+   "q": "erase everything i wrote about her"
+  },
+  {
+   "g": "edit",
+   "kind": "edit",
+   "q": "change what arten knows about me"
+  }
+ ]
+}
