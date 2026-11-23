@@ -1,7 +1,7 @@
 PASS A5f purge_retained_for_me called after sign-in (count 1)
 PASS A8-home flower visible on home
 PASS composer placeholder is "Reply…"
-  activity {"days":["Monday 23 November","Sunday 22 November","Friday 20 November"],"clears":["Clears on Thursday 3 December","Clears on Wednesday 2 December","Clears on Monday 30 November"],"counts":["6 actions","3 actions","2 actions"],"old":false,"times":["9:36 pm","7:24 pm","7:24 pm"],"icons":11}
+  activity {"days":["Monday 23 November","Sunday 22 November","Friday 20 November"],"clears":["Clears on Thursday 3 December","Clears on Wednesday 2 December","Clears on Monday 30 November"],"counts":["6 actions","3 actions","2 actions"],"old":false,"times":["9:48 pm","7:36 pm","7:35 pm"],"icons":11}
 PASS A5a day cards with heading, count and "Clears on"
 PASS A5g fixture older than 10 days hidden
 PASS A5b timeline entries with 12-hour time and icon
@@ -21,8 +21,8 @@ PASS A8-chat flower hidden in the conversation (by design; never covers the comp
 PASS A21 sticker picker shows 46 and says "46 stickers · scroll for more"
 PASS A11-sheet-snap short swipe on the sticker sheet snaps back
 PASS A11-sheet long swipe closes the sticker sheet
-  open frames [ms,left,top,w,h] [[63,260,639,117,190],[97,166,409,215,425],[146,78,191,308,649],[180,48,119,339,723],[232,24,60,364,783],[268,15,37,374,806],[321,7,17,383,826],[365,3,7,387,837],[439,0,1,390,843],[490,0,0,390,844],[539,0,0,390,844],[563,0,0,390,844]]
-PASS A9-open box grows from the flower (117px) to the viewport (390x844)
+  open frames [ms,left,top,w,h] [[61,310,762,64,64],[94,211,519,168,313],[143,100,245,285,593],[178,61,150,326,691],[229,30,75,358,767],[263,19,47,370,796],[318,9,23,380,821],[357,5,13,385,831],[431,1,1,389,842],[479,0,0,390,844],[543,0,0,390,844],[577,0,0,390,844]]
+PASS A9-open box grows from the flower (64px) to the viewport (390x844)
 PASS A14 greeting pinned and personalised
 PASS A14b greeting is outside the scrolling list
 PASS A12 thinking: "ARTEN is thinking" at 15px, flower mark animating
@@ -41,7 +41,7 @@ PASS A15b Edit name opens Profile with the name field highlighted; card "Step 1 
 PASS A16a step 1 "Step 1 of 3: close ARTEN"; nothing moved after waiting (ARTEN still open, view home)
 PASS A16b steps advance only when the user taps: "Step 2 of 3: tap Journal" → "Step 3 of 3: tap Write in the journal"
 PASS A7a New chat leaves an empty chat (14→0) and archives the old one (1 archived)
-  history {"days":["Monday 23 November"],"rows":["9:37 pm | how many stickers are there","9:36 pm | how do I write in the journal"],"old":false,"full":true}
+  history {"days":["Monday 23 November"],"rows":["9:49 pm | how many stickers are there","9:48 pm | how do I write in the journal"],"old":false,"full":true}
 PASS A6 chat history full screen, grouped by day, 12-hour times
 PASS A6b conversation older than 10 days not shown
 PASS A6c tapping a row opens the whole conversation
@@ -66,6 +66,6 @@ PASS A17d Seal enabled only with a body and an open time
 PASS A17e saved the same fields: {"title":"Open when you miss me","seal":"wax-gold","paper":"sky","open_at":"2026-11-24T08:00:00.000Z"}
 PASS A17f letter card sent through the normal send path
   thinking ink {"size":15,"color":"rgb(241, 235, 228)","bg":"rgb(33, 29, 26)"}
-  close frames [ms,left,top,w,h] [[11,0,0,390,844],[61,0,0,390,844],[114,144,354,239,482],[185,249,612,128,218],[227,279,687,96,141],[261,291,715,84,112],[311,301,739,74,87],[343,305,749,69,77],[393,308,758,66,68],[443,310,761,64,65],[477,310,762,64,64],[527,0,0,390,844]]
+  close frames [ms,left,top,w,h] [[13,0,0,390,844],[63,0,0,390,844],[115,144,354,239,482],[147,210,517,169,315],[197,262,643,115,185],[247,286,702,90,125],[297,298,733,76,94],[347,305,749,69,77],[397,308,758,66,68],[429,309,761,65,66],[479,310,762,64,64],[529,0,0,390,844]]
 PASS A9-closeframes box shrinks from the viewport back to the flower
 no errors

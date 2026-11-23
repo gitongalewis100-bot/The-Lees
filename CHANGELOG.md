@@ -207,9 +207,34 @@ New: lees-v12.js, lees-v12.css, flower.webp, supabase/RUN_THIS_v12.sql (run once
 - Shell cache is lees-shell-v14-1.
 
 
-## v15 (partial round, 2026-11-23)
-- Online (green, 10 min), Last seen (blue, up to 10 h), red "Seen early yesterday at …" / "Not available right now" after 10 h; 4.5:1 text colours in light and dark themes; times shown as "6:18 pm".
-- Chat composer is one floating pill (+, text, mic, send); ARTEN uses the same bar with only send.
-- Home and stat tiles glassy and tinted by the theme accent; pressed look on Create/Journal removed.
-- Activity page no longer hides the ARTEN flower.
-- supabase/RUN_THIS_v15.sql: arten_items, arten_conversations, 10-day purge (not executed).
+## v15 (2026-11-23 to 24)
+Live on main at 7ebfb5e (core); overnight polish and documents are committed on claude/lees-v15-continuation-m4pvd1, not yet pushed.
+- Status line: green Online (active in the last 10 minutes, after the 3-second delay), blue "Last seen today at 6:18 pm" (up to 10 hours), red "Seen early yesterday at 9:05 am" or "Not available right now" after 10 hours; one line only; 4.5:1 in every theme.
+- Online also counts activity in the last 10 minutes, not only the realtime presence channel (v14 showed Last seen while the person was active).
+- Home and stat tiles: glassy, tinted by the theme accent; Create and Journal no longer look pressed.
+- Chat composer: one floating pill (+, text, mic, send); placeholder "Reply…". ARTEN uses the same pill with only send.
+- Activity: one card per day ("Monday 23 November", action count, "Clears on Thursday 3 December"), sessions as a timeline with 12-hour times and icons, All / Mine / Theirs, Top button, detail sheet with the rest of the session.
+- Activity "Add note" (44px, right-aligned, neutral) opens one field and Send; it goes through sendText as "Note about: …" so notifications fire as for any message.
+- 10-day retention: days older than 10 are hidden; purge_retained_for_me is called after sign-in and when Activity opens (a missing function is ignored).
+- ARTEN opens by zooming out of the flower (420 ms) and closes back into it; reduced motion fades; X, back, Escape, Android back and swipe down close it.
+- ARTEN header: flower in a ring, ARTEN / Your guide to The Lees, close; New chat, History and Take me to under it.
+- ARTEN greeting pinned under the header (good morning/afternoon/evening, your name and your partner's), X hides it for the session.
+- ARTEN chat: assistant on a bordered surface, you in the accent colour; suggestion chips in one row above a floating composer; nothing overlaps (checked at 390x844 and 375x667).
+- ARTEN thinking: the flower beside the name turns and pulses, "ARTEN is thinking / cooking / ARTENING" (plus troubleshooting) at 15px with a shimmer; then a "Thought for 1.2 s" pill. Connecting / Attening and the long word pool are gone.
+- ARTEN answers: a short first sentence, short paragraphs, a bold lead and numbered list only for steps; no "X is X"; never the partner's name twice in one sentence.
+- ARTEN intents: how-to, take me to, personal questions and add/edit requests are told apart; better synonyms, phrases, typo tolerance and rarer-word weighting. Holdout 78/150 → 146/150.
+- ARTEN personal answers come from saved lines by both of you; lines your partner wrote are cited ("Agnes wrote that you love football").
+- ARTEN proposes facts with "Add to the list" and writes only after the tap (source arten); refuses phone numbers, emails, bank and card details, ID numbers, addresses, passwords and secrets.
+- ARTEN chat history: kept per person for 10 days, full screen, grouped by day, 12-hour times, tap for the whole conversation, Back returns to the list.
+- New chat archives the current conversation; sign-out archives it and clears the chat and lees-arten* session keys.
+- Suggestion chips open short action lists (Profile → Edit name / Edit photo / About me; Edit name opens Profile with the field highlighted).
+- "Show me the steps" replaces Take me there / Show me how: a spotlight and "Step 2 of 4: tap the + button" card with Back, Next and Stop; you tap each target; missing targets say so. Steps written for every feature from the real UI.
+- About me and [partner]: two cards of lines with "Written by …" or "Added by ARTEN" and the date; tap to edit, bin or swipe to delete (Cancel / Delete); Add; 300 characters a line, 200 lines a person. Falls back to the v14 notes until the SQL is run.
+- Sealed letter chooser: one page with a live envelope preview, title and letter, To, six 52px wax seals, five papers, Open when (Tomorrow morning, This weekend, Pick a date and time, When they next open the app); Seal enabled only with a letter and a time. Same fields and send path.
+- Stickers: "46 stickers · scroll for more"; the swipe-down now starts on the sheet itself (v14 bound it to the dimmed area above).
+- Flower: shown on home, Activity, Settings, Journal, Sealed letters, Media, Notifications and About; hidden in the chat, ARTEN, the sticker sheet, sheets and full-screen viewers. Pages leave room under their last row.
+- Knowledge base: activity grouping and 10-day clearing, status colours, chat history, New chat, sign-out memory, the chooser, About pages, stickers, the flower and the steps guide, each with eight or more phrasings.
+- Polish: one finish for signed-in surfaces (radii, elevations, hairlines, focus ring, press motion, frosted page header, empty states, banners, sheets).
+- Adaptive rendering: html[data-perf] high / mid / low from device memory, CPU cores, Save-Data, connection, reduced motion and transparency, pixel ratio and a frame-time probe; low removes blur, particles and heavy shadows and slows the flower. Override: localStorage "lees-perf".
+- Cache: sw.js lees-shell-v15-3; lees-v8.css?v=5, lees-v8.js?v=10, lees-v9.js?v=10, lees-v12.css?v=7, lees-v12.js?v=7.
+- supabase/RUN_THIS_v15.sql: arten_items (+ migration from arten_notes), arten_conversations, purge_retained_for_me / purge_retained_all, daily pg_cron at 03:10 UTC, check selects. Not executed.

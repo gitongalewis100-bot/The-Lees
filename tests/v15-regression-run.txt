@@ -1,0 +1,12 @@
+PASS R-signin-wrong wrong passphrase stays locked ("That isn't right. Your passphrase is still there — edit it and try again.")
+PASS R-signin right passphrase opens home
+PASS R-journal journal create / edit / delete {"id":"db48764f-d972-4ebc-afa6-54c89c292dd5","edited":true,"gone":true}
+PASS R-send text sent and the list jumped to the newest (0px from the end)
+PASS R-sticker the 41st sticker sends: [[sticker:leaf]]
+PASS R-sticker-render the sent sticker renders in the thread
+PASS R-sticker-recv a sticker from the other side (#46) renders
+PASS R-restore deleted for both, then restored from Recently deleted (buttons: Restore all, Restore)
+PARTIAL R-ttt board opens in the chat with Challenge {"cells":19,"challenge":true}; a move needs the other player to accept: NOT RUN
+PASS R-idle idle banner: {"text":"Still there? | 26 | You will be signed out in 26 seconds. | Cancel | Sign out","btns":["Cancel","Sign out"]}
+PASS R-idle-cancel Cancel keeps you signed in {"home":true,"banner":false,"unlocked":true}
+no errors

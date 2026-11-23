@@ -2112,7 +2112,9 @@
       var sheet = document.getElementById("sheet");
       var stickerSheet = !!(sheet && !sheet.classList.contains("hidden") && sheet.querySelector(".v9-picker"));
       var modal = document.querySelector("#mediaPreview:not(.hidden), .v9-viewer, .al11, .av12, .v8-overlay, .once-viewer, .ov9, .act15-sheet, .an15, .cb-scrim");
-      var show = !!(a && a.unlocked) && a.view !== "chat" && !stickerSheet && !modal;
+      // While you type in a page field the flower steps aside (the keyboard covers that corner anyway).
+      var ae = document.activeElement, typing = !!(ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && ae.closest && ae.closest("#panel, .act14, #sheet") && !/^(checkbox|radio|button|range)$/.test(ae.type || ""));
+      var show = !!(a && a.unlocked) && a.view !== "chat" && !stickerSheet && !modal && !typing;
       fab.classList.toggle("gone", !show);
       var bottom = 18;
       if (a && (a.view === "home" || !a.view)) {
@@ -2403,6 +2405,8 @@
     if (Arten.built) Arten.position();
   });
   addEventListener("resize", function () { if (Arten.built) Arten.position(); });
+  document.addEventListener("focusin", function () { if (Arten.built) Arten.position(); });
+  document.addEventListener("focusout", function () { setTimeout(function () { if (Arten.built) Arten.position(); }, 60); });
   addEventListener("pagehide", function () { Act.flush(); });
   // Presence changes (their phone going away or coming back) repaint the line within a few seconds.
   setInterval(function () { var a = A(); if (a && a.unlocked) { paintSeen(); scanOwnSends(); watchReading(); if (Arten.built) Arten.position(); } }, 4000);
