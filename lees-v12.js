@@ -19,6 +19,39 @@
     set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
     del: function (k) { try { localStorage.removeItem(k); } catch (e) {} }
   };
+  /* v15: adaptive rendering. The device's own signals decide how strong the visuals are:
+     html[data-perf="high"] full glass and motion, "mid" lighter glass, "low" no blur, no particles, slower flower.
+     Signals: memory, CPU cores, Save-Data and connection type, reduced motion and transparency, pixel ratio, and a
+     short frame-time probe. A manual override is kept in localStorage "lees-perf" (high|mid|low). */
+  var Perf = {
+    tier: "mid", probeMs: 0,
+    signals: function () {
+      var n = typeof navigator !== "undefined" ? navigator : {}, c = n.connection || n.mozConnection || n.webkitConnection || {};
+      var mq = function (q) { try { return matchMedia(q).matches; } catch (e) { return false; } };
+      return { mem: n.deviceMemory || 0, cores: n.hardwareConcurrency || 0, saveData: !!c.saveData, net: c.effectiveType || "", motion: mq("(prefers-reduced-motion: reduce)"), transp: mq("(prefers-reduced-transparency: reduce)"), dpr: window.devicePixelRatio || 1 };
+    },
+    decide: function (s, probe) {
+      if (s.saveData || /(^|-)2g$/.test(s.net) || (s.mem && s.mem <= 2) || (s.cores && s.cores <= 2) || (probe && probe > 28)) return "low";
+      var strong = (!s.mem || s.mem >= 6) && s.cores >= 6 && (!probe || probe < 19);
+      if (s.transp || s.motion) return strong ? "mid" : "low";
+      return strong ? "high" : "mid";
+    },
+    apply: function (t) { this.tier = t; try { document.documentElement.dataset.perf = t; } catch (e) {} document.dispatchEvent(new CustomEvent("lees:perf", { detail: { tier: t } })); },
+    init: function () {
+      var forced = window.__forcePerf || LS.get("lees-perf", null);
+      if (/^(high|mid|low)$/.test(forced || "")) { this.apply(forced); return; }
+      var s = this.signals(), self = this;
+      this.apply(this.decide(s, 0));
+      // Frame-time probe: about 24 frames once the page is idle; a slow device steps down a tier.
+      var t0 = 0, n = 0, start = function () {
+        var tick = function (ts) { if (!t0) t0 = ts; n++; if (n < 24 && !document.hidden) requestAnimationFrame(tick); else if (n >= 24) { self.probeMs = (ts - t0) / (n - 1); self.apply(self.decide(s, self.probeMs)); } };
+        requestAnimationFrame(tick);
+      };
+      if (typeof requestAnimationFrame !== "function") return;
+      if (window.requestIdleCallback) requestIdleCallback(start, { timeout: 3000 }); else setTimeout(start, 1200);
+    }
+  };
+  try { Perf.init(); } catch (e) {}
   function missingFn(err) { var m = String((err && err.message) || "") + " " + String((err && err.code) || ""); return /could not find|does not exist|schema cache|PGRST20|42883|42P01|PGRST205/i.test(m); }
   var P = {
     close: "M18 6L6 18M6 6l12 12", back: "M15 18l-6-6 6-6", next: "M9 6l6 6-6 6", check: "M20 6L9 17l-5-5",
@@ -1013,7 +1046,7 @@
         var si = (sy * w + sx) * 4;
         o[oi] = src[si]; o[oi + 1] = src[si + 1]; o[oi + 2] = src[si + 2]; o[oi + 3] = src[si + 3] * Ed[j];
       }
-      ctx.putImageData(out, 0, 0); if (!still) drawRings(phase);
+      ctx.putImageData(out, 0, 0); if (!still && Perf.tier !== "low") drawRings(phase);
       if (onFrame) onFrame();
     };
     F.sync = function (want) {
@@ -1024,7 +1057,7 @@
     F.loop = function (now) {
       if (!F.running) return;
       var dt = Math.min(0.05, (now - F.last) / 1000);
-      if (dt >= 1 / 30) { F.last = now; F.speed += (F.target - F.speed) * Math.min(1, dt * 3); F.phase += dt * F.speed; F.render(F.phase); }
+      if (dt >= 1 / (Perf.tier === "low" ? 12 : Perf.tier === "mid" ? 24 : 30)) { F.last = now; F.speed += (F.target - F.speed) * Math.min(1, dt * 3); F.phase += dt * F.speed; F.render(F.phase); }
       F.raf = requestAnimationFrame(F.loop);
     };
     F.ready = true;
@@ -2390,7 +2423,7 @@
       try { if (Arten.convo && Arten.convo.messages.length) await Promise.race([Convo.archive(Arten.convo), sleep(2500)]); } catch (e) {}
       clearArtenHistory(); await Act.flush();
     },
-    steps: Steps, stepsFor: stepsFor,
+    steps: Steps, stepsFor: stepsFor, perf: Perf,
     _act: Act, _usage: Usage, _kb: KB, maybeTip: maybeTip
   };
 })();

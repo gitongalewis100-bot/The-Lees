@@ -650,3 +650,81 @@ body:has(.act14) .ar12-fab{z-index:85}
 .ar15 .ar12-form:focus-within{border-color:color-mix(in srgb,var(--accent) 55%,transparent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent),0 10px 30px -12px rgba(0,0,0,.28)}
 /* the Top button sits bottom-left so it never meets the flower in the bottom-right corner */
 .act15 .act14-jump{right:auto;left:16px}
+
+/* =====================================================================================================
+   v15 POLISH. One finish for every signed-in surface (home, chat, pages, sheets, banners, Activity, ARTEN).
+   The lock / sign-in screen is deliberately not included.
+   Tokens: radii 12/16/22/28, spacing 4/8/12/16/24, three elevations, one focus ring, one press motion.
+   ===================================================================================================== */
+:root{--p-r1:12px;--p-r2:16px;--p-r3:22px;--p-r4:28px;--p-ring:0 0 0 3px color-mix(in srgb,var(--accent) 38%,transparent);
+  --p-e1:0 1px 2px rgba(20,14,10,.05),0 2px 8px -2px rgba(20,14,10,.06);
+  --p-e2:0 1px 2px rgba(20,14,10,.05),0 10px 28px -14px rgba(20,14,10,.28);
+  --p-e3:0 2px 6px rgba(20,14,10,.08),0 24px 60px -20px rgba(20,14,10,.42);
+  --p-hair:color-mix(in srgb,var(--ink) 9%,transparent);--p-press:cubic-bezier(.2,.8,.2,1)}
+:root[data-theme="ink"],:root[data-theme="glass"],:root[data-theme="forest-ink"],:root[data-theme="night-bloom"]{--p-hair:color-mix(in srgb,#fff 10%,transparent);
+  --p-e1:0 1px 2px rgba(0,0,0,.4);--p-e2:0 1px 2px rgba(0,0,0,.35),0 12px 30px -14px rgba(0,0,0,.7);--p-e3:0 2px 6px rgba(0,0,0,.4),0 28px 64px -20px rgba(0,0,0,.8)}
+/* Buttons: confident weight, soft sheen on the filled kind, one press motion, a clear focus ring */
+:is(#home,#chat,#panel,#sheet,.cb-scrim,.act14,.ar15,.an15,.st15) .btn{border-radius:var(--p-r2);font-weight:600;letter-spacing:.005em;transition:transform .18s var(--p-press),box-shadow .2s,background-color .2s,opacity .2s}
+:is(#home,#chat,#panel,#sheet,.cb-scrim,.act14,.ar15,.an15) .btn:not(.ghost):not(.danger){background-image:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,0) 55%);box-shadow:var(--p-e1),inset 0 1px 0 rgba(255,255,255,.18)}
+:is(#home,#chat,#panel,#sheet,.cb-scrim,.act14,.ar15,.an15) .btn.ghost{border-color:var(--p-hair);box-shadow:var(--p-e1)}
+:is(#home,#chat,#panel,#sheet,.cb-scrim,.act14,.ar15,.an15,.st15) :is(.btn,.ibtn,.chip,.srow,.ar12-chip,.ar12-act,.ar15-tb,.ar15-ai,.act15-row,.ab15-add,.ab15-main,.an15-add,.st15-b,.v9-seg-b,.act14-f,.v8-card,.v8-write,.v9-write,.v8-sw):active{transform:scale(.97)}
+:is(#home,#chat,#panel,#sheet,.cb-scrim,.act14,.ar15,.an15,.st15) :is(button,[role=button],a,.in,input,textarea,select):focus-visible{outline:none;box-shadow:var(--p-ring)!important}
+/* Inputs: calm surface, a ring on focus instead of a hard border */
+:is(#panel,#sheet,.act14,.an15,.ar15) .in{border-radius:var(--p-r2);border-color:var(--p-hair);background:color-mix(in srgb,var(--surface) 70%,var(--bg));transition:border-color .2s,box-shadow .2s,background-color .2s}
+:is(#panel,#sheet,.act14,.an15,.ar15) .in:focus{border-color:color-mix(in srgb,var(--accent) 60%,transparent);background:var(--surface);box-shadow:var(--p-ring)}
+/* Chips and segmented controls */
+:is(#panel,#sheet,#chat) .chip{border-color:var(--p-hair);color:var(--ink);background:var(--surface);box-shadow:var(--p-e1);transition:background-color .2s,border-color .2s,transform .18s var(--p-press)}
+:is(#panel,#sheet,#chat) .chip.on{background:color-mix(in srgb,var(--accent) 14%,var(--surface));border-color:color-mix(in srgb,var(--accent) 55%,transparent);color:var(--ink);font-weight:600}
+#panel .v9-seg,#sheet .v9-seg{background:color-mix(in srgb,var(--ink) 6%,transparent);box-shadow:inset 0 1px 2px rgba(0,0,0,.05)}
+#panel .v9-seg-b.on,#sheet .v9-seg-b.on{box-shadow:var(--p-e1),0 0 0 1px var(--p-hair)}
+/* Page header: frosted, with a fine hairline; titles get a clear hierarchy */
+#panel .topbar{border-bottom:1px solid var(--p-hair)!important;box-shadow:0 8px 24px -22px rgba(0,0,0,.5)}
+#panel .topbar .title{font-weight:600;letter-spacing:-.01em}
+/* Cards and grouped rows */
+#panel .scard{border-color:var(--p-hair);border-radius:var(--p-r3);box-shadow:var(--p-e2)}
+#panel .srow{min-height:60px;transition:background-color .18s,transform .18s var(--p-press)}
+#panel .srow:hover{background:color-mix(in srgb,var(--ink) 4%,transparent)}
+#panel .srow+.srow::before{content:"";position:absolute;left:62px;right:14px;top:0;height:1px;background:var(--p-hair)}
+#panel .v8-card,#panel .v8-env,#panel .v9-write,#panel .v8-write{border-radius:var(--p-r3);box-shadow:var(--p-e2)}
+/* Empty states: a soft halo behind the icon, and an even rhythm */
+#panel .v9-empty{gap:10px;padding:48px 24px}
+#panel .v9-empty-ic{border-radius:24px;box-shadow:0 0 0 8px color-mix(in srgb,var(--accent) 6%,transparent),var(--p-e1)}
+#panel .v9-empty b{letter-spacing:-.01em}
+/* Pages always leave room for the flower under their last row */
+#panelBody{padding-bottom:calc(104px + env(safe-area-inset-bottom,0px))!important}
+/* Sheets and banners: deeper elevation, refined grab handle */
+#sheetBody{box-shadow:var(--p-e3);border-top:1px solid var(--p-hair)}
+#sheetBody>.grab{width:44px;height:5px;border-radius:3px;background:color-mix(in srgb,var(--ink) 18%,transparent)}
+.cb-scrim{backdrop-filter:blur(6px) saturate(1.2);-webkit-backdrop-filter:blur(6px) saturate(1.2)}
+.cb-box{box-shadow:var(--p-e3)!important;border-color:var(--p-hair)!important}
+.cb-box .cb-row button{min-height:46px;border-radius:var(--p-r2)!important;font-weight:600}
+/* Notifications list rows */
+#panel .nf9-row,#panel .nf-row{border-radius:var(--p-r2)}
+/* Activity, About, ARTEN: share the same elevations and radii */
+.act15-day,.ab15-card{border-color:var(--p-hair);box-shadow:var(--p-e2);border-radius:var(--p-r3)}
+.act15-sh,.an15-card{box-shadow:var(--p-e3)}
+.ar15 .ar12-msg.bot{box-shadow:var(--p-e1);border-color:var(--p-hair)}
+.ar15 .ar12-msg.me{box-shadow:0 6px 16px -10px color-mix(in srgb,var(--accent) 80%,transparent)}
+.ar15-greet{border-color:var(--p-hair);box-shadow:var(--p-e2)}
+.ar15-tb,.ar15-ai,.ar12-chip,.ar12-act{border-color:var(--p-hair)!important;box-shadow:var(--p-e1);transition:transform .18s var(--p-press),background-color .2s}
+.st15-card{box-shadow:var(--p-e3),0 0 0 1px var(--p-hair)}
+/* Sealed letter chooser: the Seal button sits at the end of the page, not over the letter */
+.v15-ch .v8-seal-btn{position:static!important}
+/* Subtle entrance for pages and day cards (high and mid devices only, see data-perf) */
+@keyframes p15rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+:root[data-perf="high"] :is(.act15-day,.ab15-card,#panel .scard),:root[data-perf="mid"] :is(.act15-day,.ab15-card){animation:p15rise .32s var(--p-press) both}
+@media (prefers-reduced-motion:reduce){:is(.act15-day,.ab15-card,#panel .scard){animation:none!important}:is(#home,#chat,#panel,#sheet,.cb-scrim,.act14,.ar15,.an15,.st15) :active{transform:none!important}}
+
+/* ===== v15: adaptive rendering. html[data-perf] is set at boot from the device's own signals. ===== */
+/* mid: lighter glass and shadows */
+:root[data-perf="mid"]{--p-e3:0 2px 6px rgba(20,14,10,.08),0 16px 36px -18px rgba(20,14,10,.36)}
+:root[data-perf="mid"] .tools2 .navbtn,:root[data-perf="mid"] .hx9 .hx9-t{backdrop-filter:blur(8px) saturate(150%)!important;-webkit-backdrop-filter:blur(8px) saturate(150%)!important}
+/* low: no backdrop blur anywhere, flat shadows, no decorative motion or particles */
+:root[data-perf="low"] *,:root[data-perf="low"] *::before,:root[data-perf="low"] *::after{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+:root[data-perf="low"]{--p-e1:0 1px 2px rgba(0,0,0,.08);--p-e2:0 1px 3px rgba(0,0,0,.12);--p-e3:0 2px 10px rgba(0,0,0,.2)}
+:root[data-perf="low"] .tools2 .navbtn,:root[data-perf="low"] .hx9 .hx9-t{box-shadow:0 1px 3px rgba(0,0,0,.12)!important}
+:root[data-perf="low"] :is(.ar12-unit::before,.ar15-tl,.ar15-dot,.ar15-mark.thinking,.ar15-mark.thinking canvas,.gd12-ring::after){animation:none!important}
+:root[data-perf="low"] .ar15-tl{-webkit-text-fill-color:var(--ink)}
+:root[data-perf="low"] .love9-bit:nth-child(n+6){display:none}
+:root[data-perf="low"] .love9-glow{animation:none;opacity:.6}
+:root[data-perf="low"] .ar15 .ar12-list{-webkit-mask-image:none;mask-image:none}

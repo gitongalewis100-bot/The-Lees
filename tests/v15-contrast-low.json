@@ -1,0 +1,425 @@
+[
+ {
+  "theme": "warm",
+  "tile": "Streak: 1 day",
+  "ratio": 10.88,
+  "fg": "rgb(42, 36, 32)",
+  "bg": "rgb(231,214,207)",
+  "texts": 2
+ },
+ {
+  "theme": "warm",
+  "tile": "Mood: Share yours",
+  "ratio": 10.88,
+  "fg": "rgb(42, 36, 32)",
+  "bg": "rgb(231,214,207)",
+  "texts": 2
+ },
+ {
+  "theme": "warm",
+  "tile": "Today's question: 1 new",
+  "ratio": 10.88,
+  "fg": "rgb(42, 36, 32)",
+  "bg": "rgb(231,214,207)",
+  "texts": 2
+ },
+ {
+  "theme": "warm",
+  "tile": "Closeness: 45%",
+  "ratio": 10.88,
+  "fg": "rgb(42, 36, 32)",
+  "bg": "rgb(231,214,207)",
+  "texts": 2
+ },
+ {
+  "theme": "warm",
+  "tile": "Best time: Learning…",
+  "ratio": 10.88,
+  "fg": "rgb(42, 36, 32)",
+  "bg": "rgb(231,214,207)",
+  "texts": 2
+ },
+ {
+  "theme": "warm",
+  "tile": "On this day: None yet",
+  "ratio": 10.88,
+  "fg": "rgb(42, 36, 32)",
+  "bg": "rgb(231,214,207)",
+  "texts": 2
+ },
+ {
+  "theme": "warm",
+  "tile": "Moments",
+  "ratio": 10.88,
+  "fg": "rgb(42, 36, 32)",
+  "bg": "rgb(231,214,207)",
+  "texts": 1
+ },
+ {
+  "theme": "warm",
+  "tile": "Calendar",
+  "ratio": 10.88,
+  "fg": "rgb(42, 36, 32)",
+  "bg": "rgb(231,214,207)",
+  "texts": 1
+ },
+ {
+  "theme": "warm",
+  "tile": "Archive",
+  "ratio": 10.88,
+  "fg": "rgb(42, 36, 32)",
+  "bg": "rgb(231,214,207)",
+  "texts": 1
+ },
+ {
+  "theme": "warm",
+  "tile": "Shield",
+  "ratio": 10.88,
+  "fg": "rgb(42, 36, 32)",
+  "bg": "rgb(231,214,207)",
+  "texts": 1
+ },
+ {
+  "theme": "warm",
+  "tile": "Create: sealed letters a",
+  "ratio": 10.88,
+  "fg": "rgb(42, 36, 32)",
+  "bg": "rgb(231,214,207)",
+  "texts": 1
+ },
+ {
+  "theme": "warm",
+  "tile": "Media",
+  "ratio": 10.88,
+  "fg": "rgb(42, 36, 32)",
+  "bg": "rgb(231,214,207)",
+  "texts": 1
+ },
+ {
+  "theme": "warm",
+  "tile": "Journal",
+  "ratio": 10.88,
+  "fg": "rgb(42, 36, 32)",
+  "bg": "rgb(231,214,207)",
+  "texts": 1
+ },
+ {
+  "theme": "warm",
+  "tile": "Thinking of you",
+  "ratio": 10.88,
+  "fg": "rgb(42, 36, 32)",
+  "bg": "rgb(231,214,207)",
+  "texts": 1
+ },
+ {
+  "theme": "warm",
+  "tile": "Notifications1",
+  "ratio": 10.88,
+  "fg": "rgb(42, 36, 32)",
+  "bg": "rgb(231,214,207)",
+  "texts": 2
+ },
+ {
+  "theme": "warm",
+  "tile": "status green",
+  "ratio": 5.58,
+  "fg": "rgb(17,106,58)",
+  "bg": "rgb(239,234,229)"
+ },
+ {
+  "theme": "warm",
+  "tile": "status blue",
+  "ratio": 6,
+  "fg": "rgb(10,79,196)",
+  "bg": "rgb(239,234,229)"
+ },
+ {
+  "theme": "warm",
+  "tile": "status red",
+  "ratio": 6.13,
+  "fg": "rgb(176,0,32)",
+  "bg": "rgb(239,234,229)"
+ },
+ {
+  "theme": "ink",
+  "tile": "Streak: 1 day",
+  "ratio": 8.96,
+  "fg": "rgb(241, 235, 228)",
+  "bg": "rgb(76,59,51)",
+  "texts": 2
+ },
+ {
+  "theme": "ink",
+  "tile": "Mood: Share yours",
+  "ratio": 8.96,
+  "fg": "rgb(241, 235, 228)",
+  "bg": "rgb(76,59,51)",
+  "texts": 2
+ },
+ {
+  "theme": "ink",
+  "tile": "Today's question: 1 new",
+  "ratio": 8.96,
+  "fg": "rgb(241, 235, 228)",
+  "bg": "rgb(76,59,51)",
+  "texts": 2
+ },
+ {
+  "theme": "ink",
+  "tile": "Closeness: 45%",
+  "ratio": 8.96,
+  "fg": "rgb(241, 235, 228)",
+  "bg": "rgb(76,59,51)",
+  "texts": 2
+ },
+ {
+  "theme": "ink",
+  "tile": "Best time: Learning…",
+  "ratio": 8.96,
+  "fg": "rgb(241, 235, 228)",
+  "bg": "rgb(76,59,51)",
+  "texts": 2
+ },
+ {
+  "theme": "ink",
+  "tile": "On this day: None yet",
+  "ratio": 8.96,
+  "fg": "rgb(241, 235, 228)",
+  "bg": "rgb(76,59,51)",
+  "texts": 2
+ },
+ {
+  "theme": "ink",
+  "tile": "Moments",
+  "ratio": 8.96,
+  "fg": "rgb(241, 235, 228)",
+  "bg": "rgb(76,59,51)",
+  "texts": 1
+ },
+ {
+  "theme": "ink",
+  "tile": "Calendar",
+  "ratio": 8.96,
+  "fg": "rgb(241, 235, 228)",
+  "bg": "rgb(76,59,51)",
+  "texts": 1
+ },
+ {
+  "theme": "ink",
+  "tile": "Archive",
+  "ratio": 8.96,
+  "fg": "rgb(241, 235, 228)",
+  "bg": "rgb(76,59,51)",
+  "texts": 1
+ },
+ {
+  "theme": "ink",
+  "tile": "Shield",
+  "ratio": 8.96,
+  "fg": "rgb(241, 235, 228)",
+  "bg": "rgb(76,59,51)",
+  "texts": 1
+ },
+ {
+  "theme": "ink",
+  "tile": "Create: sealed letters a",
+  "ratio": 8.96,
+  "fg": "rgb(241, 235, 228)",
+  "bg": "rgb(76,59,51)",
+  "texts": 1
+ },
+ {
+  "theme": "ink",
+  "tile": "Media",
+  "ratio": 8.96,
+  "fg": "rgb(241, 235, 228)",
+  "bg": "rgb(76,59,51)",
+  "texts": 1
+ },
+ {
+  "theme": "ink",
+  "tile": "Journal",
+  "ratio": 8.96,
+  "fg": "rgb(241, 235, 228)",
+  "bg": "rgb(76,59,51)",
+  "texts": 1
+ },
+ {
+  "theme": "ink",
+  "tile": "Thinking of you",
+  "ratio": 8.96,
+  "fg": "rgb(241, 235, 228)",
+  "bg": "rgb(76,59,51)",
+  "texts": 1
+ },
+ {
+  "theme": "ink",
+  "tile": "Notifications1",
+  "ratio": 8.96,
+  "fg": "rgb(241, 235, 228)",
+  "bg": "rgb(76,59,51)",
+  "texts": 2
+ },
+ {
+  "theme": "ink",
+  "tile": "status green",
+  "ratio": 9.16,
+  "fg": "rgb(126,232,168)",
+  "bg": "rgb(50,44,41)"
+ },
+ {
+  "theme": "ink",
+  "tile": "status blue",
+  "ratio": 7.58,
+  "fg": "rgb(156,194,255)",
+  "bg": "rgb(50,44,41)"
+ },
+ {
+  "theme": "ink",
+  "tile": "status red",
+  "ratio": 6.72,
+  "fg": "rgb(255,154,143)",
+  "bg": "rgb(50,44,41)"
+ },
+ {
+  "theme": "sage",
+  "tile": "Streak: 1 day",
+  "ratio": 10.6,
+  "fg": "rgb(31, 43, 36)",
+  "bg": "rgb(210,222,213)",
+  "texts": 2
+ },
+ {
+  "theme": "sage",
+  "tile": "Mood: Share yours",
+  "ratio": 10.6,
+  "fg": "rgb(31, 43, 36)",
+  "bg": "rgb(210,222,213)",
+  "texts": 2
+ },
+ {
+  "theme": "sage",
+  "tile": "Today's question: 1 new",
+  "ratio": 10.6,
+  "fg": "rgb(31, 43, 36)",
+  "bg": "rgb(210,222,213)",
+  "texts": 2
+ },
+ {
+  "theme": "sage",
+  "tile": "Closeness: 45%",
+  "ratio": 10.6,
+  "fg": "rgb(31, 43, 36)",
+  "bg": "rgb(210,222,213)",
+  "texts": 2
+ },
+ {
+  "theme": "sage",
+  "tile": "Best time: Learning…",
+  "ratio": 10.6,
+  "fg": "rgb(31, 43, 36)",
+  "bg": "rgb(210,222,213)",
+  "texts": 2
+ },
+ {
+  "theme": "sage",
+  "tile": "On this day: None yet",
+  "ratio": 10.6,
+  "fg": "rgb(31, 43, 36)",
+  "bg": "rgb(210,222,213)",
+  "texts": 2
+ },
+ {
+  "theme": "sage",
+  "tile": "Moments",
+  "ratio": 10.6,
+  "fg": "rgb(31, 43, 36)",
+  "bg": "rgb(210,222,213)",
+  "texts": 1
+ },
+ {
+  "theme": "sage",
+  "tile": "Calendar",
+  "ratio": 10.6,
+  "fg": "rgb(31, 43, 36)",
+  "bg": "rgb(210,222,213)",
+  "texts": 1
+ },
+ {
+  "theme": "sage",
+  "tile": "Archive",
+  "ratio": 10.6,
+  "fg": "rgb(31, 43, 36)",
+  "bg": "rgb(210,222,213)",
+  "texts": 1
+ },
+ {
+  "theme": "sage",
+  "tile": "Shield",
+  "ratio": 10.6,
+  "fg": "rgb(31, 43, 36)",
+  "bg": "rgb(210,222,213)",
+  "texts": 1
+ },
+ {
+  "theme": "sage",
+  "tile": "Create: sealed letters a",
+  "ratio": 10.6,
+  "fg": "rgb(31, 43, 36)",
+  "bg": "rgb(210,222,213)",
+  "texts": 1
+ },
+ {
+  "theme": "sage",
+  "tile": "Media",
+  "ratio": 10.6,
+  "fg": "rgb(31, 43, 36)",
+  "bg": "rgb(210,222,213)",
+  "texts": 1
+ },
+ {
+  "theme": "sage",
+  "tile": "Journal",
+  "ratio": 10.6,
+  "fg": "rgb(31, 43, 36)",
+  "bg": "rgb(210,222,213)",
+  "texts": 1
+ },
+ {
+  "theme": "sage",
+  "tile": "Thinking of you",
+  "ratio": 10.6,
+  "fg": "rgb(31, 43, 36)",
+  "bg": "rgb(210,222,213)",
+  "texts": 1
+ },
+ {
+  "theme": "sage",
+  "tile": "Notifications1",
+  "ratio": 10.6,
+  "fg": "rgb(31, 43, 36)",
+  "bg": "rgb(210,222,213)",
+  "texts": 2
+ },
+ {
+  "theme": "sage",
+  "tile": "status green",
+  "ratio": 5.59,
+  "fg": "rgb(17,106,58)",
+  "bg": "rgb(232,236,232)"
+ },
+ {
+  "theme": "sage",
+  "tile": "status blue",
+  "ratio": 6.01,
+  "fg": "rgb(10,79,196)",
+  "bg": "rgb(232,236,232)"
+ },
+ {
+  "theme": "sage",
+  "tile": "status red",
+  "ratio": 6.14,
+  "fg": "rgb(176,0,32)",
+  "bg": "rgb(232,236,232)"
+ }
+]

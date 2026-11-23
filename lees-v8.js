@@ -395,12 +395,14 @@
       // To, Wax seal, Paper and Open when. Same fields, same writes, same send path as before.
       body.classList.add("v15-ch");
       var prev = el("div", "v15-prev");
+      // "Opens Tuesday 24 November at 8:00 am" (12-hour, lowercase am/pm), for the preview only.
+      var prevWhen = function (t) { var d = new Date(t), W = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], M = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"], h = d.getHours(), m = d.getMinutes(); return W[d.getDay()] + " " + d.getDate() + " " + M[d.getMonth()] + " at " + ((h % 12) || 12) + ":" + String(m).padStart(2, "0") + " " + (h < 12 ? "am" : "pm"); };
       var paintPrev = function () {
         var t = draft.onOpen ? Date.now() + 60000 : Date.parse(dt.value);
         prev.textContent = "";
         var art = envelopeArt({ from: a.me, to: a.other, seal: draft.seal, paper: draft.paper, openAt: isFinite(t) ? t : Date.now() + 864e5 }, true);
         var cap = el("div", "v15-prev-cap");
-        cap.append(el("b", "", title.value.trim() || "A sealed letter"), el("span", "", draft.onOpen ? "Opens when " + a.name(a.other) + " next opens the app" : (isFinite(t) && t > Date.now() ? "Opens " + fmtWhen(t) : "Choose when it opens")));
+        cap.append(el("b", "", title.value.trim() || "A sealed letter"), el("span", "", draft.onOpen ? "Opens when " + a.name(a.other) + " next opens the app" : (isFinite(t) && t > Date.now() ? "Opens " + prevWhen(t) : "Choose when it opens")));
         prev.append(art, cap);
       };
       var sheet = el("div", "v8-compose");
