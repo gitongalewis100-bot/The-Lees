@@ -149,7 +149,7 @@
     return d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short", year: d.getFullYear() === now.getFullYear() ? undefined : "numeric" });
   }
   function hm(t) { return hm12(t); }
-  function hm12(t) { return new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }); }
+  function hm12(t) { return new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }).replace(/\s?([AP])M$/, function (m, x) { return " " + x.toLowerCase() + "m"; }); }
   function ago(t) {
     var s = Math.max(0, (Date.now() - t) / 1000);
     if (s < 60) return "just now"; if (s < 3600) return Math.round(s / 60) + " min ago"; if (s < 86400) return Math.round(s / 3600) + " h ago";
@@ -165,23 +165,27 @@
   }
   function lastSeenOf(side) {
     var a = A(); if (!a) return 0;
-    var m = (a.members || {})[side] || {}, list = Act.list(side);
-    return Math.max(m.lastSeen || 0, list.length ? list[0].at : 0);
+    var m = (a.members || {})[side] || {}, list = Act.list(side), p = a.presence && a.presence[side];
+    var pt = p && !p.away ? Number(p.ts || 0) : 0;
+    return Math.max(m.lastSeen || 0, list.length ? list[0].at : 0, pt);
   }
-  function seenText(side, short) {
-    if (isOnline(side)) return short ? "Online" : "Online now";
-    var t = lastSeenOf(side);
-    if (!t) return "";
-    return "Last seen " + dayLabel(t) + " at " + hm12(t);
+  // Three states from the time of the last activity: online (10 min or less), last seen (up to 10 hours), red (longer).
+  var TEN_MIN = 10 * 60 * 1000, TEN_HOURS = 10 * 3600 * 1000;
+  function statusOf(side) {
+    var t = lastSeenOf(side), now = Date.now();
+    if (isOnline(side)) return { k: "on", text: "Online now", t: now };
+    var last = Act.list(side)[0], gone = last && (last.action === "signout" || last.action === "idle") && last.at >= (t - 1000);
+    if (t && now - t <= TEN_MIN && !gone) return { k: "on", text: "Online now", t: t };
+    if (t && now - t <= TEN_HOURS) return { k: "seen", text: "Last seen " + dayLabel(t) + " at " + hm12(t), t: t };
+    if (t && dayLabel(t) === "yesterday") return { k: "off", text: "Seen early yesterday at " + hm12(t), t: t };
+    return { k: "off", text: "Not available right now", t: t };
   }
+  function seenText(side, short) { var st = statusOf(side); return st.k === "on" && short ? "Online" : st.text; }
   // Chat header line (called by the app's presence renderer every few seconds).
   function presenceLine(remote, zoneTime, status) {
     var a = A(); if (!a || !a.me) return null;
-    var o = a.other;
-    if (isOnline(o)) return { text: "Online now" + (status ? " · " + status : ""), live: true };
-    var s = seenText(o);
-    if (!s) return null;
-    return { text: s + (zoneTime ? " · their time " + zoneTime : ""), live: false };
+    var st = statusOf(a.other);
+    return { text: st.text + (st.k === "on" && status ? " \u00b7 " + status : "") + (st.k !== "on" && zoneTime ? " \u00b7 their time " + zoneTime : ""), live: st.k === "on", k: st.k };
   }
   // Home card and chat header get a clear "Online / Last seen" line; both open the activity page.
   function paintSeen() {
@@ -190,12 +194,11 @@
     if (card) {
       var strip = card.querySelector(".seen12");
       if (!strip) { strip = el("button", "seen12"); strip.type = "button"; strip.addEventListener("click", function (e) { e.stopPropagation(); var app = A(); if (app && app.openChat) app.openChat(); }); card.appendChild(strip); }
-      var on = isOnline(o), t = lastSeenOf(o);
-      var text = on ? "Online now" : t ? seenText(o) : "Not seen yet";
-      var sig = text + "|" + on;
+      var st = statusOf(o), on = st.k === "on", text = st.text;
+      var sig = text + "|" + st.k;
       if (strip.dataset.sig !== sig) {
         strip.dataset.sig = sig;
-        strip.className = "seen12" + (on ? " on" : "");
+        strip.className = "seen12 " + st.k;
         strip.innerHTML = '<i class="seen12-dot"></i><span class="seen12-t"></span>' + svg(P.next, "i seen12-chev");
         strip.querySelector(".seen12-t").textContent = text;
         strip.setAttribute("aria-label", text + ". Open the chat");
@@ -208,7 +211,7 @@
   }
   function bothOnlineNotice() {
     var a = A(); if (!a || !a.me || !a.other || !a.notice || !a.pairId) return;
-    if (!isOnline(a.me) || !isOnline(a.other)) return;
+    if (statusOf(a.me).k !== "on" || statusOf(a.other).k !== "on") return;
     var key = "lees-both-online-" + a.pairId, last = 0;
     try { last = Number(localStorage.getItem(key) || 0); } catch (e) {}
     if (last && Date.now() - last < 30 * 60 * 1000) return;
@@ -1457,7 +1460,7 @@
     position: function () {
       if (!this.fab) return;
       var a = A(), fab = this.fab;
-      var show = !!(a && a.unlocked) && a.view !== "chat" && !document.querySelector("#mediaPreview, .v9-viewer, .al11, .av12, .v8-overlay, .love9, .act14, .once-viewer");
+      var show = !!(a && a.unlocked) && a.view !== "chat" && !document.querySelector("#mediaPreview, .v9-viewer, .al11, .av12, .v8-overlay, .love9, .once-viewer");
       fab.classList.toggle("gone", !show);
       var bottom = 18;
       if (a && a.view === "chat") {

@@ -498,7 +498,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 <link rel="stylesheet" href="/lees-v8.css?v=4">
 <link rel="stylesheet" href="/lees-v9.css?v=10">
 <link rel="stylesheet" href="/lees-v11.css?v=5">
-<link rel="stylesheet" href="/lees-v12.css?v=4">
+<link rel="stylesheet" href="/lees-v12.css?v=5">
 </head>
 <body>
 
@@ -2837,7 +2837,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     try { zoneTime = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true, timeZone: S(other()).tz }); } catch {}
     const status = S(other()).status;
     const line = window.LeesV12 && LeesV12.presenceLine ? LeesV12.presenceLine(remote, zoneTime, status) : null;
-    if (line) { if (p.textContent !== line.text) p.textContent = line.text; p.classList.toggle("live", !!line.live); p.classList.toggle("away12", !line.live); }
+    if (line) { if (p.textContent !== line.text) p.textContent = line.text; p.classList.toggle("live", !!line.live); p.classList.toggle("away12", !line.live); p.classList.remove("k-on", "k-seen", "k-off"); p.classList.add("k-" + (line.k || "on")); }
     else p.textContent = zoneTime ? NAME[other()] + " · " + zoneTime + (status ? " · " + status : "") : "private";
     const act = typing ? partnerAct : "type";
     if (window.LeesHooks && LeesHooks.onTyping) LeesHooks.onTyping(!!typing, partnerEnergy || "mid", NAME[other()], act);
@@ -8704,7 +8704,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 <script src="/lees-v9.js?v=9" defer></script>
 <script src="/lees-v10.js?v=2" defer></script>
 <script src="/lees-v11.js?v=2" defer></script>
-<script src="/lees-v12.js?v=4" defer></script>
+<script src="/lees-v12.js?v=5" defer></script>
 <script>
   // Offline shell: the app opens without a connection after one visit. Data comes from the on-device copy.
   if ("serviceWorker" in navigator && location.protocol === "https:") {

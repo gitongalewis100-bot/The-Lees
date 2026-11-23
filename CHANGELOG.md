@@ -206,3 +206,10 @@ New: lees-v12.js, lees-v12.css, flower.webp, supabase/RUN_THIS_v12.sql (run once
 - 25 new stickers (46 in total). Reduced motion keeps them still.
 - Shell cache is lees-shell-v14-1.
 
+
+## v15 (partial round, 2026-11-23)
+- Online (green, 10 min), Last seen (blue, up to 10 h), red "Seen early yesterday at …" / "Not available right now" after 10 h; 4.5:1 text colours in light and dark themes; times shown as "6:18 pm".
+- Chat composer is one floating pill (+, text, mic, send); ARTEN uses the same bar with only send.
+- Home and stat tiles glassy and tinted by the theme accent; pressed look on Create/Journal removed.
+- Activity page no longer hides the ARTEN flower.
+- supabase/RUN_THIS_v15.sql: arten_items, arten_conversations, 10-day purge (not executed).
