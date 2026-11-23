@@ -497,7 +497,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 </style>
 <link rel="stylesheet" href="/lees-v8.css?v=4">
 <link rel="stylesheet" href="/lees-v9.css?v=8">
-<link rel="stylesheet" href="/lees-v11.css?v=4">
+<link rel="stylesheet" href="/lees-v11.css?v=5">
+<link rel="stylesheet" href="/lees-v12.css?v=2">
 </head>
 <body>
 
@@ -2210,10 +2211,13 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
      liked, replied to, saved, shared or forwarded on its own. */
   const ALBUM_GAP_MS = 2 * 60 * 1000;
   function albumable(m) {
-    return m && m.kind === "image" && !m.deleted && !m.once && !m.pending && !String(m.id).startsWith("local-") && (!m.effect || m.effect === "none") && !m.replyTo && !privatelyHidden(m);
+    if (!m || m.deleted || m.once || (m.effect && m.effect !== "none") || m.replyTo || privatelyHidden(m)) return false;
+    // A set sent together (batch) folds even while it is still sending, and may mix photos and videos.
+    if (m.batchId) return m.kind === "image" || m.kind === "video";
+    return m.kind === "image" && !m.pending && !String(m.id).startsWith("local-");
   }
   function albumRev(ms, seen, isLastMine) {
-    return ms.map(m => m.id + ":" + (m.hearts || []).join(",") + ":" + (m.text || "")).join("|") + "|" + (shield ? 1 : 0) + "|" + (isLastMine ? (seen[other()] || 0) : 0) + "|" + otherReadReceipts;
+    return ms.map(m => m.id + ":" + (m.hearts || []).join(",") + ":" + (m.text || "") + ":" + (m.pending ? (m.failed ? "f" : "p") : "")).join("|") + "|" + (shield ? 1 : 0) + "|" + (isLastMine ? (seen[other()] || 0) : 0) + "|" + otherReadReceipts;
   }
   function buildAlbumRow(ms, seen, isLastMine) {
     const last = ms[ms.length - 1], mine = last.from === me;
@@ -2236,10 +2240,19 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       t.dataset.aid = m.id;
       t.dataset.ts = String(m.ts);
       t.setAttribute("aria-label", "Photo " + (i + 1) + " of " + ms.length);
-      const img = new Image();
-      img.className = "a9-img"; img.alt = ""; img.loading = "lazy"; img.decoding = "async"; img.draggable = false;
-      mediaURL(m.mid).then(u => { if (u) img.src = u; else t.classList.add("broken"); }).catch(() => t.classList.add("broken"));
-      t.appendChild(img);
+      if (m.kind === "video") {
+        const v = document.createElement("video");
+        v.className = "a9-img"; v.muted = true; v.playsInline = true; v.preload = "metadata";
+        mediaURL(m.mid).then(u => { if (u) v.src = u + "#t=0.1"; else t.classList.add("broken"); }).catch(() => t.classList.add("broken"));
+        t.appendChild(v);
+        t.insertAdjacentHTML("beforeend", '<span class="a9-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>');
+      } else {
+        const img = new Image();
+        img.className = "a9-img"; img.alt = ""; img.loading = "lazy"; img.decoding = "async"; img.draggable = false;
+        mediaURL(m.mid).then(u => { if (u) img.src = u; else t.classList.add("broken"); }).catch(() => t.classList.add("broken"));
+        t.appendChild(img);
+      }
+      if (m.pending || m.failed) { t.classList.add(m.failed ? "a9-failed" : "a9-sending"); t.insertAdjacentHTML("beforeend", '<span class="a9-spin" aria-hidden="true"></span>'); }
       const h = heartCount(m);
       if (h) { const hb = el("span", "a9-heart" + (likedByMe(m) ? " on" : "")); hb.innerHTML = ic("heart", "sm"); if (h > 1) hb.appendChild(el("b", "", String(h))); t.appendChild(hb); }
       const extra = ms.length - 4;
@@ -2279,7 +2292,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     });
     const meta = el("div", "stack");
     meta.appendChild(el("span", "", fmtTime(last.ts)));
-    meta.appendChild(el("span", "a9-count", "· " + ms.length + " photos"));
+    const vids = ms.filter(m => m.kind === "video").length;
+    meta.appendChild(el("span", "a9-count", "· " + ms.length + (vids === ms.length ? " videos" : vids ? " items" : " photos")));
+    if (ms.some(m => m.pending)) meta.appendChild(el("span", "a9-count sending", "· sending " + ms.filter(m => !m.pending).length + "/" + ms.length));
     const hearts = ms.reduce((n, m) => n + heartCount(m), 0);
     if (hearts) meta.appendChild(el("span", "a9-hsum", "♥ " + hearts));
     card.appendChild(meta);
@@ -2417,14 +2432,15 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (s >= m.ts && otherReadReceipts) return { cls: "rc-seen", label: "SEEN " + fmtTime(s) };
     return { cls: "rc-delivered", label: "DELIVERED" };
   }
-  // A message counts as read only once it has passed the invisible line, 40% down the chat.
-  // Arriving messages never count as read by themselves: you must scroll down to them.
-  // Reaching the bottom reads everything. The unread count always reflects what is past the line.
+  // A message counts as read once the whole card is in view above the message box (the invisible line sits
+  // just above the composer). Arriving messages never count as read by themselves: you must scroll to them.
+  // A card taller than the view counts once its top has passed the upper third. Reaching the bottom reads all.
   let readSyncTimer = 0;
   function passUnread(allowPass) {
     if (!unlocked || view !== "chat") return;
     const box = $("list");
-    const line = box.getBoundingClientRect().top + box.clientHeight * 0.4;
+    const br = box.getBoundingClientRect();
+    const line = br.top + box.clientHeight - 6, tall = br.top + box.clientHeight * 0.34;
     let cut = cacheSeen[me] || 0;
     const rows = [...box.querySelectorAll(".row.theirs[data-ts]")];
     const before = unreadN;
@@ -2436,7 +2452,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         for (const row of rows) {
           const ts = Number(row.dataset.ts);
           if (ts <= cut) continue;
-          if (row.getBoundingClientRect().top >= line) break;
+          const rr = row.getBoundingClientRect();
+          if (rr.bottom > line && !(rr.height > box.clientHeight * 0.66 && rr.top <= tall)) break;
           target = Math.max(target, ts);
         }
       }
@@ -2447,7 +2464,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         readSyncTimer = setTimeout(() => syncReadCursor(cacheSeen[me]), 600);
       }
     }
-    unreadN = visibleList().filter(m => m.from !== me && !m.deleted && m.ts > cut).length;
+    unreadN = countCards(visibleList().filter(m => m.from !== me && !m.deleted && m.ts > cut));
     if (unreadN !== before || allowPass) renderBanner();
     for (const row of rows) row.classList.toggle("unread-glass", Number(row.dataset.ts) > cut);
   }
@@ -2572,16 +2589,17 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     for (let i = 0; i < want.length; i++) {
       const a = want[i];
       if (!a.msg || !albumable(a.msg) || a.msg.text) continue;
-      const run = [a];
+      const run = [a], bid = a.msg.batchId;
       for (let j = i + 1; j < want.length; j++) {
         const b = want[j], prev = run[run.length - 1].msg;
-        if (!b.msg || !albumable(b.msg) || b.msg.from !== prev.from || b.msg.ts - prev.ts > ALBUM_GAP_MS) break;
+        if (!b.msg || !albumable(b.msg) || b.msg.from !== prev.from) break;
+        if (bid ? b.msg.batchId !== bid : (b.msg.batchId || b.msg.ts - prev.ts > ALBUM_GAP_MS)) break;
         run.push(b);
         if (b.msg.text) break;
       }
       if (run.length < 2) continue;
       const ms = run.map(x => x.msg);
-      want.splice(i, run.length, { key: "album:" + (ms[0].clientId || ms[0].id), album: ms, last: run.some(x => x.last), end: run.some(x => x.end) });
+      want.splice(i, run.length, { key: "album:" + (bid || ms[0].clientId || ms[0].id), album: ms, last: run.some(x => x.last), end: run.some(x => x.end) });
     }
 
     const have = new Map();
@@ -2741,7 +2759,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     let zoneTime = "";
     try { zoneTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZone: S(other()).tz }); } catch {}
     const status = S(other()).status;
-    p.textContent = zoneTime ? NAME[other()] + " · " + zoneTime + (status ? " · " + status : "") : "private";
+    const line = window.LeesV12 && LeesV12.presenceLine ? LeesV12.presenceLine(remote, zoneTime, status) : null;
+    if (line) { if (p.textContent !== line.text) p.textContent = line.text; p.classList.toggle("live", !!line.live); p.classList.toggle("away12", !line.live); }
+    else p.textContent = zoneTime ? NAME[other()] + " · " + zoneTime + (status ? " · " + status : "") : "private";
     const act = typing ? partnerAct : "type";
     if (window.LeesHooks && LeesHooks.onTyping) LeesHooks.onTyping(!!typing, partnerEnergy || "mid", NAME[other()], act);
     if (typing) showTypingRow(partnerEnergy || "mid", act);
@@ -3202,6 +3222,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function showView(name, how) {
     const prev = view;
     view = name;
+    if (prev !== name) document.dispatchEvent(new CustomEvent("lees:view", { detail: { view: name, prev } }));
     closeActions(); closeThemeBar();
     const all = ["lock", "home", "chat", "panel"];
     const node = $(name);
@@ -3244,6 +3265,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (nested && panelBuild && curTitle !== title) panelStack.push({ title: curTitle, sub: $("panelSub").textContent, build: panelBuild, top: $("panelBody").scrollTop });
     if (!nested) { panelStack = []; panelBackTo = backTo || "home"; }
     const refresh = nested && curTitle === title;
+    if (!refresh) document.dispatchEvent(new CustomEvent("lees:panel", { detail: { title } }));
     panelBuild = build;
     $("panelTitle").textContent = title;
     $("panelSub").textContent = sub || "";
@@ -3584,7 +3606,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     { id: "privacy", name: "Privacy", icon: "eyeoff", tint: "#4f7a5e", sub: "Receipts, blurring, transcripts" },
     { id: "security", name: "Security & sign-in", icon: "lock", tint: "#4a6fa5", sub: "Scanner, passphrase, locks" },
     { id: "data", name: "Messages & data", icon: "archive", tint: "#8b5a3c", sub: "Archive, export, backup" },
-    { id: "play", name: "Letters, games & awards", icon: "trophy", tint: "#b04a63", sub: "Sealed letters, trophies" }
+    { id: "play", name: "Letters, games & awards", icon: "trophy", tint: "#b04a63", sub: "Sealed letters, trophies" },
+    { id: "help", name: "Guide & ARTEN", icon: "sparkle", tint: "#4b6cd9", sub: "Tour, tips, ask anything" }
   ];
   // Words people use for a setting that are not in its label.
   const SET_SYNONYMS = {
@@ -3818,7 +3841,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     add("data", { id: "clear", label: "Clear conversation", keywords: "delete erase wipe all messages", build: () => setRow({ id: "clear", icon: "trash", label: "Clear conversation", sub: "Asks before anything is removed", danger: true, onClick: () => { if (window.LeesV9 && LeesV9.openClear) LeesV9.openClear(); else if (window.LeesHooks && LeesHooks.clearConversation) LeesHooks.clearConversation(); } }) });
     // Extras from other modules (letters, games, awards).
     const extra = (window.LeesSettingsExtra && window.LeesSettingsExtra()) || [];
-    for (const e of extra) add(e.cat || "play", { id: e.id, label: e.label, keywords: e.keywords || "", build: () => setRow({ id: e.id, icon: e.icon || "sparkle", label: e.label, sub: e.sub, value: e.value, onClick: e.run }) });
+    for (const e of extra) add(e.cat || "play", { id: e.id, label: e.label, keywords: e.keywords || "", build: e.build || (() => e.toggle
+      ? switchRow({ id: e.id, icon: e.icon || "sparkle", label: e.label, sub: e.sub, get: e.toggle.get, set: e.toggle.set })
+      : setRow({ id: e.id, icon: e.icon || "sparkle", label: e.label, sub: e.sub, value: e.value, danger: !!e.danger, onClick: e.run })) });
     return R;
   }
   const stillPanel = (f) => { f.still = true; return f; };
@@ -4462,6 +4487,13 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       draw();
     });
   }
+  function swapIfChanged(live, fresh) {
+    const sig = fresh.innerHTML;
+    if (live.childNodes.length && live._sig === sig) return false;
+    live._sig = sig;
+    live.replaceChildren(...fresh.childNodes);
+    return true;
+  }
   function renderHome() {
     if (!unlocked) return;
     chatGate = false;
@@ -4476,9 +4508,11 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     av.textContent = me === "Lewis" ? "L" : "A";
     bindAvatar(av);
 
-    const nav = $("navrow");
-    nav.textContent = "";
-    nav.className = "navrow homegrid";
+    // Home is rebuilt off-screen and swapped in only when something on it changed. The 4-second sync used to
+    // rebuild it every time, which restarted animations and re-drew every emoji (the flicker on home).
+    const navLive = $("navrow");
+    navLive.className = "navrow homegrid";
+    const nav = document.createElement("div");
     const bucket = el("div", "navbtn settings-box");
     const main = el("button", "settings-main");
     main.type = "button";
@@ -4527,9 +4561,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     live.id = "live";
     tools.append(grid, live);
     nav.append(bucket, tools);
+    swapIfChanged(navLive, nav);
 
-    const people = $("people");
-    people.textContent = "";
+    const peopleLive = $("people");
+    const people = document.createElement("div");
     const other2 = other();
     const otherBtn = el("button", "person hero lift");
     const unreadChat = unreadN;
@@ -4548,6 +4583,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       if (g) g.insertAdjacentHTML("beforeend", '<span class="draft-tag">Draft</span>');
     }
     people.appendChild(otherBtn);
+    swapIfChanged(peopleLive, people);
     fillAvatars();
     renderPlay();
     loadCloudDraft();
@@ -5018,6 +5054,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (!ok) return;
     if (which === "other") signOutEverywhere();
     else {
+      try { if (window.LeesV12 && LeesV12.beforeSignOut) await LeesV12.beforeSignOut("signout"); } catch (e) {}
       try { const client = cloudClient(); if (client) await client.auth.signOut(); } catch {}
       dropSnapshot();
       lock();
@@ -5264,7 +5301,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
   // A staged set: one or more photos, videos or audio files sent together with one tap.
   // The getters point at the item on screen in the preview, so the editing code works on it unchanged.
-  const STAGE_MAX = 10;
+  const STAGE_MAX = 30;
   function makeItem(kind, blob, extra, label) {
     return { kind, blob, extra: extra || {}, label, thumb: kind === "audio" ? null : URL.createObjectURL(blob), source: (extra && extra.source) || null, ed: null };
   }
@@ -5481,12 +5518,26 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (stagedMedia.kind !== "image") pvUrl = URL.createObjectURL(stagedMedia.blob);
     const ov = document.createElement("div");
     ov.id = "mediaPreview";
-    ov.className = "mp-overlay mp8";
+    ov.className = "mp-overlay mp8 mp12";
     ov.setAttribute("role", "dialog");
     ov.setAttribute("aria-modal", "true");
     ov.setAttribute("aria-label", "Preview before sending");
-    ov.innerHTML = '<div class="mp-top"></div><div class="mp-stage"></div><div class="mp-opts"></div><div class="mp-bar"></div>';
+    ov.innerHTML = '<div class="mp-top"></div><div class="mp-stage"></div><div class="mp-dock"></div><div class="mp-strip"></div><div class="mp-opts"></div><div class="mp-bar"></div>';
     document.body.appendChild(ov);
+    // Swipe the photo (or use the arrow keys) to move through the set.
+    const stg = ov.querySelector(".mp-stage");
+    let sx = null, sy = 0;
+    stg.addEventListener("pointerdown", (e) => { if (e.target.closest("button,video[controls]")) return; sx = e.clientX; sy = e.clientY; });
+    stg.addEventListener("pointerup", (e) => {
+      if (sx === null || !stagedMedia) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
+      if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.4) { const j = stagedMedia.idx + (dx < 0 ? 1 : -1); if (j >= 0 && j < stagedMedia.items.length) switchItem(j); }
+    });
+    ov.addEventListener("keydown", (e) => {
+      if (!stagedMedia || /TEXTAREA|INPUT/.test((e.target || {}).tagName || "")) return;
+      if (e.key === "ArrowRight" && stagedMedia.idx < stagedMedia.items.length - 1) switchItem(stagedMedia.idx + 1);
+      if (e.key === "ArrowLeft" && stagedMedia.idx > 0) switchItem(stagedMedia.idx - 1);
+    });
     paintPreview(true);
     history.pushState && history.pushState({ lp: "preview" }, "");
   }
@@ -5529,84 +5580,97 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
         stage.append(card);
       }
     }
+    // v12 layout: header with count and position, the photo with arrows and swipe, a labelled tool dock,
+    // a scrollable strip, two clear switches, and the caption with one Send for the whole set.
+    const n = stagedMedia.items.length, idx = stagedMedia.idx;
+    const photos = stagedMedia.items.filter(it => it.kind === "image").length, vids = stagedMedia.items.filter(it => it.kind === "video").length;
+    const what = n === 1 ? (isPhoto ? "1 photo" : stagedMedia.kind === "video" ? "1 video" : "Audio") : photos === n ? n + " photos" : vids === n ? n + " videos" : n + " items";
     top.textContent = "";
-    top.append(mpIcon(PV_ICONS.close, "Discard and close", () => removeFromPreview()));
-    top.append(Object.assign(el("span", "grow"), {}));
-    if (isPhoto) {
-      top.append(mpIcon(PV_ICONS.rotate, "Rotate", () => { ped.rot = (ped.rot + 90) % 360; refreshPreviewImg(); }));
-      const flip = mpIcon(PV_ICONS.flip, "Flip", () => { ped.flip = !ped.flip; flip.classList.toggle("on", ped.flip); refreshPreviewImg(); });
-      flip.classList.toggle("on", ped.flip);
-      top.append(flip);
-      const crop = mpIcon(PV_ICONS.crop, "Crop: " + CROPS[ped.cropIdx][1], () => {
-        ped.cropIdx = (ped.cropIdx + 1) % CROPS.length; ped.ratio = CROPS[ped.cropIdx][0];
-        crop.classList.toggle("on", ped.ratio !== null); crop.dataset.tag = ped.ratio === null ? "" : CROPS[ped.cropIdx][1];
-        crop.setAttribute("aria-label", "Crop: " + CROPS[ped.cropIdx][1]);
-        refreshPreviewImg();
-      });
-      crop.classList.toggle("on", ped.ratio !== null); crop.dataset.tag = ped.ratio === null ? "" : CROPS[ped.cropIdx][1];
-      top.append(crop);
-      const hd = mpIcon(PV_ICONS.hd, "Send in HD", () => { ped.hd = !ped.hd; hd.classList.toggle("on", ped.hd); hd.setAttribute("aria-pressed", String(ped.hd)); });
-      hd.classList.toggle("on", ped.hd); hd.setAttribute("aria-pressed", String(ped.hd));
-      top.append(hd);
-    } else if (stagedMedia.kind === "video") {
-      const m = $("pvMedia");
-      const mb = mpIcon(m && m.muted ? PV_ICONS.mute : PV_ICONS.sound, "Preview sound", () => { if (!m) return; m.muted = !m.muted; mb.querySelector("path").setAttribute("d", m.muted ? PV_ICONS.mute : PV_ICONS.sound); });
-      top.append(mb);
+    top.append(mpIcon(PV_ICONS.close, n > 1 ? "Discard all and close" : "Discard and close", () => removeFromPreview()));
+    const head = el("div", "mp-head");
+    head.append(el("b", "", what), el("span", "", n > 1 ? "Sent together as one · " + (idx + 1) + " of " + n : "To " + NAME[other()]));
+    top.append(head);
+    if (n > 1) top.append(el("span", "mp-count mono", (idx + 1) + " / " + n));
+    stage.querySelectorAll(".mp-nav").forEach(x => x.remove());
+    if (n > 1) {
+      const nav = (dir, label, d) => { const b = el("button", "mp-nav " + dir); b.type = "button"; b.setAttribute("aria-label", label); b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '"/></svg>'; b.addEventListener("click", (e) => { e.stopPropagation(); switchItem(idx + (dir === "prev" ? -1 : 1)); }); return b; };
+      if (idx > 0) stage.append(nav("prev", "Previous", "M15 18l-6-6 6-6"));
+      if (idx < n - 1) stage.append(nav("next", "Next", "M9 6l6 6-6 6"));
     }
-    let strip = ov.querySelector(".mp-strip");
-    if (!strip) { strip = el("div", "mp-strip"); ov.insertBefore(strip, opts); }
-    strip.textContent = "";
-    {
-      stagedMedia.items.forEach((it, i) => {
-        const t = el("button", "mp-th" + (i === stagedMedia.idx ? " on" : ""));
-        t.type = "button";
-        t.setAttribute("aria-label", "Item " + (i + 1));
-        if (it.kind === "image") { const im = new Image(); im.src = it.thumb; im.alt = ""; t.appendChild(im); }
-        else if (it.kind === "video") { const v = document.createElement("video"); v.src = it.thumb; v.muted = true; v.preload = "metadata"; v.playsInline = true; t.appendChild(v); t.insertAdjacentHTML("beforeend", '<span class="mp-th-play"></span>'); }
-        else t.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></svg>';
-        if (stagedMedia.items.length > 1) {
-          const x = el("span", "mp-th-x"); x.setAttribute("role", "button"); x.setAttribute("aria-label", "Remove item " + (i + 1)); x.textContent = "×";
-          x.addEventListener("click", (e) => { e.stopPropagation(); const [gone] = stagedMedia.items.splice(i, 1); if (gone.thumb) URL.revokeObjectURL(gone.thumb); stagedMedia.idx = Math.min(stagedMedia.idx, stagedMedia.items.length - 1); switchItem(stagedMedia.idx, true); });
-          t.appendChild(x);
-        }
-        t.addEventListener("click", () => switchItem(i));
-        strip.appendChild(t);
-      });
-      if (stagedMedia.items.length < STAGE_MAX) {
-        const more = el("button", "mp-th add");
-        more.type = "button"; more.setAttribute("aria-label", "Add more");
-        more.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
-        more.addEventListener("click", () => { const f = $("file"); f.accept = "image/*,video/*,audio/*"; f.multiple = true; f.click(); });
-        strip.appendChild(more);
-      }
-    }
-    opts.textContent = "";
-    const pill = (label, on, fn, d) => {
-      const b = el("button", "mp-pill" + (on ? " on" : ""));
+    const dock = ov.querySelector(".mp-dock");
+    dock.textContent = "";
+    const tool = (d, label, fn, on) => {
+      const b = el("button", "mp-dk" + (on ? " on" : ""));
       b.type = "button"; b.setAttribute("aria-pressed", String(!!on));
-      b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '"/></svg><span></span>';
-      b.querySelector("span").textContent = label;
-      b.addEventListener("click", () => { fn(); const v = b.getAttribute("aria-pressed") !== "true"; b.classList.toggle("on", v); b.setAttribute("aria-pressed", String(v)); haptic("press"); });
+      b.innerHTML = '<span class="mp-dk-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '"/></svg></span><span class="mp-dk-l"></span>';
+      b.querySelector(".mp-dk-l").textContent = label;
+      b.addEventListener("click", () => { haptic("press"); fn(b); });
       return b;
     };
+    const setLab = (b, t, on) => { b.querySelector(".mp-dk-l").textContent = t; b.classList.toggle("on", !!on); b.setAttribute("aria-pressed", String(!!on)); };
+    if (isPhoto) {
+      dock.append(
+        tool(PV_ICONS.rotate, "Rotate", () => { ped.rot = (ped.rot + 90) % 360; refreshPreviewImg(); }),
+        tool(PV_ICONS.flip, "Flip", (b) => { ped.flip = !ped.flip; setLab(b, "Flip", ped.flip); refreshPreviewImg(); }, ped.flip),
+        tool(PV_ICONS.crop, ped.ratio === null ? "Crop" : "Crop " + CROPS[ped.cropIdx][1], (b) => { ped.cropIdx = (ped.cropIdx + 1) % CROPS.length; ped.ratio = CROPS[ped.cropIdx][0]; setLab(b, ped.ratio === null ? "Crop" : "Crop " + CROPS[ped.cropIdx][1], ped.ratio !== null); refreshPreviewImg(); }, ped.ratio !== null),
+        tool(PV_ICONS.hd, ped.hd ? "HD on" : "HD", (b) => { ped.hd = !ped.hd; setLab(b, ped.hd ? "HD on" : "HD", ped.hd); }, ped.hd)
+      );
+    } else if (stagedMedia.kind === "video") {
+      const m = $("pvMedia");
+      dock.append(tool(m && m.muted ? PV_ICONS.mute : PV_ICONS.sound, m && m.muted ? "Sound off" : "Sound on", (b) => { if (!m) return; m.muted = !m.muted; b.querySelector("path").setAttribute("d", m.muted ? PV_ICONS.mute : PV_ICONS.sound); setLab(b, m.muted ? "Sound off" : "Sound on", !m.muted); }, m && !m.muted));
+    }
+    if (n > 1) dock.append(tool(PV_ICONS.trash, "Remove", () => { const [gone] = stagedMedia.items.splice(idx, 1); if (gone && gone.thumb) URL.revokeObjectURL(gone.thumb); stagedMedia.idx = Math.min(idx, stagedMedia.items.length - 1); switchItem(stagedMedia.idx, true); }));
+    dock.classList.toggle("hidden", !dock.childNodes.length);
+    const strip = ov.querySelector(".mp-strip");
+    strip.textContent = "";
+    stagedMedia.items.forEach((it, i) => {
+      const t = el("button", "mp-th" + (i === idx ? " on" : ""));
+      t.type = "button";
+      t.setAttribute("aria-label", "Item " + (i + 1) + " of " + n);
+      if (it.kind === "image") { const im = new Image(); im.src = it.thumb; im.alt = ""; im.decoding = "async"; t.appendChild(im); }
+      else if (it.kind === "video") { const v = document.createElement("video"); v.src = it.thumb; v.muted = true; v.preload = "metadata"; v.playsInline = true; t.appendChild(v); t.insertAdjacentHTML("beforeend", '<span class="mp-th-play"></span>'); }
+      else t.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></svg>';
+      if (it.ed && (it.ed.rot || it.ed.flip || it.ed.ratio || it.ed.hd)) t.insertAdjacentHTML("beforeend", '<span class="mp-th-ed" aria-hidden="true"></span>');
+      t.appendChild(el("span", "mp-th-n", String(i + 1)));
+      t.addEventListener("click", () => switchItem(i));
+      strip.appendChild(t);
+    });
+    if (n < STAGE_MAX) {
+      const more = el("button", "mp-th add");
+      more.type = "button"; more.setAttribute("aria-label", "Add more (up to " + STAGE_MAX + ")");
+      more.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+      more.addEventListener("click", () => { const f = $("file"); f.accept = "image/*,video/*,audio/*"; f.multiple = true; f.click(); });
+      strip.appendChild(more);
+    }
+    requestAnimationFrame(() => { const on = strip.querySelector(".mp-th.on"); if (on && on.scrollIntoView) on.scrollIntoView({ inline: "center", block: "nearest", behavior: full ? "auto" : "smooth" }); });
+    opts.textContent = "";
+    const sw = (label, sub, on, fn) => {
+      const b = el("button", "mp-sw" + (on ? " on" : ""));
+      b.type = "button"; b.setAttribute("role", "switch"); b.setAttribute("aria-checked", String(!!on));
+      b.innerHTML = '<span class="mp-sw-t"><b></b><small></small></span><i class="mp-sw-k"></i>';
+      b.querySelector("b").textContent = label; b.querySelector("small").textContent = sub;
+      b.addEventListener("click", () => { fn(); const v = b.getAttribute("aria-checked") !== "true"; b.classList.toggle("on", v); b.setAttribute("aria-checked", String(v)); haptic("press"); });
+      return b;
+    };
+    const allAudio = stagedMedia.items.every(it => it.kind === "audio");
     opts.append(
-      pill(stagedMedia && stagedMedia.items.every(it => it.kind === "audio") ? "Listen once" : "View once", sendOpts.once, () => { sendOpts.once = !sendOpts.once; }, "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM11 8h2v8"),
-      pill("Quiet", sendOpts.quiet, () => { sendOpts.quiet = !sendOpts.quiet; }, "M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M3 3l18 18")
+      sw(allAudio ? "Listen once" : "View once", n > 1 ? "Each opens one time" : "Opens one time", sendOpts.once, () => { sendOpts.once = !sendOpts.once; }),
+      sw("Quiet", "No sound or buzz", sendOpts.quiet, () => { sendOpts.quiet = !sendOpts.quiet; })
     );
     bar.textContent = "";
     const cap = document.createElement("textarea");
-    cap.rows = 1; cap.className = "mp-cap"; cap.placeholder = "Add a message…"; cap.value = $("input").value;
-    cap.setAttribute("aria-label", "Message to send with this");
+    cap.rows = 1; cap.className = "mp-cap"; cap.placeholder = n > 1 ? "Add a caption for all " + n + "…" : "Add a caption…"; cap.value = $("input").value;
+    cap.setAttribute("aria-label", "Caption sent with " + (n > 1 ? "the set" : "this"));
     const fit = () => { cap.style.height = "auto"; cap.style.height = Math.min(cap.scrollHeight, 120) + "px"; };
     cap.addEventListener("input", () => { $("input").value = cap.value; fit(); });
     cap.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && window.matchMedia("(pointer:fine)").matches) { e.preventDefault(); sendFromPreview(); } });
     const send = document.createElement("button");
-    send.type = "button"; send.className = "mp-send"; send.setAttribute("aria-label", "Send");
-    send.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>';
+    send.type = "button"; send.className = "mp-send"; send.setAttribute("aria-label", n > 1 ? "Send all " + n + " as one" : "Send");
+    send.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>' + (n > 1 ? '<span class="mp-send-n">' + n + "</span>" : "");
     send.addEventListener("click", () => sendFromPreview());
-    const who = el("div", "mp-to mono", "To " + NAME[other()]);
-    bar.append(who, Object.assign(el("div", "mp-compose"), {}));
-    bar.querySelector(".mp-compose").append(cap, send);
+    const compose = el("div", "mp-compose");
+    compose.append(cap, send);
+    bar.append(compose);
     setTimeout(fit, 0);
   }
   function switchItem(i, force) {
@@ -6339,6 +6403,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   async function idleSignOut() {
     if (!unlocked || idleSignOut.busy) return;
     idleSignOut.busy = true;
+    try { if (window.LeesV12 && LeesV12.beforeSignOut) await LeesV12.beforeSignOut("idle"); } catch (e) {}
     try { const client = cloudClient(); if (client) await client.auth.signOut(); } catch {}
     lock();
     idleSignOut.busy = false;
@@ -6400,7 +6465,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       replyTo: r.reply_to || null, effect: r.effect || "none", hiddenBy: r.hidden_for || [],
       deletedFor: r.deleted_for || [], deleted: !!r.deleted, moment: !!r.moment,
       history: r.history || [], edited: !!r.edited, editedAt: r.edited_at ? new Date(r.edited_at).getTime() : null,
-      late: !!r.late, dur: r.dur || 0, transcript: r.transcript || "", noArchive: !!r.no_archive, archived: !!r.archived, pending: false, clientId: r.client_id || null, once: !!r.once, openedBy: r.opened_by || [], quiet: !!r.quiet
+      late: !!r.late, dur: r.dur || 0, transcript: r.transcript || "", noArchive: !!r.no_archive, archived: !!r.archived, pending: false, clientId: r.client_id || null, once: !!r.once, openedBy: r.opened_by || [], quiet: !!r.quiet, batchId: r.batch_id || null
     };
   }
   function noteFromRow(r) {
@@ -6409,7 +6474,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   function memberView(row) {
     let vib = true;
     try { vib = localStorage.getItem("pp-vibrate-" + row.side) !== "0"; } catch (e) {}
-    return { vibrate: vib, lens: row.lens || "auto", status: row.status || "", tz: row.tz || "UTC", haptics: row.haptics !== false, sound: row.sound !== false, autoBlur: row.auto_blur !== false, shake: !!row.shake, blurWords: row.blur_words || [], avatar_path: row.avatar_path || "", chatTheme: row.chat_theme || "", chatStyle: row.chat_style || {} };
+    return { vibrate: vib, lens: row.lens || "auto", status: row.status || "", tz: row.tz || "UTC", haptics: row.haptics !== false, sound: row.sound !== false, autoBlur: row.auto_blur !== false, shake: !!row.shake, blurWords: row.blur_words || [], avatar_path: row.avatar_path || "", chatTheme: row.chat_theme || "", chatStyle: row.chat_style || {}, lastSeen: row.last_seen_at ? Date.parse(row.last_seen_at) || 0 : 0 };
   }
   // Supabase returns at most 1,000 rows per request, so the conversation is read in pages; without this, messages
   // after the first 1,000 were silently missing.
@@ -6580,7 +6645,14 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   // The badge counts the same list the thread shows, so the badge and the thread never disagree.
   function localUnreadCount() {
     const cut = cacheSeen[me] || 0;
-    return visibleList().filter(m => m.from !== me && !m.deleted && m.ts > cut).length;
+    return countCards(visibleList().filter(m => m.from !== me && !m.deleted && m.ts > cut));
+  }
+  // Unread counts cards, not rows: photos sent together (one batch) are one message.
+  function countCards(list) {
+    const seen = new Set();
+    let n = 0;
+    for (const m of list) { if (m.batchId) { if (seen.has(m.batchId)) continue; seen.add(m.batchId); } n++; }
+    return n;
   }
   async function refreshUnread() {
     unreadN = localUnreadCount();
@@ -6642,6 +6714,36 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     }, 60);
   }
 
+  /* Photos and videos sent together arrive as many rows. They make ONE alert: same batch_id (or, from an older
+     app, media from the same person within a few seconds). The alert waits 1.2 s after the last item, then says
+     how many arrived. While the chat is open there is one sound and one buzz for the whole set. */
+  const bursts = new Map();
+  function burstKey(m) {
+    if (m.batchId) return "b:" + m.batchId;
+    if ((m.kind === "image" || m.kind === "video") && !m.text) return "s:" + m.from;
+    return null;
+  }
+  function collectBurst(m, watching) {
+    const key = burstKey(m);
+    let b = bursts.get(key);
+    if (!b) {
+      b = { items: [], t: 0, rang: false };
+      bursts.set(key, b);
+      if (watching && ppShouldAlert(m)) { chime(); arrivalBuzz(); b.rang = true; }
+    }
+    b.items.push(m);
+    clearTimeout(b.t);
+    b.t = setTimeout(() => {
+      bursts.delete(key);
+      const list = b.items, n = list.length, first = list[0];
+      if (b.rang || (view === "chat" && !document.hidden)) return;
+      const photos = list.filter(x => x.kind === "image").length, videos = list.filter(x => x.kind === "video").length;
+      const what = n === 1 ? previewOf(first).slice(0, 140)
+        : photos === n ? n + " photos" : videos === n ? n + " videos" : (photos ? photos + (photos === 1 ? " photo" : " photos") : "") + (photos && videos ? " and " : "") + (videos ? videos + (videos === 1 ? " video" : " videos") : "") + (n - photos - videos ? " and " + (n - photos - videos) + " more" : "");
+      const cap = list.map(x => x.text).filter(Boolean).pop();
+      alertMe("message", NAME[first.from], n === 1 ? what : "Sent " + what + (cap ? " · " + cap.slice(0, 80) : ""), { quiet: list.every(x => x.quiet), ref: "batch-" + (first.batchId || first.id), side: first.from, noFeed: true, action: { label: "See them", run: () => openChat() } });
+    }, 1200);
+  }
   function subscribePair() {
     const client = cloudClient();
     if (!client || !pairId) return;
@@ -6667,7 +6769,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
             if (m.effect && m.effect !== "none") pendingFx.add(m.id);
             const wasNearRt = view === "chat" && nearBottom();
             const dotsRect = consumeTypingRow();
-            if (view !== "chat") unreadN += 1;
+            if (view !== "chat") unreadN = localUnreadCount();
             render();
             if (window.LeesHooks && LeesHooks.arrived && dotsRect) LeesHooks.arrived(dotsRect, [m.id]);
             const runFx = () => { if (m.effect && m.effect !== "none") playEffect(m); };
@@ -6675,6 +6777,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
             const watching = view === "chat" && !document.hidden;
             const crd = m.kind === "text" && cardOf(m.text);
             if (crd && crd.t === "nudge") { /* its own heartbeat alert already played */ }
+            else if (burstKey(m)) collectBurst(m, watching);
             else if (watching) { if (ppShouldAlert(m)) { chime(); arrivalBuzz(); } }
             else if (crd && crd.t === "letter") alertMe("letter", NAME[m.from] + " sealed a letter for you", (crd.title ? "“" + crd.title + "” · " : "") + "Opens " + fmtDateTime(Date.parse(crd.at) || Date.now()), { ref: m.id, side: m.from, action: { label: "See it", run: () => { if (window.LeesFeatures && LeesFeatures.openLetterById) LeesFeatures.openLetterById(crd.id); } }, actions: [{ label: "Open chat", run: () => openChat() }] });
             else if (crd && crd.t === "game") alertMe("game", NAME[m.from] + " challenged you", "Tic-tac-toe, live", { ref: m.id, side: m.from, action: { label: "Play", run: () => { if (window.LeesFeatures) LeesFeatures.openGame(); } } });
@@ -6712,6 +6815,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     nudgeChannel = client.channel("pair-" + pairId + "-nudge")
       .on("broadcast", { event: "nudge" }, (msg) => receiveNudge(msg && msg.payload))
       .on("broadcast", { event: "mood" }, (msg) => receiveMood(msg && msg.payload))
+      .on("broadcast", { event: "reset" }, (msg) => { const p = (msg && msg.payload) || {}; if (unlocked && p.from !== me) document.dispatchEvent(new CustomEvent("lees:remote-reset", { detail: p })); })
+      .on("broadcast", { event: "act" }, (msg) => { const p = (msg && msg.payload) || {}; if (unlocked && p.from !== me) document.dispatchEvent(new CustomEvent("lees:remote-act", { detail: p })); })
       .on("broadcast", { event: "cleared" }, (msg) => { const p = (msg && msg.payload) || {}; if (!unlocked || p.from === me) return; const fromT = p.from ? Date.parse(p.from) : -Infinity, toT = p.to ? Date.parse(p.to) : Infinity; cacheThread = cacheThread.filter(m => m.pending || !(m.ts >= fromT && m.ts < toT)); reloadAll().then(() => { if (unlocked) render(); }); })
       .subscribe();
     if (presenceChannel) client.removeChannel(presenceChannel);
@@ -7005,7 +7110,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
           const up = await client.storage.from("media").upload(path, blob, { contentType: blob.type || "application/octet-stream", upsert: true });
           if (up.error) throw up.error;
           const ins = await client.from("messages").insert({
-            pair_id: pairId, sender_id: myUserId, kind: item.kind, text: item.text || null, media_path: path, dur: item.dur || null, effect: item.effect || "none", once: !!item.once, quiet: !!item.quiet, reply_to: item.replyTo || null, client_id: item.clientId
+            pair_id: pairId, sender_id: myUserId, kind: item.kind, text: item.text || null, media_path: path, dur: item.dur || null, effect: item.effect || "none", once: !!item.once, quiet: !!item.quiet, reply_to: item.replyTo || null, client_id: item.clientId, ...(item.batchId && batchColumn ? { batch_id: item.batchId } : {})
           }).select().maybeSingle();
           if (ins.error) {
             await client.storage.from("media").remove([path]);
@@ -7076,6 +7181,76 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       notice("Waiting to send", "It will send when you are back online.");
     }
   }
+  /* A staged set goes out as ONE send: every item carries the same batch_id, so the other side gets one alert
+     (in the app and on Telegram) and one album card. Files upload three at a time; rows are inserted in the
+     staged order so the album keeps that order. The caption goes with the last item. One Undo covers the set. */
+  let batchColumn = true;
+  async function sendBatch(items, text, opts) {
+    const client = cloudClient();
+    const batchId = uid();
+    const now0 = Date.now();
+    const jobs = [];
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i], clientId = uid(), localId = "local-" + clientId;
+      const capt = (i === items.length - 1 && text) ? text : "";
+      try { await putBlob(localId, it.blob); } catch { notice("Couldn't save that file", "Storage may be full.", { error: true }); return; }
+      const m = { id: localId, from: me, ts: now0 + i, hearts: [], kind: it.kind, mid: localId, pending: true, dur: (it.extra && it.extra.dur) || 0, text: capt, effect: "none", clientId, once: !!opts.once, openedBy: [], replyTo: null, batchId };
+      cacheThread = thread().concat([m]);
+      jobs.push({ it, clientId, localId, capt, path: pairId + "/" + clientId });
+    }
+    clearBar(); render({ stick: true }); haptic("send");
+    const offline = !client || !navigator.onLine;
+    const typeOf = (it) => it.blob.type || (it.kind === "image" ? "image/jpeg" : it.kind === "video" ? "video/mp4" : "audio/webm");
+    // Uploads: three in flight at a time.
+    const ups = new Array(jobs.length);
+    if (!offline) {
+      let next = 0;
+      const lane = async () => { while (next < jobs.length) { const k = next++; const j = jobs[k]; ups[k] = client.storage.from("media").upload(j.path, j.it.blob, { contentType: typeOf(j.it), upsert: false }).then(r => r, e => ({ error: e })); await ups[k]; } };
+      const lanes = [lane(), lane(), lane()];
+      void lanes;
+    }
+    const sent = [], failed = [];
+    for (let k = 0; k < jobs.length; k++) {
+      const j = jobs[k];
+      try {
+        if (offline) throw new Error("offline");
+        while (!ups[k]) await new Promise(r => setTimeout(r, 30));
+        const up = await ups[k];
+        if (up.error) throw up.error;
+        const row = { pair_id: pairId, sender_id: myUserId, kind: j.it.kind, text: j.capt || null, media_path: j.path, dur: (j.it.extra && j.it.extra.dur) || null, effect: "none", client_id: j.clientId, once: !!opts.once, quiet: !!opts.quiet, undo_until: undoUntilIso() };
+        if (batchColumn) row.batch_id = batchId;
+        let ins = await client.from("messages").insert(row).select().maybeSingle();
+        if (ins.error && batchColumn && /batch_id|PGRST204|42703/.test((ins.error.message || "") + " " + (ins.error.code || ""))) {
+          batchColumn = false; delete row.batch_id;
+          ins = await client.from("messages").insert(row).select().maybeSingle();
+        }
+        if (ins.error) { await client.storage.from("media").remove([j.path]); throw ins.error; }
+        sent.push({ id: ins.data && ins.data.id, path: j.path });
+        await delBlob(j.localId);
+      } catch (e) {
+        failed.push(j);
+        markFailed(j.localId);
+        const box = outbox();
+        box.push({ kind: j.it.kind, clientId: j.clientId, blobId: j.localId, dur: (j.it.extra && j.it.extra.dur) || null, text: j.capt || null, effect: "none", once: !!opts.once, quiet: !!opts.quiet, replyTo: null, localId: j.localId, batchId });
+        saveOutbox(box);
+      }
+    }
+    cacheThread = thread().filter(x => !(x.pending && x.batchId === batchId && !failed.some(f => f.localId === x.id)));
+    await reloadAll();
+    render();
+    document.dispatchEvent(new CustomEvent("lees:activity", { detail: { action: "send_media", detail: items.length + " " + (items.every(x => x.kind === "image") ? "photos" : "items") + " in one send" } }));
+    if (failed.length) notice(failed.length + " waiting to send", "They'll go when the connection is back.", { error: true });
+    else if (sent.length) {
+      const until = Date.now() + UNDO_MS;
+      notice(sent.length + " sent as one", "", { action: { label: "Undo", run: async () => {
+        if (Date.now() > until) { notice("Too late to undo", "", { error: true }); return; }
+        let ok = 0;
+        for (const x of sent) { if (!x.id) continue; const r = await client.rpc("undo_send", { p_id: x.id }); if (!r.error && r.data === true) { ok++; await client.storage.from("media").remove([x.path]); cacheThread = cacheThread.filter(m => m.id !== x.id); } }
+        await reloadAll(); render();
+        notice(ok ? "Removed " + ok : "Too late to undo", "", ok ? undefined : { error: true });
+      } } });
+    }
+  }
   /* Undo send: five seconds after a send, the notice offers Undo. Undo calls undo_send (server decides,
      it returns true only inside the window), then removes the bubble and any file. */
   const undoUntilIso = () => new Date(Date.now() + UNDO_MS).toISOString();
@@ -7114,11 +7289,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       sendOpts = { once: false, quiet: false };
       renderHoldBar();
       const items = sm.items.slice();
-      for (let i = 0; i < items.length; i++) {
-        const it = items[i];
-        // The message goes with the last item, so it reads under the whole set.
-        await addMedia(it.kind, it.blob, { ...it.extra, text: (i === items.length - 1 && text) ? text : null, ...opts });
-      }
+      if (items.length === 1) await addMedia(items[0].kind, items[0].blob, { ...items[0].extra, text: text || null, ...opts });
+      else await sendBatch(items, text, opts);
       releaseStaged(sm);
       return;
     }
@@ -8260,6 +8432,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     markSeen: async () => { const latest = visibleList().reduce((mx, m) => Math.max(mx, m.ts || 0), cacheSeen[me] || 0); if (!latest) return; cacheSeen[me] = latest; unreadN = 0; renderBanner(); renderBellCount(); await syncReadCursor(latest); },
     openChatAt: (start, end) => openChat(false, { day: { start, end } }), fillAvatars, archiveMessage: async (id) => { const c = cloudClient(); const r = await c.rpc("archive_message", { p_id: id }); if (!r.error) { await reloadAll(); render(); } return !r.error; },
     appThemeId, setAppTheme, chatLook, setChatLook, restoreMany, syncProblems: () => syncProblems.slice(), broadcast, openVault, sendCard: (o) => sendPlainText(cardText(o)), cardOf, forwardSheet, forwardMessages, saveMedia, shareMessages, likedByMe, heartCount, setEmoji, setMoment, openMoments, fmtDur, store, typeTagline, openDraw, setReply, jumpToMessage,
+    switchRow, choiceSheet, confirmAct, openSettings, openSettingsCategory, openNotifications: () => openNotifications(), openJournal: () => openJournal(), openCalendar: () => openCalendar(), openMedia: () => openMedia(), openArchive: () => openArchive(), openLockSetup: () => openLockSetup(), renderHome: () => renderHome(), lockNow: () => lock(), countCards,
+    passUnread: (allow) => passUnread(allow), presenceTrack: (o) => { try { if (presenceChannel) return presenceChannel.track(o); } catch (e) {} return null; },
     get specialDays() { return specialDays; }, nudgeReady: () => Math.max(0, Number(store.get("pp-nudge-at", 0)) + NUDGE_GAP - Date.now())
   });
   // Live values: real getters, so callers always see the current data.
@@ -8267,6 +8441,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     journal: { get: () => cacheJournal || [], configurable: true },
     specialDays: { get: () => specialDays, set: (v) => { specialDays = v; }, configurable: true },
     seen: { get: () => cacheSeen, configurable: true },
+    presence: { get: () => presenceState, configurable: true },
+    pairSettings: { get: () => (lastSnap ? lastSnap.settings : null), configurable: true },
+    members: { get: () => cacheMembers, configurable: true },
+    unreadN: { get: () => unreadN, configurable: true },
     draft: { get: () => $("input").value, set: (v) => { $("input").value = v; autosize(); saveDraft(true); }, configurable: true }
   });
   document.addEventListener("visibilitychange", () => { if (!document.hidden && unlocked) document.dispatchEvent(new CustomEvent("lees:resume")); });
@@ -8286,12 +8464,13 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   })();
 })();
 </script>
-<script src="/lees-emoji.js?v=1" defer></script>
+<script src="/lees-emoji.js?v=2" defer></script>
 <script src="/lees-patch.js?v=18" defer></script>
-<script src="/lees-v8.js?v=6" defer></script>
+<script src="/lees-v8.js?v=7" defer></script>
 <script src="/lees-v9.js?v=8" defer></script>
 <script src="/lees-v10.js?v=2" defer></script>
 <script src="/lees-v11.js?v=2" defer></script>
+<script src="/lees-v12.js?v=2" defer></script>
 <script>
   // Offline shell: the app opens without a connection after one visit. Data comes from the on-device copy.
   if ("serviceWorker" in navigator && location.protocol === "https:") {

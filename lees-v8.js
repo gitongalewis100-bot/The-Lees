@@ -339,8 +339,17 @@
       var initialAt = draft.at && Date.parse(draft.at) > Date.now() ? new Date(draft.at) : (function () { var d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); return d; })();
       dt.value = localInput(initialAt);
       var hint = el("div", "v8-hint");
-      var showHint = function () { var t = Date.parse(dt.value); hint.textContent = isFinite(t) ? (t <= Date.now() ? "Choose a time in the future." : until(t) + " · " + fmtWhen(t)) : ""; hint.classList.toggle("bad", !(t > Date.now())); };
-      dt.addEventListener("input", function () { var t = Date.parse(dt.value); draft.at = isFinite(t) ? new Date(t).toISOString() : null; save(); showHint(); markQuick(); });
+      // "When they next open the app": the letter is sealed for a minute, then opens itself, full screen, the
+      // next time the other person opens The Lees.
+      var onOpenBtn = el("button", "chip v12-onopen" + (draft.onOpen ? " on" : ""), "When " + a.name(a.other) + " next opens the app");
+      onOpenBtn.type = "button";
+      var showHint = function () {
+        if (draft.onOpen) { hint.textContent = "Opens by itself, full screen, the next time " + a.name(a.other) + " opens The Lees."; hint.classList.remove("bad"); dt.classList.add("v12-dim"); return; }
+        dt.classList.remove("v12-dim");
+        var t = Date.parse(dt.value); hint.textContent = isFinite(t) ? (t <= Date.now() ? "Choose a time in the future." : until(t) + " · " + fmtWhen(t)) : ""; hint.classList.toggle("bad", !(t > Date.now()));
+      };
+      onOpenBtn.addEventListener("click", function () { draft.onOpen = !draft.onOpen; onOpenBtn.classList.toggle("on", !!draft.onOpen); save(); showHint(); markQuick(); });
+      dt.addEventListener("input", function () { var t = Date.parse(dt.value); draft.at = isFinite(t) ? new Date(t).toISOString() : null; draft.onOpen = false; onOpenBtn.classList.remove("on"); save(); showHint(); markQuick(); });
       var quicks = [
         ["Tonight, 9 pm", function () { var d = new Date(); d.setHours(21, 0, 0, 0); if (d <= new Date()) d.setDate(d.getDate() + 1); return d; }],
         ["Tomorrow morning", function () { var d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); return d; }],
@@ -349,8 +358,9 @@
         ["In a year", function () { var d = new Date(); d.setFullYear(d.getFullYear() + 1); d.setSeconds(0, 0); return d; }]
       ];
       var qbtns = [];
-      var markQuick = function () { qbtns.forEach(function (b) { b.classList.toggle("on", localInput(b._fn()) === dt.value); }); };
-      quicks.forEach(function (q) { var b = el("button", "chip", q[0]); b.type = "button"; b._fn = q[1]; b.addEventListener("click", function () { dt.value = localInput(q[1]()); draft.at = new Date(dt.value).toISOString(); save(); showHint(); markQuick(); }); quick.appendChild(b); qbtns.push(b); });
+      var markQuick = function () { qbtns.forEach(function (b) { b.classList.toggle("on", !draft.onOpen && localInput(b._fn()) === dt.value); }); };
+      quick.appendChild(onOpenBtn);
+      quicks.forEach(function (q) { var b = el("button", "chip", q[0]); b.type = "button"; b._fn = q[1]; b.addEventListener("click", function () { dt.value = localInput(q[1]()); draft.at = new Date(dt.value).toISOString(); draft.onOpen = false; onOpenBtn.classList.remove("on"); save(); showHint(); markQuick(); }); quick.appendChild(b); qbtns.push(b); });
       when.append(quick, dt, hint);
       // Seal and paper
       var looks = el("div", "v8-looks");
@@ -374,10 +384,10 @@
       go.type = "button";
       go.innerHTML = '<span class="v8-wax-mini"></span><span>' + (editing ? "Save and reseal" : "Seal and send") + '</span>';
       go.addEventListener("click", async function () {
-        var t = Date.parse(dt.value);
+        var t = draft.onOpen ? Date.now() + 60000 : Date.parse(dt.value);
         if (!ta.value.trim()) { a.notice("Write the letter first", "", { error: true }); ta.focus(); return; }
         if (!(t > Date.now() + 30000)) { a.notice("Choose when it can be opened", "Pick a time at least a minute from now.", { error: true }); dt.focus(); return; }
-        var ok = await a.centredBanner({ title: editing ? "Save changes?" : "Seal this letter?", desc: editing ? "The letter stays sealed until " + fmtWhen(t) + ". " + a.name(a.other) + " is told it changed." : a.name(a.other) + " will see the envelope now and can open it from " + fmtWhen(t) + ". You can read and edit it until then.", okLabel: editing ? "Save" : "Seal it" });
+        var ok = await a.centredBanner({ title: editing ? "Save changes?" : "Seal this letter?", desc: draft.onOpen && !editing ? a.name(a.other) + " sees the envelope now, and it opens by itself, full screen, the next time they open The Lees." : editing ? "The letter stays sealed until " + fmtWhen(t) + ". " + a.name(a.other) + " is told it changed." : a.name(a.other) + " will see the envelope now and can open it from " + fmtWhen(t) + ". You can read and edit it until then.", okLabel: editing ? "Save" : "Seal it" });
         if (!ok) return;
         go.disabled = true;
         var c = sb();
@@ -388,12 +398,13 @@
         if (editing && !r.error && !r.data) r = { error: { message: "It may already be open, so it can't be changed" } };
         go.disabled = false;
         if (r.error) { a.notice("Couldn't seal the letter", friendly(r.error) + " Your letter is still here.", { error: true }); return; }
-        if (!editing) store.set("v8-letter-draft-" + a.me, { title: "", body: "", seal: draft.seal, paper: draft.paper, at: null });
+        if (!editing) store.set("v8-letter-draft-" + a.me, { title: "", body: "", seal: draft.seal, paper: draft.paper, at: null, onOpen: false });
         ping("letter", { kind: editing ? "edited" : "sealed", id: r.data && r.data.id, open_at: new Date(t).toISOString() });
         // The letter also arrives as a message: it shows in the chat and notifies like any message.
-        if (!editing && r.data && r.data.id && a.sendCard) a.sendCard({ t: "letter", id: r.data.id, title: fields.title, at: fields.open_at, seal: draft.seal });
+        if (!editing && r.data && r.data.id && a.sendCard) a.sendCard(Object.assign({ t: "letter", id: r.data.id, title: fields.title, at: fields.open_at, seal: draft.seal }, draft.onOpen ? { onOpen: true } : {}));
         await loadEnvelopes();
-        sealAnimation(draft.seal, function () { a.goBack(); openLetters("out"); a.notice("Letter sealed", a.name(a.other) + " can open it " + fmtWhen(t) + "."); });
+        var wasOnOpen = !!draft.onOpen;
+        sealAnimation(draft.seal, function () { a.goBack(); openLetters("out"); a.notice("Letter sealed", wasOnOpen ? "It opens itself the next time " + a.name(a.other) + " opens The Lees." : a.name(a.other) + " can open it " + fmtWhen(t) + "."); });
       });
       body.append(sheet, when, looks, go);
       showHint(); markQuick();
