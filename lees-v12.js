@@ -76,10 +76,10 @@
         if (r.error) { if (missingFn(r.error)) this.server = false; else this.q = items.concat(this.q); }
       } catch (e) { this.q = items.concat(this.q); }
     },
-    touch: function () { var a = A(); if (!a || !a.unlocked || !a.sb || !this.server || document.hidden) return; a.sb.rpc("touch_last_seen").then(function (r) { if (r && r.error && missingFn(r.error)) Act.server = false; }, function () {}); },
+    touch: function () { var a = A(); if (!a || !a.unlocked || !a.sb || !this.server || document.hidden) return; if (a.idleFor && a.idleFor() > 5 * 60 * 1000) return; a.sb.rpc("touch_last_seen").then(function (r) { if (r && r.error && missingFn(r.error)) Act.server = false; }, function () {}); },
     load: async function () {
       var a = A(); if (!a || !a.sb || !a.pairId) return;
-      var r = await a.sb.from("activity_log").select("*").eq("pair_id", a.pairId).order("at", { ascending: false }).limit(400);
+      var r = await a.sb.from("activity_log").select("*").eq("pair_id", a.pairId).order("at", { ascending: false }).limit(600);
       if (r.error) { if (missingFn(r.error)) this.server = false; this.loaded = true; return; }
       this.server = true;
       this.remote = (r.data || []).map(function (x) { return { side: x.side, action: x.action, detail: x.detail || "", at: Date.parse(x.at) || 0, id: x.id }; });
@@ -149,6 +149,7 @@
     return d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short", year: d.getFullYear() === now.getFullYear() ? undefined : "numeric" });
   }
   function hm(t) { return new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+  function hm12(t) { return new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }); }
   function ago(t) {
     var s = Math.max(0, (Date.now() - t) / 1000);
     if (s < 60) return "just now"; if (s < 3600) return Math.round(s / 60) + " min ago"; if (s < 86400) return Math.round(s / 3600) + " h ago";
@@ -165,11 +166,10 @@
     return Math.max(m.lastSeen || 0, list.length ? list[0].at : 0);
   }
   function seenText(side, short) {
-    var t = lastSeenOf(side);
     if (isOnline(side)) return short ? "Online" : "Online now";
+    var t = lastSeenOf(side);
     if (!t) return "";
-    var d = dayLabel(t);
-    return "Last seen " + d + (d === "today" || d === "yesterday" || /day$/.test(d) ? " at " : ", ") + hm(t);
+    return "Last seen " + dayLabel(t) + " at " + hm12(t);
   }
   // Chat header line (called by the app's presence renderer every few seconds).
   function presenceLine(remote, zoneTime, status) {
@@ -186,7 +186,7 @@
     var o = a.other, card = document.querySelector("#people .person .grow");
     if (card) {
       var strip = card.querySelector(".seen12");
-      if (!strip) { strip = el("button", "seen12"); strip.type = "button"; strip.addEventListener("click", function (e) { e.stopPropagation(); openActivity(o); }); card.appendChild(strip); }
+      if (!strip) { strip = el("button", "seen12"); strip.type = "button"; strip.addEventListener("click", function (e) { e.stopPropagation(); var app = A(); if (app && app.openChat) app.openChat(); }); card.appendChild(strip); }
       var on = isOnline(o), t = lastSeenOf(o), last = Act.list(o)[0];
       var text = on ? "Online now" : t ? seenText(o) : "Not seen yet";
       var sub = !on && last ? (ACT[last.action] || ACT.panel)[0] + (last.detail ? " · " + last.detail : "") : on ? "In The Lees right now" : "";
@@ -197,12 +197,22 @@
         strip.innerHTML = '<i class="seen12-dot"></i><span class="seen12-t"></span>' + (sub ? '<span class="seen12-s"></span>' : "") + svg(P.next, "i seen12-chev");
         strip.querySelector(".seen12-t").textContent = text;
         if (sub) strip.querySelector(".seen12-s").textContent = sub;
-        strip.setAttribute("aria-label", text + ". Open activity");
+        strip.setAttribute("aria-label", text + ". Open the chat");
       }
     }
     var pr = document.getElementById("presence");
     if (pr && !pr._v12) { pr._v12 = true; pr.setAttribute("role", "button"); pr.tabIndex = 0; pr.addEventListener("click", function () { openActivity(A().other); }); pr.addEventListener("keydown", function (e) { if (e.key === "Enter") openActivity(A().other); }); }
     if (Activity.open) Activity.paint();
+    bothOnlineNotice();
+  }
+  function bothOnlineNotice() {
+    var a = A(); if (!a || !a.me || !a.other || !a.notice || !a.pairId) return;
+    if (!isOnline(a.me) || !isOnline(a.other)) return;
+    var key = "lees-both-online-" + a.pairId, last = 0;
+    try { last = Number(localStorage.getItem(key) || 0); } catch (e) {}
+    if (last && Date.now() - last < 30 * 60 * 1000) return;
+    try { localStorage.setItem(key, String(Date.now())); } catch (e) {}
+    a.notice("You're both online", "");
   }
 
   /* The activity page: who did what, grouped into sessions (sign-in to sign-out, or a gap of 30 min). */
@@ -218,6 +228,8 @@
   }
   function openActivity(side) {
     var a = A(); if (!a) return;
+    try { localStorage.setItem("lees-activity-opened-v13", "1"); } catch (e) {}
+    try { if (a.renderHome) a.renderHome(); } catch (e) {}
     Activity.side = side || a.other;
     Act.flush(); Act.load();
     a.openPanel("Activity", "Last seen and what happened", Object.assign(function (body) {
@@ -249,8 +261,9 @@
         hero.append(av, tx);
         b.appendChild(hero);
         if (!Act.server) b.appendChild(note("One database update needed", "Run supabase/RUN_THIS_v12.sql once. Until then this page shows only what happened on this phone, and the other side can't see it."));
-        var sessions = sessionsOf(list).slice(0, 25);
-        if (!sessions.length) { var e = el("div", "act12-empty"); e.append(el("b", "", "Nothing yet"), el("span", "", "Sign-ins, messages, photos, letters, games and pages opened will show here.")); b.appendChild(e); }
+        var scroller = el("div", "act12-list");
+        var sessions = sessionsOf(list);
+        if (!sessions.length) { var e = el("div", "act12-empty"); e.append(el("b", "", "Nothing yet"), el("span", "", "Sign-ins, messages, photos, letters, games and pages opened will show here.")); scroller.appendChild(e); }
         sessions.forEach(function (ss, i) {
           var card = el("section", "act12-sess" + (i === 0 ? " first" : ""));
           var head = el("header", "act12-sh");
@@ -269,9 +282,10 @@
             ol.appendChild(li);
           });
           card.appendChild(ol);
-          b.appendChild(card);
+          scroller.appendChild(card);
         });
-        b.appendChild(el("p", "snote", "You both see each other's activity. It is kept for the newest 600 actions each."));
+        scroller.appendChild(el("p", "snote", "You both see each other's activity. It is kept for the newest 600 actions each."));
+        b.appendChild(scroller);
       };
       Activity.paint();
     }, { still: true }));
@@ -647,20 +661,32 @@
       a: "In the chat, tap + and then Attach, and pick as many photos and videos as you like, up to 30. They open in a preview where you can swipe between them, rotate, flip, crop, choose HD, mark View once or Quiet, and add one caption. Send delivers them as one set: one album card in the chat and one notification on their phone, not one per photo.", steps: ["Open the chat", "Tap + and choose photos or videos", "Adjust any of them, add a caption", "Tap Send once"], more: "Tap the album in the chat to see every photo full size. Each one can be loved, replied to, saved, shared or forwarded on its own." },
     { id: "voice", title: "Voice notes", kw: "voice note record recording audio mic microphone speak listen transcript transcribe", q: ["record a voice note", "send audio"], tour: "voice", go: "mic",
       a: "In the chat, tap the microphone to start recording. Tap the square to stop and listen back (you can drag along the waveform and change speed), then tap Send. Or tap the plane while recording to send at once.", steps: ["Open the chat", "Tap the microphone", "Tap the square to stop", "Listen, then Send"], more: "If the microphone is blocked, The Lees shows a short how-to for your browser. Transcripts can be switched on in Settings › Privacy." },
-    { id: "lastseen", title: "Online and last seen", kw: "last seen online offline active activity when was status presence did doing history session time date", q: ["when was she last online", "when was he last online", "what did she do", "see activity", "last active"], tour: "lastseen", go: "activity",
-      a: "Under their name, on the home card and at the top of the chat, The Lees shows Online now or the exact day and time they were last seen. Tap it to open Activity: each session from sign-in to sign-out, with every action (messages, photos, voice notes, letters, games, pages opened, messages read). They see yours the same way.", steps: ["Tap the line under their name", "Switch between their activity and yours at the top"] },
+    { id: "lastseen", title: "Online and last seen", kw: "last seen online offline active status presence time date hour", q: ["when were they last online", "when was she last online", "when was he last online", "are they online now", "show last seen", "last seen today", "online now status", "what time were they last seen"], tour: "lastseen", go: "activity",
+      a: "Online shows only after about 3 seconds of activity, and only while they have been active in the last 5 minutes. After that The Lees shows Last seen with a 12-hour time, such as Last seen today at 3:42 PM, Last seen yesterday at 9:05 AM, or Last seen Mon 12 Nov at 9:05 PM. The line under their name on the home card opens the chat. If you are both online, each of you sees You're both online once every 30 minutes.", steps: ["Look under their name on the home card", "Tap that line to open the chat"] },
+    { id: "activity", title: "Activity", kw: "activity session sessions actions what did doing history list did they do page opened", q: ["what did they do", "see activity", "open activity", "what are they doing", "activity list", "their activity history", "what did she do today", "show me their sessions"], tour: "lastseen", go: "activity",
+      a: "The ACTIVITY button sits on the top right of the chat card on the home screen. It opens Activity: every session, newest first, up to the last 600 actions. Switch between them and you at the top. The list scrolls. The chat header line also opens Activity.", steps: ["Home", "Tap ACTIVITY on their card", "Scroll the list"] },
     { id: "unread", title: "The unread line", kw: "unread new messages blur blurred read count badge seen", q: ["why are messages blurred", "how do messages get marked read"], tour: "chat", go: "chat",
       a: "New messages arrive softly blurred. A message counts as read once the whole card is in view above the message box. Then the blur lifts and the count drops by one. A set of photos counts as one message. Scrolling to the very bottom reads everything." },
     { id: "hold", title: "Reply, love, edit or delete", kw: "reply love heart like edit delete remove copy pin forward react reaction emoji long press hold double tap", q: ["how to reply", "how to delete a message", "how to like a message", "edit a message"], tour: "chat", go: "chat",
       a: "Press and hold any message for its menu: Reply, Love, Copy, Edit (your own), Pin to moments, Forward, Blur, and Delete for you or for both. Double-tap a message to send a heart. Deleted messages go to Recently deleted, where they can be restored." },
-    { id: "letters", title: "Sealed letters", kw: "letter letters sealed seal envelope capsule time future open later surprise", q: ["write a letter", "send a letter that opens later", "letter that opens when she opens the app"], tour: "letters", go: "letters",
+    { id: "letters", title: "Sealed letters", kw: "letter letters sealed seal envelope capsule time future open later surprise write compose", q: ["write a letter", "send a letter that opens later", "letter that opens when she opens the app", "how do i seal a letter", "where are sealed letters", "open a sealed letter", "new sealed letter", "envelope for later"], tour: "letters", go: "letters",
       a: "Home › Create › Sealed letters › New. Write the letter, choose a wax seal and paper, then choose when it can be opened: a date and time, a quick choice like Tomorrow morning, or When they next open the app. With that last one the letter opens itself, full screen, the moment they come in.", steps: ["Home › Create", "Sealed letters › New letter", "Write, then choose when it opens", "Seal and send"], more: "They see the envelope straight away, and a live countdown until it can be opened. You can read and edit your letter until then." },
+    { id: "letterdelete", title: "Delete a sealed letter", kw: "delete remove hide select withdraw withdrawn letters letter sealed both checkbox", q: ["delete a sealed letter", "remove a letter from my side", "delete for both", "delete for me", "select letters", "delete all letters", "remove from your letters", "withdraw a letter i sent"], go: "letters",
+      a: "Open Sealed letters and tap Select. Tick the letters in the current tab, then Delete selected or Delete all. A letter you received can only be removed from your side. A letter you sent can be deleted for you or for both, and Delete for both removes it for your partner too. The chat card then says Letter removed.", steps: ["Sealed letters", "Tap Select", "Choose Delete selected or Delete all"] },
     { id: "game", title: "Tic-tac-toe", kw: "game games play tic tac toe noughts crosses challenge match", q: ["play a game", "start tic tac toe"], tour: "game", go: "game",
       a: "Home › Create › Tic-tac-toe, or Settings › Letters, games & awards. Invite them; once they join, each move has a 10-second clock. There's a chat and quick replies during the game, and a rematch button at the end." },
     { id: "nudge", title: "Thinking of you", kw: "thinking nudge heartbeat miss love ping buzz hearts", q: ["send thinking of you", "nudge her"], tour: "nudge", go: "nudge",
       a: "On the home screen tap Thinking of you. Their phone gets a heartbeat buzz, rising hearts and a card to send one back. You can send one a minute." },
-    { id: "journal", title: "Journal", kw: "journal diary write entry entries notes prompt pages", q: ["write in the journal"], tour: "journal", go: "journal",
+    { id: "journal", title: "Journal", kw: "journal diary write entry entries notes prompt pages page", q: ["write in the journal", "open the journal", "how do i add a journal page", "where is the diary", "journal prompts", "search the journal", "edit a journal page", "shared journal"], tour: "journal", go: "journal",
       a: "Home › Journal. Tap + to write a page; there are prompts if you're stuck, and it saves as you type. Search and filters are at the top. You both see every page." },
+    { id: "stickers", title: "Stickers", kw: "sticker stickers emoji reaction send sticker luck congrats cuddle sparkle rainy", q: ["send a sticker", "where are stickers", "open the sticker picker", "how do i send stickers", "good luck sticker", "sticker menu", "emoji stickers", "more stickers"], go: "stickers",
+      a: "In the chat, tap + and choose Stickers & emoji. The grid shows every sticker, including Good luck, Congrats, Cuddle, Rainy day and Sparkle. Tap one to send it. If reduced motion is on, the sticker stays still with no particles." },
+    { id: "idle", title: "Idle sign-out", kw: "idle inactive inactivity timeout signout warning countdown minutes automatic autosign", q: ["will i be signed out if i leave it", "still there warning", "idle sign out", "signed out after 5 minutes", "inactivity limit", "why was i signed out", "30 second warning", "auto sign out"], go: null,
+      a: "After 5 minutes with no taps, keys or scrolling, The Lees asks Still there? and counts down 30 seconds. Cancel, or any tap, key or scroll, keeps you signed in and starts the 5 minutes again. Sign out, or doing nothing until the countdown ends, signs you out and locks the app. Coming back after the app was hidden for more than 5 minutes shows the same warning. It does not sign you out instantly. The unsend window is unchanged." },
+    { id: "facts", title: "Partner facts", kw: "partner facts fact know about favourite favorite boyfriend girlfriend husband wife remember note things name", q: ["what do you know about my partner", "whats my partners name", "remember that she likes sushi", "note that he likes running", "things we know", "facts about her", "what does my partner like", "tell me about them"], go: "facts",
+      a: "Ask me what I know about your partner and I'll say their name first, then up to five facts you saved. Say remember that she likes sushi, or note that he likes running, and I'll keep it for this pair. Settings › Things we know is where you add, read and delete your own facts. There is no separate things-I-like list; facts live here. I can also mention a line from their journal." },
+    { id: "history", title: "Chat history", kw: "history arten conversations clock past questions earlier asked", q: ["show chat history", "arten history", "what did i ask you", "past questions", "open chat history", "clock history", "previous conversation with arten", "see earlier questions"], go: null,
+      a: "In the ARTEN panel, the clock button labelled Chat history opens a full-screen list. Each row is the date and time and the first question, cut at 80 characters. Tap a row to read that whole conversation. History lasts for this sign-in only. Signing out or locking clears it." },
     { id: "notifications", title: "Notifications", kw: "notifications alerts bell feed sound buzz mute quiet push telegram", q: ["turn off notifications", "mute", "why so many notifications"], tour: "notifications", go: "notifications",
       a: "Home › Notifications shows everything from the other person in one feed. To silence alerts, go to Settings › Notifications › Mute (8 hours or a week). Photos sent together make a single alert. A message sent as Quiet arrives without any sound." },
     { id: "media", title: "Media", kw: "media gallery photos videos voice notes all pictures month save download", q: ["see all photos", "find a photo"], tour: "media", go: "media",
@@ -702,6 +728,8 @@
     online: "seen", offline: "seen", active: "seen", activity: "seen", lastseen: "seen", status: "seen", recording: "voice", audio: "voice", vn: "voice", mic: "voice",
     notif: "notifications", notification: "notifications", alert: "notifications", alerts: "notifications", noti: "notifications", ttt: "game", xo: "game",
     dark: "theme", colour: "theme", color: "theme", wallpaper: "theme", her: "partner", him: "partner", she: "partner", he: "partner", wife: "partner", husband: "partner",
+    boyfriend: "partner", girlfriend: "partner", favourite: "favorite", favorite: "favorite", fact: "facts", facts: "facts",
+    sticker: "stickers", emoji: "stickers", idle: "idle", inactivity: "idle", timeout: "idle", autosign: "idle",
     tutorial: "guide", tour: "guide", walkthrough: "guide", help: "guide", stack: "photos", stacked: "photos", album: "photos", batch: "photos", many: "photos" };
   var STOP = { a: 1, an: 1, the: 1, i: 1, to: 1, do: 1, does: 1, how: 1, can: 1, my: 1, me: 1, is: 1, it: 1, of: 1, in: 1, on: 1, for: 1, and: 1, or: 1, what: 1, where: 1, why: 1, when: 1, you: 1, your: 1, we: 1, our: 1, us: 1, be: 1, are: 1, there: 1, this: 1, that: 1, with: 1, at: 1, from: 1, please: 1, want: 1, would: 1, like: 1, could: 1, should: 1, get: 1, make: 1, use: 1, using: 1, app: 1, lees: 1 };
   function stem(w) { if (w.length > 5 && /ing$/.test(w)) return w.slice(0, -3); if (w.length > 4 && /ed$/.test(w)) return w.slice(0, -2); if (w.length > 3 && /s$/.test(w) && !/ss$/.test(w)) return w.slice(0, -1); return w; }
@@ -748,7 +776,9 @@
       moments: function () { a.openMoments(); }, archive: function () { a.openArchive(); }, shield: function () { go("home").then(function () { var b = document.querySelector('.navbtn[data-key="shield"]'); if (b) b.classList.add("gd12-glow"); }); },
       look: function () { a.openSettingsCategory("look"); }, security: function () { a.openSettingsCategory("security"); }, data: function () { a.openSettingsCategory("data"); },
       vault: function () { a.openVault(); }, reset: function () { openReset(); }, clear: function () { if (window.LeesV9 && LeesV9.openClear) LeesV9.openClear(); else a.openSettingsCategory("data"); },
-      help: function () { a.openSettingsCategory("help"); }, home: function () { go("home"); }
+      help: function () { a.openSettingsCategory("help"); }, home: function () { go("home"); },
+      stickers: function () { a.openChat(); setTimeout(function () { if (window.LeesV9 && LeesV9.openPicker) LeesV9.openPicker(); }, 280); },
+      facts: function () { openFacts(); }
     };
     if (map[where]) map[where]();
   }
@@ -863,6 +893,112 @@
     return F;
   }
 
+  var HIST_KEY = "lees-arten-history-v13";
+  function histRead() { try { var v = JSON.parse(sessionStorage.getItem(HIST_KEY) || "[]"); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+  function histWrite(list) { try { sessionStorage.setItem(HIST_KEY, JSON.stringify(list.slice(-40))); } catch (e) {} }
+  function clearArtenHistory() { try { sessionStorage.removeItem(HIST_KEY); } catch (e) {} try { Arten.convo = null; } catch (e2) {} }
+  function histWhen(t) {
+    var d = new Date(t);
+    return d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" }) + ", " + d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
+  }
+  function openArtenHistory() {
+    var a = A(); if (!a || !a.openPanel) return;
+    a.openPanel("Chat history", "This sign-in", function (body) {
+      var items = histRead().slice().reverse();
+      if (!items.length) { body.appendChild(el("p", "snote", "No conversations yet. Ask ARTEN something and it stays until you sign out.")); return; }
+      items.forEach(function (c) {
+        var b = el("button", "ah13"); b.type = "button";
+        var q0 = (c.turns && c.turns[0] && c.turns[0].q) || "";
+        b.append(el("b", "", histWhen(c.at || Date.now())), el("span", "", String(q0).slice(0, 80)));
+        b.addEventListener("click", function () {
+          a.openPanel("Chat history", histWhen(c.at || Date.now()), function (body2) {
+            (c.turns || []).forEach(function (turn) {
+              body2.appendChild(el("p", "ah13-q", turn.q || ""));
+              body2.appendChild(el("p", "ah13-a", turn.a || ""));
+            });
+          });
+        });
+        body.appendChild(b);
+      });
+    });
+  }
+  var FACT_WORDS = /\b(name|know|about|like|favourite|favorite|him|her|boyfriend|girlfriend|partner|husband|wife)\b/i;
+  var REMEMBER_RE = /\b(?:remember|note)\s+that\s+(?:she|he|they|my partner|partner|her|him)\s+(?:likes|like|loves|love)\s+(.{1,180})/i;
+  function skipFacts(q) {
+    if (REMEMBER_RE.test(q)) return false;
+    if (/\b(activit|last seen|online|session|sticker|journal|letter|idle|sign out|signed out)\b/i.test(q)) return true;
+    if (/\b(did|doing)\b/i.test(q) && !/\b(like|likes|favourite|favorite)\b/i.test(q)) return true;
+    if (/\b(how|where|send|delete|message|letter|sticker|setting|settings|journal|reset|theme)\b/i.test(q) && !/\b(partner|boyfriend|girlfriend|husband|wife)\b/i.test(q) && !/\babout (her|him|them|my)\b/i.test(q)) return true;
+    return false;
+  }
+  async function factsReply(q) {
+    if (!FACT_WORDS.test(q) || skipFacts(q)) return null;
+    var a = A(); if (!a) return null;
+    var name = a.name(a.other);
+    var mem = REMEMBER_RE.exec(String(q || ""));
+    if (mem) {
+      var fact = mem[1].replace(/[.?!]+$/, "").trim().slice(0, 300);
+      if (!fact) return name + " is " + name + ". Tell me a short fact and I'll remember it.";
+      if (a.sb && a.pairId && a.me && a.other) {
+        var ins = await a.sb.from("arten_facts").insert({ pair_id: a.pairId, owner_side: a.me, subject_side: a.other, category: "like", fact: fact, source: "arten" });
+        if (ins.error) return "I couldn't save that. " + (ins.error.message || "Try Things we know.");
+      }
+      return "I'll remember that " + name + " likes " + fact + ".";
+    }
+    var facts = [];
+    if (a.sb && a.pairId && a.me) {
+      var r = await a.sb.from("arten_facts").select("fact").eq("pair_id", a.pairId).eq("owner_side", a.me).order("created_at", { ascending: false }).limit(5);
+      facts = ((r && r.data) || []).map(function (x) { return x.fact; }).filter(Boolean);
+    }
+    var journal = [];
+    try { journal = (a.journal || []).filter(function (j) { return j && j.side === a.other && j.text; }).slice(0, 3); } catch (e) {}
+    if (!facts.length && !journal.length) return name + " is " + name + ". I don't have any saved facts about them yet. Tell me one and I'll remember it.";
+    var lines = facts.slice(0, 5).map(function (f) { return name + " likes " + f + "."; });
+    journal.forEach(function (j) { if (lines.length < 5) lines.push(name + " wrote in the journal: " + String(j.text).replace(/\s+/g, " ").slice(0, 90) + "."); });
+    return name + ". " + lines.slice(0, 5).join(" ");
+  }
+  function openFacts() {
+    var a = A(); if (!a || !a.openPanel) return;
+    a.openPanel("Things we know", "Facts you keep about " + a.name(a.other), function (body) {
+      body.classList.add("facts13");
+      var form = el("form", "facts13-form");
+      var input = el("input", "in");
+      input.maxLength = 300;
+      input.placeholder = "Something you know about " + a.name(a.other);
+      input.setAttribute("aria-label", "A fact about " + a.name(a.other));
+      var add = el("button", "btn", "Add"); add.type = "submit";
+      form.append(input, add);
+      var list = el("div", "facts13-list");
+      body.append(form, list);
+      var draw = async function () {
+        list.textContent = "";
+        if (!a.sb || !a.pairId) { list.appendChild(el("p", "snote", "Sign in to save facts.")); return; }
+        var r = await a.sb.from("arten_facts").select("id,fact").eq("pair_id", a.pairId).eq("owner_side", a.me).order("created_at", { ascending: false });
+        var rows = (r && r.data) || [];
+        if (!rows.length) list.appendChild(el("p", "snote", "Nothing saved yet. There is no separate things-I-like list. Add a fact here, or tell ARTEN to remember one."));
+        rows.forEach(function (row) {
+          var line = el("div", "facts13-row");
+          line.appendChild(el("span", "", row.fact));
+          var del = el("button", "btn ghost sm", "Delete"); del.type = "button";
+          del.addEventListener("click", async function () { await a.sb.from("arten_facts").delete().eq("id", row.id); draw(); });
+          line.appendChild(del);
+          list.appendChild(line);
+        });
+      };
+      form.addEventListener("submit", async function (ev) {
+        ev.preventDefault();
+        var fact = input.value.trim();
+        if (!fact || !a.sb) return;
+        var ins = await a.sb.from("arten_facts").insert({ pair_id: a.pairId, owner_side: a.me, subject_side: a.other, category: "like", fact: fact.slice(0, 300), source: "manual" });
+        if (ins.error) { a.notice("Couldn't save that", ins.error.message, { error: true }); return; }
+        input.value = "";
+        a.notice("Saved", "");
+        draw();
+      });
+      draw();
+    });
+  }
+
   var Arten = {
     built: false, open_: false, animating: false, busy: false, flower: null, fab: null, panel: null, list: null, input: null, mode: "ask", history: [],
     isOpen: function () { return this.open_; },
@@ -870,7 +1006,7 @@
       if (this.built) return; this.built = true;
       var fab = btn("ar12-fab", "", "Ask ARTEN, your guide");
       fab.id = "ar12Fab";
-      fab.innerHTML = '<span class="ar12-body" aria-hidden="true"></span><span class="ar12-cap" aria-hidden="true"></span><span class="ar12-unit"><canvas width="112" height="112" aria-hidden="true"></canvas><span class="ar12-ask" aria-hidden="true"><span class="ar12-typed"></span></span></span>';
+      fab.innerHTML = '<span class="ar12-unit"><canvas width="112" height="112" aria-hidden="true"></canvas><span class="ar12-msgic" aria-hidden="true"><svg viewBox="0 0 28 28"><rect x="2.5" y="5" width="23" height="15" rx="6"></rect><circle cx="9" cy="12.5" r="1.3"></circle><circle cx="14" cy="12.5" r="1.3"></circle><circle cx="19" cy="12.5" r="1.3"></circle></svg></span></span>';
       document.body.appendChild(fab);
       this.fab = fab;
       var cv = fab.querySelector("canvas");
@@ -887,8 +1023,10 @@
       var ttl = el("div", "ar12-ttl"); ttl.append(el("b", "", "ARTEN"), el("small", "", "Your guide to The Lees"));
       var modeBtn = btn("ar12-hb", svg(P.arrow), "Take me to…", function () { self.setMode(self.mode === "go" ? "ask" : "go"); });
       modeBtn.title = "Take me to…";
+      var histBtn = btn("ar12-hb", svg(P.clock), "Chat history", function () { openArtenHistory(); });
+      histBtn.title = "Chat history";
       var x = btn("ar12-hb", svg(P.close), "Close ARTEN", function () { self.close(); });
-      head.append(mk, ttl, modeBtn, x);
+      head.append(mk, ttl, histBtn, modeBtn, x);
       this.modeBtn = modeBtn;
       var list = el("div", "ar12-list"); list.setAttribute("aria-live", "polite");
       var chips = el("div", "ar12-chips");
@@ -936,20 +1074,45 @@
       this.paintChips();
       try { this.input.focus({ preventScroll: true }); } catch (e) {}
     },
+    screenOf: function () {
+      var a = A(); if (!a) return "default";
+      var t = "";
+      try { t = (document.getElementById("panelTitle") || {}).textContent || ""; } catch (e) {}
+      if (a.view === "panel") {
+        if (t === "Activity") return "activity";
+        if (t === "Sealed letters" || t === "New sealed letter" || t === "Edit sealed letter") return "letters";
+        if (/Sticker/i.test(t)) return "stickers";
+        if (t === "Media") return "media";
+      }
+      if (a.view === "chat") return "chat";
+      if (a.view === "home") return "home";
+      return "default";
+    },
     paintChips: function () {
       var self = this, c = this.chips; c.textContent = "";
-      var list = this.mode === "go"
-        ? [["Seal a letter", "letters"], ["Send photos", "attach"], ["Last seen", "activity"], ["Recently deleted", "vault"], ["Play a game", "game"], ["Reset everything", "reset"]]
-        : [["Show me around", "tour"], ["When were they last online?", "q"], ["Send photos as one", "q"], ["Seal a letter for later", "q"], ["Restore something deleted", "q"], ["Reset the app", "q"]];
+      var map = {
+        home: [["Open chat", "chat"], ["Send photos", "attach"], ["Sealed letters", "letters"], ["Last seen", "activity"], ["Journal", "journal"], ["Stickers", "stickers"]],
+        chat: [["Stickers", "stickers"], ["Send photos", "attach"], ["Sealed letters", "letters"], ["Last seen", "activity"], ["Recently deleted", "vault"], ["Reset everything", "reset"]],
+        activity: [["Sealed letters", "letters"], ["Send photos", "attach"], ["Journal", "journal"], ["Stickers", "stickers"], ["Last seen", "activity"], ["Reset everything", "reset"]],
+        letters: [["Write a letter", "letters"], ["Delete a letter", "letters"], ["Last seen", "activity"], ["Send photos", "attach"], ["Journal", "journal"], ["Stickers", "stickers"]],
+        stickers: [["Send a sticker", "stickers"], ["Send photos", "attach"], ["Last seen", "activity"], ["Sealed letters", "letters"], ["Journal", "journal"], ["Reset everything", "reset"]],
+        media: [["Send photos", "attach"], ["Journal", "journal"], ["Stickers", "stickers"], ["Last seen", "activity"], ["Sealed letters", "letters"], ["Open chat", "chat"]],
+        default: [["Open chat", "chat"], ["Send photos", "attach"], ["Sealed letters", "letters"], ["Last seen", "activity"], ["Journal", "journal"], ["Stickers", "stickers"]]
+      };
+      var list = map[this.screenOf()] || map.default;
       list.forEach(function (it) {
-        var b = btn("ar12-chip", "", null, function () {
-          if (self.mode === "go") { self.say("me", "Take me to: " + it[0]); self.go(it[1], it[0]); return; }
-          if (it[1] === "tour") { self.say("me", it[0]); self.close().then(function () { Guide.start("full"); }); return; }
-          self.ask(it[0]);
-        });
+        var b = btn("ar12-chip", "", null, function () { self.go(it[1], it[0]); });
         b.textContent = it[0];
         c.appendChild(b);
       });
+    },
+    rememberTurn: function (q, answer) {
+      if (!this.convo || this.convo.closed) this.convo = { id: String(Date.now()), at: Date.now(), turns: [], closed: false };
+      if (!this.convo.turns.length) this.convo.at = Date.now();
+      this.convo.turns.push({ q: String(q || ""), a: String(answer || "") });
+      var all = histRead().filter(function (c) { return c.id !== Arten.convo.id; });
+      all.push(Arten.convo);
+      histWrite(all);
     },
     welcome: function () {
       var a = A();
@@ -961,14 +1124,22 @@
     scroll: function () { var l = this.list; requestAnimationFrame(function () { l.scrollTop = l.scrollHeight; }); },
     think: function (q, problem) {
       var b = this.bubble("bot think"), self = this;
-      var words = ["Thinking", "Connecting", "Cooking", "Attening", "ARTENING"].concat(problem ? ["Troubleshooting"] : []);
+      var words = ["Thinking", "Cooking", "ARTENING"].concat(problem ? ["Troubleshooting"] : []);
+      var pool = ["Almost there", "One moment", "Looking it up", "With you", "Just a second", "On it", "Warming up", "Piecing it", "Checking now", "Finding it", "Quietly looking", "Nearly ready", "Hold on", "Sorting it", "Reading carefully", "Matching words", "Turning pages", "Softly thinking", "Right with you", "Gathering steps", "Little pause", "Opening up"];
+      var seq = words.concat(pool);
+      var pairAt = 0;
       var steps = ["Reading your question", "Matching every word to each part of The Lees", problem ? "Looking for what could be going wrong" : "Weighing the closest answers", "Checking the steps", "Writing the answer"];
       b.innerHTML = '<button type="button" class="ar12-th" aria-expanded="false"><span class="ar12-orb"></span><b>Thinking</b><span class="ar12-dots"><i></i><i></i><i></i></span><svg class="i ar12-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button><ol class="ar12-tsteps"></ol>';
       var head = b.querySelector(".ar12-th"), label = head.querySelector("b"), ol = b.querySelector("ol");
       head.addEventListener("click", function () { var o = !b.classList.contains("expanded"); b.classList.toggle("expanded", o); head.setAttribute("aria-expanded", String(o)); self.scroll(); });
       if (this.flower) this.flower.target = 7;   // the spikes race while it thinks
-      var wi = 0, si = 0;
-      var wt = setInterval(function () { wi = (wi + 1) % words.length; label.textContent = words[wi]; }, 520);
+      var si = 0;
+      var showPair = function () {
+        var a1 = seq[pairAt % seq.length], b1 = seq[(pairAt + 1) % seq.length];
+        label.textContent = a1 === b1 ? a1 : a1 + " · " + b1;
+      };
+      showPair();
+      var wt = setInterval(function () { pairAt = (pairAt + 1) % seq.length; showPair(); }, 520);
       var st = setInterval(function () { if (si >= steps.length) return; ol.appendChild(el("li", "", steps[si++])); if (ol.children.length > 1) ol.children[ol.children.length - 2].classList.add("done"); }, 420);
       var t0 = performance.now();
       return { el: b, done: function (ms) { return new Promise(function (r) { setTimeout(function () { clearInterval(wt); clearInterval(st); while (si < steps.length) ol.appendChild(el("li", "", steps[si++])); [].forEach.call(ol.children, function (x) { x.classList.add("done"); }); label.textContent = "Thought for " + ((performance.now() - t0) / 1000).toFixed(1) + " s"; b.classList.add("collapsed"); if (self.flower) self.flower.target = 1; r(); }, Math.max(0, ms)); }); } };
@@ -978,7 +1149,9 @@
       this.say("me", q);
       Act.log("arten", q.slice(0, 80));
       var t0 = performance.now();
-      var hits = search(q);
+      var factText = null;
+      try { factText = await factsReply(q); } catch (e) {}
+      var hits = factText ? [{ e: { id: "facts", title: "Partner facts", a: factText, go: "facts" }, s: 9 }] : search(q);
       var th = this.think(q, /not work|doesn.?t|broken|error|problem|can.?t|cannot|fail|wrong|issue|stuck/i.test(q));
       var wait = Math.max(2000, Math.min(3400, 1600 + q.length * 20 + (hits.length ? 0 : 500)));
       await th.done(wait - (performance.now() - t0));
@@ -988,10 +1161,12 @@
         var ul = el("div", "ar12-sugg");
         ["Sending photos", "Last seen", "Sealed letters", "Voice notes", "Recently deleted", "Reset everything", "Themes", "Notifications"].forEach(function (t) { ul.appendChild(btn("ar12-chip", esc(t), null, function () { Arten.ask(t); })); });
         b.appendChild(ul);
+        this.rememberTurn(q, "I couldn't match that to a part of The Lees.");
         this.busy = false; this.scroll(); return;
       }
       var top = hits[0].e, also = hits.slice(1).filter(function (h) { return h.s >= hits[0].s * 0.72; }).slice(0, 2).map(function (h) { return h.e; });
       await this.write(b, top, also, q);
+      this.rememberTurn(q, top.a);
       this.busy = false;
     },
     write: async function (b, e, also, q) {
@@ -1037,6 +1212,8 @@
     open: async function () {
       if (this.open_ || this.animating) return;
       var a = A(); if (!a || !a.unlocked) return;
+      if (!this.convo || this.convo.closed) this.convo = { id: String(Date.now()), at: Date.now(), turns: [], closed: false };
+      this.paintChips();
       this.animating = true; Ask.reset();
       Usage.mark("arten");
       var root = this.root, pan = this.panel, fab = this.fab, unit = fab.querySelector(".ar12-unit");
@@ -1074,6 +1251,7 @@
       root.classList.add("closed"); root.inert = true; root.setAttribute("aria-hidden", "true");
       this.fab.classList.remove("under");
       this.open_ = false; this.animating = false;
+      if (this.convo && this.convo.turns && this.convo.turns.length) this.convo.closed = true;
       Ask.lastQuiet = Date.now(); Ask.schedule();
       try { this.fab.focus({ preventScroll: true }); } catch (e) {}
     },
@@ -1100,6 +1278,16 @@
         if (bn && bn.offsetParent && !bn.classList.contains("hidden")) { var br = bn.getBoundingClientRect(); if (br.height && br.right > innerWidth - 90) bottom = Math.max(bottom, innerHeight - br.top + 10); }
       }
       fab.style.setProperty("--ar-bottom", Math.round(bottom) + "px");
+      if (a && (a.view === "home" || !a.view)) {
+        var card = document.querySelector("#people .person");
+        if (card) {
+          var cb = card.getBoundingClientRect().bottom;
+          var fabH = fab.offsetHeight || 64;
+          var top = innerHeight - bottom - fabH;
+          if (top < cb + 16) bottom = Math.max(8, innerHeight - (cb + 16) - fabH);
+        }
+      }
+      fab.style.setProperty("--ar-bottom", Math.round(bottom) + "px");
       this.flower.sync(show || this.open_);
       if (this.open_) this.placePanel();
     }
@@ -1111,6 +1299,7 @@
   var Ask = { curW: 56, busy: false, t: 0, lastQuiet: Date.now(), L: 96, IDLE: 3000, fab: null, measure: null,
     init: function (fab) {
       this.fab = fab; this.body = fab.querySelector(".ar12-body"); this.unit = fab.querySelector(".ar12-unit"); this.text = fab.querySelector(".ar12-ask"); this.typed = fab.querySelector(".ar12-typed");
+      if (!this.text || !this.body) return;
       var self = this;
       ["pointerdown", "keydown", "touchstart"].forEach(function (ev) { document.addEventListener(ev, function () { self.lastQuiet = Date.now(); }, { passive: true }); });
       this.schedule();
@@ -1119,7 +1308,7 @@
       if (!this.measure) { var c = document.createElement("canvas").getContext("2d"), self = this; this.measure = function (x) { var cs = getComputedStyle(self.text); c.font = cs.fontWeight + " " + cs.fontSize + " " + cs.fontFamily; return c.measureText(x).width + 4; }; }
       return s ? 58 + this.measure(s) + 14 : 56;
     },
-    set: function (w) { this.curW = w; var s = Math.max(0, Math.min(1, (w - 56) / this.L)); this.body.style.transform = "scaleX(" + s + ")"; this.unit.style.transform = "translate3d(" + (-this.L * s) + "px,0,0)"; },
+    set: function (w) { if (!this.body || !this.unit) return; this.curW = w; var s = Math.max(0, Math.min(1, (w - 56) / this.L)); this.body.style.transform = "scaleX(" + s + ")"; this.unit.style.transform = "translate3d(" + (-this.L * s) + "px,0,0)"; },
     tween: function (to, ms, ease) { var self = this; return new Promise(function (res) { var from = self.curW, t0 = performance.now(); var step = function (now) { var k = Math.min(1, (now - t0) / ms); self.set(from + (to - from) * ease(k)); if (k < 1) requestAnimationFrame(step); else res(); }; requestAnimationFrame(step); }); },
     ok: function () { var a = A(); return !reduce() && !document.hidden && !Arten.isOpen() && !Guide.on && a && a.unlocked && a.view !== "chat" && !Arten.fab.classList.contains("gone"); },
     play: async function () {
@@ -1135,6 +1324,7 @@
       this.busy = false; this.lastQuiet = Date.now(); this.schedule();
     },
     schedule: function () {
+      if (!this.body || !this.text) return;
       var self = this; clearTimeout(this.t); if (this.busy) return;
       this.t = setTimeout(function () { if (self.busy) return; if (Date.now() - self.lastQuiet >= self.IDLE) self.play(); else self.schedule(); }, Math.max(400, this.IDLE - (Date.now() - this.lastQuiet)));
     },
@@ -1336,7 +1526,8 @@
         { cat: "help", id: "ask-arten", label: "Ask ARTEN", sub: "Questions about anything in the app", keywords: "arten assistant ask question help flower", icon: "chat", run: function () { while (A().view === "panel") { A().goBack(); if (A().view !== "panel") break; } setTimeout(function () { Arten.open(); }, 260); } },
         { cat: "data", id: "vault", label: "Recently deleted", sub: "Restore, or delete for good", keywords: "recently deleted restore bin trash vault recover undelete permanently", icon: "undo", run: function () { a.openVault(); } },
         { cat: "data", id: "reset", label: "Reset everything", sub: "Back to day one, for both of you", keywords: "reset factory wipe start over default erase everything", icon: "trash", danger: true, run: openReset },
-        { cat: "privacy", id: "activity", label: "Last seen and activity", sub: "What each of you did, session by session", keywords: "last seen online activity history presence status", icon: "history", run: function () { openActivity(a.other); } }
+        { cat: "privacy", id: "activity", label: "Last seen and activity", sub: "What each of you did, session by session", keywords: "last seen online activity history presence status", icon: "history", run: function () { openActivity(a.other); } },
+        { cat: "privacy", id: "facts", label: "Things we know", sub: "Facts you keep about " + (a ? a.name(a.other) : "them"), keywords: "facts partner know like remember things about", icon: "heart", run: function () { openFacts(); } }
       );
       return list;
     };
@@ -1363,7 +1554,7 @@
   }
   document.addEventListener("lees:unlocked", onUnlocked);
   document.addEventListener("lees:synced", function () { Act.load(); Act.subscribe(); paintSeen(); checkResetFlag(); setTimeout(openPendingLetters, 1500); });
-  document.addEventListener("lees:locked", function () { clearInterval(Act.beat); Guide.stop(true); if (Arten.built) { Arten.close(); Arten.position(); } document.querySelectorAll(".tip12").forEach(function (n) { n.remove(); }); started = false; });
+  document.addEventListener("lees:locked", function () { clearInterval(Act.beat); Guide.stop(true); clearArtenHistory(); if (Arten.built) { Arten.close(); Arten.position(); } document.querySelectorAll(".tip12").forEach(function (n) { n.remove(); }); started = false; });
   document.addEventListener("lees:view", function (e) {
     var d = e.detail || {};
     if (d.view === "chat") { Act.log("open_chat"); readVisible(900); }
@@ -1384,8 +1575,8 @@
   addEventListener("resize", function () { readVisible(300); });
   document.addEventListener("visibilitychange", function () {
     var a = A(); if (!a || !a.unlocked) return;
-    if (document.hidden) { Act.log("away"); Act.flush(); try { a.presenceTrack({ typing: false, ts: Date.now(), away: true }); } catch (e) {} }
-    else { Act.log("back"); Act.touch(); try { a.presenceTrack({ typing: false, ts: Date.now() }); } catch (e) {} }
+    if (document.hidden) { Act.log("away"); Act.flush(); try { if (a.presenceAway) a.presenceAway(); else a.presenceTrack({ typing: false, ts: Date.now(), away: true }); } catch (e) {} }
+    else { Act.log("back"); if (!(a.idleFor && a.idleFor() > 5 * 60 * 1000)) Act.touch(); try { if (a.presenceBack) a.presenceBack(); else a.presenceTrack({ typing: false, ts: Date.now() }); } catch (e) {} }
     if (Arten.built) Arten.position();
   });
   addEventListener("resize", function () { if (Arten.built) Arten.position(); });
@@ -1403,7 +1594,7 @@
 
   window.LeesV12 = {
     presenceLine: presenceLine, openActivity: openActivity, openReset: openReset, guide: Guide, arten: Arten, ask: search, log: function (k, d) { Act.log(k, d); },
-    beforeSignOut: async function (why) { Act.log(why === "idle" ? "idle" : "signout"); await Act.flush(); },
+    beforeSignOut: async function (why) { Act.log(why === "idle" ? "idle" : "signout"); clearArtenHistory(); await Act.flush(); },
     _act: Act, _usage: Usage, _kb: KB, maybeTip: maybeTip
   };
 })();

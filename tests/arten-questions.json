@@ -1,0 +1,402 @@
+[
+  {
+    "id": "send",
+    "q": "how do i send a message"
+  },
+  {
+    "id": "send",
+    "q": "how to text them"
+  },
+  {
+    "id": "send",
+    "q": "write a message in the chat"
+  },
+  {
+    "id": "send",
+    "q": "where is the send button"
+  },
+  {
+    "id": "send",
+    "q": "type a message and send it"
+  },
+  {
+    "id": "send",
+    "q": "how do I reply in the conversation"
+  },
+  {
+    "id": "send",
+    "q": "enter sends a message"
+  },
+  {
+    "id": "send",
+    "q": "send a text message"
+  },
+  {
+    "id": "photos",
+    "q": "send many photos at once"
+  },
+  {
+    "id": "photos",
+    "q": "how do i send photos as one set"
+  },
+  {
+    "id": "photos",
+    "q": "attach pictures in the chat"
+  },
+  {
+    "id": "photos",
+    "q": "send a video with photos"
+  },
+  {
+    "id": "photos",
+    "q": "why do photos arrive as one album"
+  },
+  {
+    "id": "photos",
+    "q": "send stacked photos"
+  },
+  {
+    "id": "photos",
+    "q": "pick several images"
+  },
+  {
+    "id": "photos",
+    "q": "send photos at once"
+  },
+  {
+    "id": "voice",
+    "q": "record a voice note"
+  },
+  {
+    "id": "voice",
+    "q": "how do i send audio"
+  },
+  {
+    "id": "voice",
+    "q": "use the microphone"
+  },
+  {
+    "id": "voice",
+    "q": "send a recording"
+  },
+  {
+    "id": "voice",
+    "q": "voice note transcript"
+  },
+  {
+    "id": "voice",
+    "q": "how to record audio"
+  },
+  {
+    "id": "lastseen",
+    "q": "when were they last online"
+  },
+  {
+    "id": "lastseen",
+    "q": "are they online now"
+  },
+  {
+    "id": "lastseen",
+    "q": "show last seen"
+  },
+  {
+    "id": "lastseen",
+    "q": "last seen today"
+  },
+  {
+    "id": "lastseen",
+    "q": "what time were they last seen"
+  },
+  {
+    "id": "lastseen",
+    "q": "online now status"
+  },
+  {
+    "id": "lastseen",
+    "q": "when was she last online"
+  },
+  {
+    "id": "lastseen",
+    "q": "when was he last online"
+  },
+  {
+    "id": "activity",
+    "q": "open the activity list"
+  },
+  {
+    "id": "activity",
+    "q": "what did they do"
+  },
+  {
+    "id": "activity",
+    "q": "show me their sessions"
+  },
+  {
+    "id": "activity",
+    "q": "activity history"
+  },
+  {
+    "id": "activity",
+    "q": "what are they doing"
+  },
+  {
+    "id": "activity",
+    "q": "see activity"
+  },
+  {
+    "id": "activity",
+    "q": "their activity today"
+  },
+  {
+    "id": "activity",
+    "q": "what did she do today"
+  },
+  {
+    "id": "letters",
+    "q": "write a sealed letter"
+  },
+  {
+    "id": "letters",
+    "q": "how do i seal a letter"
+  },
+  {
+    "id": "letters",
+    "q": "letter that opens later"
+  },
+  {
+    "id": "letters",
+    "q": "where are sealed letters"
+  },
+  {
+    "id": "letters",
+    "q": "new sealed letter"
+  },
+  {
+    "id": "letters",
+    "q": "send a letter that opens later"
+  },
+  {
+    "id": "letterdelete",
+    "q": "delete a sealed letter"
+  },
+  {
+    "id": "letterdelete",
+    "q": "remove a letter from my side"
+  },
+  {
+    "id": "letterdelete",
+    "q": "delete for both"
+  },
+  {
+    "id": "letterdelete",
+    "q": "delete for me"
+  },
+  {
+    "id": "letterdelete",
+    "q": "select letters to delete"
+  },
+  {
+    "id": "letterdelete",
+    "q": "delete all letters"
+  },
+  {
+    "id": "letterdelete",
+    "q": "remove from your letters"
+  },
+  {
+    "id": "letterdelete",
+    "q": "withdraw a letter i sent"
+  },
+  {
+    "id": "journal",
+    "q": "write in the journal"
+  },
+  {
+    "id": "journal",
+    "q": "open the journal"
+  },
+  {
+    "id": "journal",
+    "q": "how do i add a journal page"
+  },
+  {
+    "id": "journal",
+    "q": "where is the diary"
+  },
+  {
+    "id": "journal",
+    "q": "journal prompts"
+  },
+  {
+    "id": "journal",
+    "q": "search the journal"
+  },
+  {
+    "id": "journal",
+    "q": "edit a journal page"
+  },
+  {
+    "id": "journal",
+    "q": "shared journal"
+  },
+  {
+    "id": "stickers",
+    "q": "send a sticker"
+  },
+  {
+    "id": "stickers",
+    "q": "where are stickers"
+  },
+  {
+    "id": "stickers",
+    "q": "open the sticker picker"
+  },
+  {
+    "id": "stickers",
+    "q": "how do i send stickers"
+  },
+  {
+    "id": "stickers",
+    "q": "good luck sticker"
+  },
+  {
+    "id": "stickers",
+    "q": "sticker menu"
+  },
+  {
+    "id": "stickers",
+    "q": "emoji stickers"
+  },
+  {
+    "id": "stickers",
+    "q": "more stickers"
+  },
+  {
+    "id": "idle",
+    "q": "will i be signed out if i leave it"
+  },
+  {
+    "id": "idle",
+    "q": "still there warning"
+  },
+  {
+    "id": "idle",
+    "q": "idle sign out"
+  },
+  {
+    "id": "idle",
+    "q": "signed out after 5 minutes"
+  },
+  {
+    "id": "idle",
+    "q": "inactivity limit"
+  },
+  {
+    "id": "idle",
+    "q": "why was i signed out"
+  },
+  {
+    "id": "idle",
+    "q": "30 second warning"
+  },
+  {
+    "id": "idle",
+    "q": "auto sign out"
+  },
+  {
+    "id": "facts",
+    "q": "what do you know about my partner"
+  },
+  {
+    "id": "facts",
+    "q": "whats my partners name"
+  },
+  {
+    "id": "facts",
+    "q": "remember that she likes sushi"
+  },
+  {
+    "id": "facts",
+    "q": "note that he likes running"
+  },
+  {
+    "id": "facts",
+    "q": "things we know"
+  },
+  {
+    "id": "facts",
+    "q": "facts about her"
+  },
+  {
+    "id": "facts",
+    "q": "what does my partner like"
+  },
+  {
+    "id": "facts",
+    "q": "tell me about them"
+  },
+  {
+    "id": "history",
+    "q": "show chat history"
+  },
+  {
+    "id": "history",
+    "q": "arten history"
+  },
+  {
+    "id": "history",
+    "q": "what did i ask you"
+  },
+  {
+    "id": "history",
+    "q": "past questions to arten"
+  },
+  {
+    "id": "history",
+    "q": "open chat history"
+  },
+  {
+    "id": "history",
+    "q": "previous conversation with arten"
+  },
+  {
+    "id": "history",
+    "q": "see earlier questions"
+  },
+  {
+    "id": "history",
+    "q": "clock chat history"
+  },
+  {
+    "id": "deleted",
+    "q": "restore a deleted message"
+  },
+  {
+    "id": "deleted",
+    "q": "recently deleted"
+  },
+  {
+    "id": "deleted",
+    "q": "empty the bin"
+  },
+  {
+    "id": "deleted",
+    "q": "delete permanently"
+  },
+  {
+    "id": "reset",
+    "q": "reset the app"
+  },
+  {
+    "id": "reset",
+    "q": "reset everything"
+  },
+  {
+    "id": "reset",
+    "q": "delete everything and start over"
+  },
+  {
+    "id": "reset",
+    "q": "factory reset the lees"
+  }
+]

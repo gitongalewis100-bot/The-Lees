@@ -13,7 +13,7 @@
     get: function (k, d) { try { var v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
     set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
   };
-  var D = { env: [], letters: {}, game: null, games: [], awards: [], chan: null, nextTimer: 0, pollTimer: 0, tickTimer: 0, gameOpen: false, offset: 0, shownReady: {} };
+  var D = { env: [], letters: {}, game: null, games: [], awards: [], chan: null, nextTimer: 0, pollTimer: 0, tickTimer: 0, gameOpen: false, offset: 0, shownReady: {}, envLoaded: false, removed: {} };
   var OTHER = function (s) { return s === "Lewis" ? "Agnes" : "Lewis"; };
   var initial = function (side) { return side === "Lewis" ? "L" : "A"; };
   var fmtWhen = function (ts) { return new Date(ts).toLocaleString([], { weekday: "short", day: "numeric", month: "short", year: new Date(ts).getFullYear() !== new Date().getFullYear() ? "numeric" : undefined, hour: "2-digit", minute: "2-digit" }); };
@@ -41,6 +41,7 @@
     var r = await c.rpc("sealed_envelopes");
     if (r.error) return;
     D.env = (r.data || []).map(function (e) { return { id: e.id, from: e.author_side, to: e.recipient_side, title: e.title || "", seal: e.seal || "wax-red", paper: e.paper || "cream", openAt: Date.parse(e.open_at), openedAt: e.opened_at ? Date.parse(e.opened_at) : 0, createdAt: Date.parse(e.created_at) }; });
+    D.envLoaded = true;
     scheduleNextReady();
     refreshBadges();
   }
@@ -84,7 +85,7 @@
   document.addEventListener("lees:resume", function () { Promise.all([loadEnvelopes(), loadGames()]).then(function () { announceReady(); checkInvite(); rerender(); }); });
   document.addEventListener("lees:locked", function () {
     var c = sb(); if (c && D.chan) { try { c.removeChannel(D.chan); } catch (e) {} }
-    D.chan = null; D.env = []; D.letters = {}; D.game = null; D.games = []; D.awards = []; D.gameOpen = false;
+    D.chan = null; D.env = []; D.letters = {}; D.game = null; D.games = []; D.awards = []; D.gameOpen = false; D.envLoaded = false; D.removed = {};
     clearTimeout(D.nextTimer); clearInterval(D.tickTimer);
     document.querySelectorAll(".v8-overlay").forEach(function (n) { n.remove(); });
   });
@@ -177,16 +178,27 @@
   function openLetters(tab) {
     var a = A();
     var cur = tab || (readyForMe().length || D.env.some(function (e) { return e.to === a.me; }) ? "in" : "out");
+    var selecting = false;
+    var picked = {};
     a.openPanel("Sealed letters", "Written now, opened on the day", stillFn(function (body) {
       body.classList.add("v8");
       setPanel(function () { a.renderPanel(); });
+      var right = $("panelRight");
+      if (right) {
+        right.textContent = "";
+        var sel = el("button", "btn sm" + (selecting ? " on" : ""), "Select");
+        sel.type = "button";
+        sel.setAttribute("aria-pressed", selecting ? "true" : "false");
+        sel.addEventListener("click", function () { selecting = !selecting; if (!selecting) picked = {}; a.renderPanel(); });
+        right.appendChild(sel);
+      }
       var tabs = el("div", "v8-tabs");
       [["in", "For you"], ["out", "From you"]].forEach(function (t) {
         var b = el("button", "v8-tab" + (cur === t[0] ? " on" : ""), t[1]);
         b.type = "button";
         var n = t[0] === "in" ? readyForMe().length : 0;
         if (n) b.appendChild(el("span", "v8-dot", String(n)));
-        b.addEventListener("click", function () { cur = t[0]; a.renderPanel(); });
+        b.addEventListener("click", function () { cur = t[0]; picked = {}; a.renderPanel(); });
         tabs.appendChild(b);
       });
       body.appendChild(tabs);
@@ -206,14 +218,83 @@
         return;
       }
       var grid = el("div", "v8-envs");
-      list.forEach(function (e) { grid.appendChild(envelopeCard(e)); });
+      list.forEach(function (e) { grid.appendChild(envelopeCard(e, selecting, !!picked[e.id], function () {
+        if (!selecting) return false;
+        picked[e.id] = !picked[e.id];
+        a.renderPanel();
+        return true;
+      })); });
       body.appendChild(grid);
+      if (selecting) {
+        var ids = list.filter(function (e) { return picked[e.id]; });
+        var bar = el("div", "v8-selbar");
+        var del = el("button", "btn", "Delete selected (" + ids.length + ")");
+        del.type = "button";
+        del.disabled = !ids.length;
+        var all = el("button", "btn ghost", "Delete all");
+        all.type = "button";
+        all.disabled = !list.length;
+        del.addEventListener("click", function () { confirmLetterDelete(ids); });
+        all.addEventListener("click", function () { confirmLetterDelete(list.slice()); });
+        bar.append(del, all);
+        body.appendChild(bar);
+      }
     }));
   }
-  function envelopeCard(e) {
+  async function hideLetters(ids, both) {
+    var a = A(), c = sb(); if (!c || !ids.length) return false;
+    var r = await c.rpc("sealed_hide", { p_ids: ids, p_both: !!both });
+    if (r.error) { a.notice("Couldn't update the letters", friendly(r.error), { error: true }); return false; }
+    ids.forEach(function (id) { D.removed[id] = true; });
+    await loadEnvelopes();
+    try { a.render(); } catch (e) {}
+    return true;
+  }
+  async function confirmLetterDelete(list) {
+    var a = A(); if (!list.length) return;
+    var recv = list.filter(function (e) { return e.to === a.me; });
+    var sent = list.filter(function (e) { return e.from === a.me; });
+    var choice = false;
+    if (recv.length && !sent.length) {
+      choice = await a.centredBanner({ title: "Remove from your letters?", desc: a.name(a.other) + " still has them.", okLabel: "Remove" });
+      if (!choice) return;
+      if (await hideLetters(recv.map(function (e) { return e.id; }), false)) rerender();
+      return;
+    }
+    if (sent.length && !recv.length) {
+      choice = await a.centredBanner({
+        title: "Delete the letters you sent?",
+        desc: "Delete for me keeps them for " + a.name(a.other) + ". Delete for both removes them for both of you.",
+        buttons: [{ label: "Cancel", value: false, ghost: true }, { label: "Delete for me", value: "me" }, { label: "Delete for both", value: "both" }]
+      });
+      if (!choice) return;
+      if (await hideLetters(sent.map(function (e) { return e.id; }), choice === "both")) rerender();
+      return;
+    }
+    choice = await a.centredBanner({
+      title: "Delete selected letters?",
+      desc: "Received (" + recv.length + "): remove from your letters only. " + a.name(a.other) + " still has them. Sent (" + sent.length + "): delete for you, or for both.",
+      buttons: [{ label: "Cancel", value: false, ghost: true }, { label: "Remove", value: "recv" }, { label: "Delete for me", value: "me" }, { label: "Delete for both", value: "both" }]
+    });
+    if (!choice) return;
+    var ok = false;
+    if (choice === "recv") ok = await hideLetters(recv.map(function (e) { return e.id; }), false);
+    if (choice === "me") ok = await hideLetters(list.map(function (e) { return e.id; }), false);
+    if (choice === "both") {
+      if (recv.length) await hideLetters(recv.map(function (e) { return e.id; }), false);
+      ok = await hideLetters(sent.map(function (e) { return e.id; }), true);
+    }
+    if (ok) rerender();
+  }
+  function envelopeCard(e, selecting, on, toggle) {
     var a = A(), mine = e.from === a.me, ready = e.openAt <= Date.now();
-    var card = el("button", "v8-env" + (ready && !mine && !e.openedAt ? " ready" : "") + (!ready && !mine ? " locked" : "") + (e.openedAt ? " opened" : ""));
+    var card = el("button", "v8-env" + (ready && !mine && !e.openedAt ? " ready" : "") + (!ready && !mine ? " locked" : "") + (e.openedAt ? " opened" : "") + (on ? " on" : ""));
     card.type = "button";
+    if (selecting) {
+      var box = el("span", "v8-check", on ? "✓" : "");
+      box.setAttribute("aria-hidden", "true");
+      card.appendChild(box);
+    }
     card.appendChild(envelopeArt(e));
     var meta = el("div", "v8-env-meta");
     meta.appendChild(el("b", "", e.title || "A letter"));
@@ -224,6 +305,7 @@
     meta.appendChild(el("small", "mono", (ready ? "Opened on " : "Opens ") + fmtWhen(e.openAt)));
     card.appendChild(meta);
     card.addEventListener("click", function () {
+      if (selecting) { if (toggle) toggle(); return; }
       if (!mine && !ready) {
         card.classList.remove("shake"); void card.offsetWidth; card.classList.add("shake");
         a.haptic("error");
@@ -857,5 +939,10 @@
       { id: "cabinet", label: "Trophy cabinet", sub: xp(a.me) + " points", keywords: "awards trophies medals points level", icon: "trophy", run: function () { openCabinet(); } }
     ];
   };
-  window.LeesFeatures = { openLetterById: openLetterById, openCreate: openCreate, readyCount: readyCount, openLetters: openLetters, openGame: openGame, openCabinet: openCabinet, _d: D };
+  function letterGone(id) {
+    if (!id || !D.envLoaded) return false;
+    if (D.removed[id]) return !D.env.some(function (e) { return e.id === id; });
+    return !D.env.some(function (e) { return e.id === id; });
+  }
+  window.LeesFeatures = { openLetterById: openLetterById, openCreate: openCreate, readyCount: readyCount, openLetters: openLetters, openGame: openGame, openCabinet: openCabinet, letterGone: letterGone, _d: D };
 })();

@@ -496,9 +496,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
 <link rel="stylesheet" href="/lees-v8.css?v=4">
-<link rel="stylesheet" href="/lees-v9.css?v=8">
+<link rel="stylesheet" href="/lees-v9.css?v=9">
 <link rel="stylesheet" href="/lees-v11.css?v=5">
-<link rel="stylesheet" href="/lees-v12.css?v=2">
+<link rel="stylesheet" href="/lees-v12.css?v=3">
 </head>
 <body>
 
@@ -727,7 +727,12 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     coffee: { e: "☕", fx: "steam", bits: "♨️", label: "Coffee" }, flowers: { e: "💐", fx: "sway", bits: "🌸", label: "Flowers" },
     fire: { e: "🔥", fx: "flicker", bits: "✨", label: "Fire" }, wave: { e: "👋", fx: "wave", bits: "", label: "Hi" },
     star: { e: "🌟", fx: "twinkle", bits: "✨", label: "Proud" }, hugs2: { e: "🤗", fx: "bounce", bits: "💛", label: "Big hug" },
-    cry: { e: "😭", fx: "bob", bits: "💧", label: "Sad" }, ring: { e: "💍", fx: "twinkle", bits: "✨", label: "Forever" }
+    cry: { e: "😭", fx: "bob", bits: "💧", label: "Sad" }, ring: { e: "💍", fx: "twinkle", bits: "✨", label: "Forever" },
+    luck: { e: "🍀", fx: "luck", bits: "✨", label: "Good luck" },
+    congrats: { e: "🎊", fx: "confetti", bits: "🎉", label: "Congrats" },
+    cuddle: { e: "🧸", fx: "cuddle", bits: "💗", label: "Cuddle" },
+    rain: { e: "🌧️", fx: "rain", bits: "💧", label: "Rainy day" },
+    sparkle: { e: "✨", fx: "sparkle", bits: "⭐", label: "Sparkle" }
   };
   const STICKER_RE = /^\[\[sticker:([a-z0-9]+)\]\]$/;
   /* Cards: letters, game challenges and "thinking of you" also arrive as a message, so they show in the chat and
@@ -753,7 +758,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     w.setAttribute("aria-label", s.label + " sticker");
     const main = document.createElement("span"); main.className = "stk9-e"; main.textContent = s.e;
     w.appendChild(main);
-    if (s.bits) for (let i = 0; i < 3; i++) { const b = document.createElement("span"); b.className = "stk9-b b" + i; b.textContent = s.bits; w.appendChild(b); }
+    if (s.bits) for (let i = 0; i < 5; i++) { const b = document.createElement("span"); b.className = "stk9-b b" + i; b.textContent = s.bits; w.appendChild(b); }
     return w;
   }
 
@@ -775,7 +780,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   const ZONES = ["Africa/Nairobi", "Europe/London", "America/New_York", "America/Los_Angeles", "Asia/Dubai", "Asia/Tokyo", "Australia/Sydney", "UTC"];
   const ARCHIVE = [[0, "Never"], [1, "After 1 day"], [7, "After 7 days"], [30, "After 30 days"]];
   const PATTERNS = { send: [8], recv: [8, 40, 8], heart: [20, 30, 20], press: [12], error: [40, 60, 40, 60, 40], schedule: [10, 20, 10], pin: [15, 25, 15] };
-  const IDLE_MS = 10 * 60 * 1000, UNSEND_MS = 5 * 60 * 1000, DELETE_ALL_MS = 24 * 60 * 60 * 1000, UNDO_MS = 5000;
+  const IDLE_MS = 5 * 60 * 1000, UNSEND_MS = 5 * 60 * 1000, DELETE_ALL_MS = 24 * 60 * 60 * 1000, UNDO_MS = 5000;
   const REC_MAX_MS = 90 * 1000, IMG_MAX = 1600, MAX_TRIES = 5, LOCK_MS = 30 * 1000, NOTE_MAX = 280;
   const EFFECT_RE = /\b(i love you|love you|miss you|missing you|darling|honey|thinking of you)\b/i;
   const SENSITIVE_BUILTIN = "love you,i love you,miss you,missing you,darling,honey,dear,babe,baby,sweetheart,sweetie,my love,my heart,beautiful,gorgeous,handsome,cutie,princess,prince,angel,kiss,kisses,hug,hugs,cuddle,cuddles,snuggle,hold you,hold your hand,holding hands,thinking of you,think about you,dream about you,dreaming of you,forever,always yours,yours,mine,only you,you're mine,my everything,my world,my person,soulmate,proposal,propose,marry,marriage,wedding,ring,engagement,promise,future,together,our future,move in,meet my family,my mum,my mom,my dad,my family,your family,parents,relationship,girlfriend,boyfriend,partner,wife,husband,fiance,fiancee,crush,butterflies,blush,shy,nervous,secret,our secret,don't tell,between us,nobody knows,hide,private,personal,cry,crying,tears,sad,lonely,scared,afraid,worried,hurt,hurting,sorry,forgive,apologize,fight,argument,upset,jealous,jealousy,trust,cheat,lie,lied,ex,exes,past,rumour,rumor,gossip,pregnant,body,nude,naked,undress,sexy,hot,turn me on,miss your touch,your voice,your smile,your eyes,your laugh,i dream,i need you,need you,want you,wish you were here,come home,home soon,i'm coming,visit,visa,flight,airport,goodbye,bye love,good night,goodnight,sleep well,sweet dreams,morning love,good morning my,i'm proud,proud of you,so proud,you're amazing,you're special,special,precious,treasure,cherish,adore,adorable,cute,lovely,pretty,stunning,my queen,my king,queen,king,mine forever,yes i do,i'm yours,hold me,miss your hugs,sweet,my sweet,my darling,my honey,my babe,my dear,dearest,beloved,love of my life,my star,my moon,my sunshine,sunshine,sugar,pumpkin,sweetness,bae,boo,hun,luv,ily,ilysm,xoxo,mwah,smooch,flirt,flirting,date,dating,romance,romantic,candle,candlelight,dinner for two,just us,our night,our day,alone with you,you and me,just you and me,secret love,crush on you,your touch,your kiss,your hug,your arms,your lips,lips,arms,shoulder,neck,hair,bed,bedroom,shower,bath,lingerie,tease,teasing,naughty,wink,wicked";
@@ -2398,6 +2403,14 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const tx = el("div", "card11-tx");
     let cta = "";
     if (c.t === "letter") {
+      const gone = window.LeesFeatures && LeesFeatures.letterGone && LeesFeatures.letterGone(c.id);
+      if (gone) {
+        art.innerHTML = '<svg viewBox="0 0 64 44" aria-hidden="true"><rect x="2" y="2" width="60" height="40" rx="5" class="env"/><path d="M3 4l29 21L61 4" class="flap"/></svg>';
+        tx.append(el("small", "mono", "Sealed letter"), el("b", "", "Letter removed"));
+        box.append(art, tx);
+        box.disabled = true;
+        return box;
+      }
       art.innerHTML = '<svg viewBox="0 0 64 44" aria-hidden="true"><rect x="2" y="2" width="60" height="40" rx="5" class="env"/><path d="M3 4l29 21L61 4" class="flap"/><circle cx="32" cy="25" r="7" class="seal"/></svg>';
       const at = Date.parse(c.at || "") || 0, ready = at && at <= Date.now();
       const when = el("span", "", ready ? (mine ? "Can be opened now" : "Ready to open") : "Opens in " + (window.LeesV11 ? LeesV11.countdown(at - Date.now()) : fmtDateTime(at)));
@@ -2691,7 +2704,8 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 
     $("qcount").textContent = query ? (matches.length ? (matchIdx + 1) + " / " + matches.length : "0") : "";
     knownIds = new Set(thread().map(m => m.id));
-    if (opts.stick || (addedAtEnd && near)) box.scrollTop = box.scrollHeight;
+    if (opts.stick) stickToBottom(box);
+    else if (addedAtEnd && near) box.scrollTop = box.scrollHeight;
     if (opts.seek && query && matches.length) highlightMatch();
     if (focusDay) {
       const hit = [...box.querySelectorAll(".row")].find(r => {
@@ -2784,6 +2798,12 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     prevUnread = n;
   }
 
+  function stickToBottom(box) {
+    const go = () => { box.scrollTop = box.scrollHeight; };
+    go();
+    requestAnimationFrame(() => requestAnimationFrame(go));
+    box.querySelectorAll("img").forEach((img) => { if (!img.complete) img.addEventListener("load", go, { once: true }); });
+  }
   function nearBottom() { const b = $("list"); return b.scrollHeight - b.scrollTop - b.clientHeight <= 80; }
   function scrollBottom() { const b = $("list"); b.scrollTo({ top: b.scrollHeight, behavior: "smooth" }); }
 
@@ -4566,6 +4586,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const peopleLive = $("people");
     const people = document.createElement("div");
     const other2 = other();
+    const wrap = el("div", "hero13");
     const otherBtn = el("button", "person hero lift");
     const unreadChat = unreadN;
     otherBtn.innerHTML = `<div class="avatar ${other2.toLowerCase()}">${other2 === "Lewis" ? "L" : "A"}</div><div class="grow"><div class="n">${NAME[other2]}</div><div class="s">${htmlEsc(S(other2).status || "Open the conversation")}</div></div>${unreadChat ? `<span class="badge">${unreadChat}</span>` : ic("chat", "sm")}`;
@@ -4582,7 +4603,27 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const g = otherBtn.querySelector(".grow");
       if (g) g.insertAdjacentHTML("beforeend", '<span class="draft-tag">Draft</span>');
     }
-    people.appendChild(otherBtn);
+    const act = el("button", "act13");
+    act.type = "button";
+    act.setAttribute("aria-label", "ACTIVITY");
+    const word = el("span", "act13-word");
+    "ACTIVITY".split("").forEach((ch, i) => {
+      const s = el("span", "act13-ch", ch);
+      s.style.animationDelay = (i * 0.08) + "s";
+      word.appendChild(s);
+    });
+    const tag = el("span", "act13-tag", "Click me");
+    act.append(word, tag);
+    act.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (window.LeesV12 && LeesV12.openActivity) LeesV12.openActivity(other2);
+    });
+    wrap.append(otherBtn, act);
+    let openedAct = false;
+    try { openedAct = localStorage.getItem("lees-activity-opened-v13") === "1"; } catch (e) {}
+    if (!openedAct) wrap.appendChild(el("p", "act13-hint", "Click here to see what " + NAME[other2] + " did or is doing and whether they are online."));
+    people.appendChild(wrap);
     swapIfChanged(peopleLive, people);
     fillAvatars();
     renderPlay();
@@ -5018,8 +5059,9 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
   }
 
 
-  // One centred banner with exactly one Cancel and one Sign out. Escape or a tap outside cancels.
-  function centredBanner({ title, desc, okLabel }) {
+  // One centred banner. The default is exactly one Cancel and one action. Optional buttons replace that pair.
+  // countdown counts down in the description. activityCancels treats taps, keys and scrolls as Cancel, except the buttons.
+  function centredBanner({ title, desc, okLabel, buttons, countdown, activityCancels }) {
     return new Promise((resolve) => {
       const scrim = el("div", "cb-scrim");
       const box = el("div", "cb-box");
@@ -5028,21 +5070,65 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       const h = el("h3", "cb-title", title);
       const p = el("p", "cb-desc", desc);
       const row = el("div", "cb-row");
-      const no = el("button", "cb-btn cb-ghost", "Cancel");
-      no.type = "button";
-      const yes = el("button", "cb-btn cb-danger", okLabel);
-      yes.type = "button";
-      row.append(no, yes);
-      box.append(h, p, row);
+      let settled = false, timer = 0;
+      const offs = [];
+      const close = (v) => {
+        if (settled) return;
+        settled = true;
+        clearInterval(timer);
+        offs.forEach((fn) => fn());
+        scrim.remove();
+        resolve(v);
+      };
+      if (buttons && buttons.length) {
+        buttons.forEach((b) => {
+          const node = el("button", "cb-btn " + (b.value === false || b.ghost ? "cb-ghost" : "cb-danger"), b.label);
+          node.type = "button";
+          node.addEventListener("click", () => close(b.value));
+          row.appendChild(node);
+        });
+      } else {
+        const no = el("button", "cb-btn cb-ghost", "Cancel");
+        no.type = "button";
+        const yes = el("button", "cb-btn cb-danger", okLabel);
+        yes.type = "button";
+        row.append(no, yes);
+        no.addEventListener("click", () => close(false));
+        yes.addEventListener("click", () => close(true));
+        setTimeout(() => { try { no.focus(); } catch (e) {} }, 0);
+      }
+      if (countdown) {
+        const count = el("p", "cb-count", String(countdown));
+        box.append(h, count, p, row);
+      } else box.append(h, p, row);
       scrim.appendChild(box);
       document.body.appendChild(scrim);
-      const close = (v) => { document.removeEventListener("keydown", onKey); scrim.remove(); resolve(v); };
-      const onKey = (e) => { if (e.key === "Escape") close(false); };
+      const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); close(false); } };
       document.addEventListener("keydown", onKey);
-      no.addEventListener("click", () => close(false));
-      yes.addEventListener("click", () => close(true));
+      offs.push(() => document.removeEventListener("keydown", onKey));
       scrim.addEventListener("click", (e) => { if (e.target === scrim) close(false); });
-      no.focus();
+      if (countdown) {
+        let cd = countdown;
+        const count = box.querySelector(".cb-count");
+        timer = setInterval(() => {
+          cd -= 1;
+          if (count) count.textContent = String(Math.max(0, cd));
+          p.textContent = "You will be signed out in " + Math.max(0, cd) + " seconds.";
+          if (cd <= 0) close(true);
+        }, 1000);
+      }
+      if (activityCancels) {
+        const onAct = (e) => {
+          const t = e.target;
+          if (t && t.closest && t.closest(".cb-box")) {
+            if (t.closest(".cb-ghost") || t.closest(".cb-danger")) return;
+          }
+          if (e.type === "keydown" && e.key === "Escape") return;
+          close(false);
+        };
+        ["pointerdown", "keydown", "touchstart", "scroll"].forEach((ev) => document.addEventListener(ev, onAct, true));
+        offs.push(() => ["pointerdown", "keydown", "touchstart", "scroll"].forEach((ev) => document.removeEventListener(ev, onAct, true)));
+      }
     });
   }
   async function confirmSignOut(which) {
@@ -6362,7 +6448,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const typing = a && (a.tagName === "TEXTAREA" || a.tagName === "INPUT" || a.tagName === "SELECT");
     if (e.key === "/" && unlocked && !typing) { e.preventDefault(); if (view !== "chat") openChat(); toggleSearch(true); }
   });
-  document.addEventListener("pointerdown", () => { lastActivity = Date.now(); try { ensureAudio(); } catch (e) {} });
+  document.addEventListener("pointerdown", () => { if (!idleWarnOn) noteUserActivity(); try { ensureAudio(); } catch (e) {} });
 
   document.addEventListener("visibilitychange", () => {
     document.body.classList.toggle("private", document.hidden);
@@ -6408,17 +6494,60 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     lock();
     idleSignOut.busy = false;
   }
+  let idleWarnOn = false;
+  async function idleWarn() {
+    if (!unlocked || idleWarnOn || idleSignOut.busy) return;
+    if (Date.now() - lastActivity <= IDLE_MS) return;
+    idleWarnOn = true;
+    publishPresence(true);
+    const ok = await centredBanner({
+      title: "Still there?",
+      desc: "You will be signed out in 30 seconds.",
+      okLabel: "Sign out",
+      countdown: 30,
+      activityCancels: true
+    });
+    idleWarnOn = false;
+    if (!unlocked) return;
+    if (ok) await idleSignOut();
+    else { lastActivity = Date.now(); presenceStreak = Date.now(); publishPresence(false); }
+  }
+
+  let presenceStreak = 0, presenceOnline = false, presenceDelayTimer = 0;
+  function publishPresence(forceAway) {
+    if (!presenceChannel) return;
+    const idle = Date.now() - lastActivity > 5 * 60 * 1000;
+    const elapsed = presenceStreak ? Date.now() - presenceStreak : 0;
+    const online = !forceAway && !document.hidden && !idle && elapsed >= 3000;
+    presenceOnline = online;
+    const payload = { typing: false, ts: Date.now() };
+    if (!online) payload.away = true;
+    try { presenceChannel.track(payload); } catch (e) {}
+    clearTimeout(presenceDelayTimer);
+    if (!online && !forceAway && !document.hidden && !idle && presenceStreak && elapsed < 3000) {
+      presenceDelayTimer = setTimeout(() => publishPresence(false), 3000 - elapsed + 40);
+    }
+  }
+  function noteUserActivity() {
+    const gap = Date.now() - lastActivity;
+    if (!presenceStreak || gap > 5 * 60 * 1000) presenceStreak = Date.now();
+    lastActivity = Date.now();
+    if (!idleWarnOn) publishPresence(false);
+  }
+  function presenceAway() { presenceStreak = 0; publishPresence(true); }
+  function presenceBack() { presenceStreak = Date.now(); lastActivity = Date.now(); publishPresence(false); }
 
   // Timers: presence, scheduled delivery, idle auto-lock.
   setInterval(() => {
     if (!unlocked) return;
     renderPresence();
     deliverDue();
-    if (rec || [...voiceCache.values()].some(w => !w._audio.paused)) lastActivity = Date.now();
-    if (Date.now() - lastActivity > IDLE_MS) idleSignOut();
+    if (rec || [...voiceCache.values()].some(w => !w._audio.paused)) noteUserActivity();
+    publishPresence(false);
+    if (Date.now() - lastActivity > IDLE_MS) idleWarn();
   }, 4000);
-  ["keydown", "touchstart", "scroll"].forEach(ev => document.addEventListener(ev, () => { lastActivity = Date.now(); }, { passive: true }));
-  document.addEventListener("visibilitychange", () => { if (!document.hidden && unlocked && Date.now() - lastActivity > IDLE_MS) idleSignOut(); });
+  ["keydown", "touchstart", "scroll"].forEach(ev => document.addEventListener(ev, () => { if (!idleWarnOn) noteUserActivity(); }, { passive: true }));
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && unlocked && Date.now() - lastActivity > IDLE_MS) idleWarn(); });
   setInterval(applyTheme, 60 * 1000);
 
 
@@ -6831,7 +6960,10 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       if (unlocked) renderPresence();
     });
     presenceChannel.subscribe(async (status) => {
-      if (status === "SUBSCRIBED") await presenceChannel.track({ typing: false, ts: Date.now() });
+      if (status === "SUBSCRIBED") {
+        if (!presenceStreak) presenceStreak = Date.now();
+        publishPresence(false);
+      }
     });
     if (typeChannel) client.removeChannel(typeChannel);
     typeChannel = client.channel(String(pairId));
@@ -7170,7 +7302,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
       await delBlob(localId);
       cacheThread = thread().filter(x => x.id !== localId);
       await reloadAll();
-      render();
+      render({ stick: true });
       haptic("send");
     } catch {
       markFailed(localId);
@@ -7237,7 +7369,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     }
     cacheThread = thread().filter(x => !(x.pending && x.batchId === batchId && !failed.some(f => f.localId === x.id)));
     await reloadAll();
-    render();
+    render({ stick: true });
     document.dispatchEvent(new CustomEvent("lees:activity", { detail: { action: "send_media", detail: items.length + " " + (items.every(x => x.kind === "image") ? "photos" : "items") + " in one send" } }));
     if (failed.length) notice(failed.length + " waiting to send", "They'll go when the connection is back.", { error: true });
     else if (sent.length) {
@@ -7366,7 +7498,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     if (ins.data && ins.data.id) offerUndo(ins.data.id, null);
     await reloadAll();
     haptic("send");
-    render();
+    render({ stick: true });
   }
   async function scheduleText(sendAt, effect, fallback) {
     const input = $("input");
@@ -8348,7 +8480,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     const clientId = uid();
     const fwd = opts && opts.fwd ? { fwd: true, from: opts.fwd.from || null } : null;
     const local = addMessage({ kind: "text", text, effect: "none", replyTo: fwd, clientId });
-    render();
+    render({ stick: true });
     if (!client || !navigator.onLine) {
       const box = outbox();
       box.push({ kind: "text", text, effect: "none", replyTo: fwd, clientId, localId: local.id });
@@ -8367,7 +8499,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     cacheThread = thread().filter(x => x.id !== local.id && x.clientId !== clientId && !(ins.data && x.id === ins.data.id));
     if (ins.data) cacheThread = cacheThread.concat([msgFromRow(ins.data)]).sort((a, b) => a.ts - b.ts);
     haptic("send");
-    render();
+    render({ stick: true });
     return true;
   }
   if (window.LeesHooks) window.LeesHooks.doClear = async (o) => {
@@ -8434,6 +8566,7 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
     appThemeId, setAppTheme, chatLook, setChatLook, restoreMany, syncProblems: () => syncProblems.slice(), broadcast, openVault, sendCard: (o) => sendPlainText(cardText(o)), cardOf, forwardSheet, forwardMessages, saveMedia, shareMessages, likedByMe, heartCount, setEmoji, setMoment, openMoments, fmtDur, store, typeTagline, openDraw, setReply, jumpToMessage,
     switchRow, choiceSheet, confirmAct, openSettings, openSettingsCategory, openNotifications: () => openNotifications(), openJournal: () => openJournal(), openCalendar: () => openCalendar(), openMedia: () => openMedia(), openArchive: () => openArchive(), openLockSetup: () => openLockSetup(), renderHome: () => renderHome(), lockNow: () => lock(), countCards,
     passUnread: (allow) => passUnread(allow), presenceTrack: (o) => { try { if (presenceChannel) return presenceChannel.track(o); } catch (e) {} return null; },
+    presenceAway, presenceBack, idleFor: () => Date.now() - lastActivity,
     get specialDays() { return specialDays; }, nudgeReady: () => Math.max(0, Number(store.get("pp-nudge-at", 0)) + NUDGE_GAP - Date.now())
   });
   // Live values: real getters, so callers always see the current data.
@@ -8466,11 +8599,11 @@ footer{display:flex;align-items:flex-end;gap:6px;margin:0 0 2px;padding:10px 12p
 </script>
 <script src="/lees-emoji.js?v=2" defer></script>
 <script src="/lees-patch.js?v=18" defer></script>
-<script src="/lees-v8.js?v=7" defer></script>
+<script src="/lees-v8.js?v=8" defer></script>
 <script src="/lees-v9.js?v=8" defer></script>
 <script src="/lees-v10.js?v=2" defer></script>
 <script src="/lees-v11.js?v=2" defer></script>
-<script src="/lees-v12.js?v=2" defer></script>
+<script src="/lees-v12.js?v=3" defer></script>
 <script>
   // Offline shell: the app opens without a connection after one visit. Data comes from the on-device copy.
   if ("serviceWorker" in navigator && location.protocol === "https:") {

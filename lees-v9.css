@@ -83,7 +83,8 @@
 .stk9{position:relative;width:118px;height:118px;display:grid;place-items:center}
 .stk9-e{font-size:78px;line-height:1;filter:drop-shadow(0 8px 14px rgba(0,0,0,.18));will-change:transform}
 .stk9-b{position:absolute;font-size:20px;opacity:0;animation:stkBit 2.4s ease-out infinite}
-.stk9-b.b0{left:8%;bottom:20%}.stk9-b.b1{right:6%;bottom:30%;animation-delay:.8s}.stk9-b.b2{left:42%;bottom:6%;animation-delay:1.6s}
+.stk9-b.b0{left:8%;bottom:20%}.stk9-b.b1{right:6%;bottom:30%;animation-delay:.45s}.stk9-b.b2{left:42%;bottom:6%;animation-delay:.9s}
+.stk9-b.b3{left:18%;top:12%;animation-delay:1.25s}.stk9-b.b4{right:16%;top:8%;animation-delay:1.7s}
 @keyframes stkBit{0%{transform:translateY(0) scale(.5);opacity:0}20%{opacity:1}100%{transform:translateY(-70px) scale(1.1);opacity:0}}
 .fx-beat .stk9-e{animation:sBeat 1.2s ease-in-out infinite}
 .fx-tilt .stk9-e{animation:sTilt 1.6s ease-in-out infinite}
@@ -110,6 +111,12 @@
 @keyframes sFlicker{0%,100%{transform:scale(1) translateY(0);filter:brightness(1)}50%{transform:scale(1.06,1.1) translateY(-3px);filter:brightness(1.15)}}
 @keyframes sWave{0%,100%{transform:rotate(0)}25%{transform:rotate(18deg)}75%{transform:rotate(-12deg)}}
 @keyframes sTwinkle{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.15) rotate(12deg)}}
+.fx-luck .stk9-e{animation:sLuck 1.8s ease-in-out infinite}
+.fx-confetti .stk9-e{animation:sBounce 1.1s cubic-bezier(.3,1.5,.5,1) infinite}
+.fx-cuddle .stk9-e{animation:sSqueeze 1.8s ease-in-out infinite}
+.fx-rain .stk9-e{animation:sBob 2.2s ease-in-out infinite}
+.fx-sparkle .stk9-e{animation:sTwinkle 1.4s ease-in-out infinite}
+@keyframes sLuck{0%,100%{transform:rotate(-6deg) scale(1)}50%{transform:rotate(8deg) scale(1.08)}}
 
 /* ---------- Composer + menu ---------- */
 .lp-pop.v9-pop{flex-direction:column;align-items:stretch;gap:2px;padding:6px;min-width:220px;border-radius:20px}
