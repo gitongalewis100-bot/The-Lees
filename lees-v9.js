@@ -1088,28 +1088,31 @@
     "Hands": "👍 👎 👏 🙌 🫶 👐 🤲 🙏 🤞 ✌️ 🤟 🤘 👌 🤌 🤏 👈 👉 👆 👇 ☝️ ✋ 🤚 🖐 🖖 👋 🤙 💪 🫡 🤗",
     "Life": "☀️ 🌙 ⭐ 🌟 ✨ ⚡ 🔥 🌈 ☁️ 🌧 ❄️ 🌊 🍕 🍔 🍟 🌮 🍜 🍣 🍩 🍪 🎂 🍰 🍫 🍿 ☕ 🍵 🧋 🍷 🥂 🍾 🎉 🎊 🎁 🎈 🎵 🎶 📸 🎬 📚 ✈️ 🚗 🏠 🛏 ⏰ 💤 💯 ✅ ❌ ❓ ❗"
   };
+  // Drag the top area down to dismiss. Rubber-band while dragging; dismiss past 25% of the screen height or on
+  // a release faster than 0.7 px/ms (measured over the last ~80 ms of the drag); otherwise snap back.
   function bindSheetSwipe(host, dismiss) {
     if (!host || host._swipe14) return;
     host._swipe14 = true;
-    var startY = 0, dy = 0, tracking = false, t0 = 0;
+    var startY = 0, dy = 0, tracking = false, samples = [];
     host.addEventListener("pointerdown", function (e) {
       var top = host.getBoundingClientRect().top;
-      if (e.clientY > top + 120) return;
-      tracking = true; startY = e.clientY; dy = 0; t0 = performance.now();
+      if (e.clientY > top + 120 || (e.target.closest && e.target.closest("input, textarea"))) return;
+      tracking = true; startY = e.clientY; dy = 0; samples = [[performance.now(), 0]];
       host.style.transition = "none";
     });
     host.addEventListener("pointermove", function (e) {
       if (!tracking) return;
       dy = Math.max(0, e.clientY - startY);
-      var cap = innerHeight * 0.5;
-      var rubber = dy > cap ? cap + (dy - cap) * 0.3 : dy;
+      samples.push([performance.now(), dy]); if (samples.length > 12) samples.shift();
+      var cap = innerHeight * 0.3;
+      var rubber = dy > cap ? cap + (dy - cap) * 0.55 : dy;
       host.style.transform = "translateY(" + rubber + "px)";
     });
     var end = function () {
       if (!tracking) return;
       tracking = false;
-      var dt = Math.max(1, performance.now() - t0);
-      var v = dy / dt;
+      var now = performance.now(), v = 0;
+      for (var i = samples.length - 1; i >= 0; i--) { if (now - samples[i][0] > 80 || i === 0) { var dt = Math.max(1, now - samples[i][0]); v = (dy - samples[i][1]) / dt; break; } }
       host.style.transition = "transform .28s cubic-bezier(.2,.8,.2,1)";
       if (dy > innerHeight * 0.25 || v > 0.7) {
         host.style.transform = "translateY(110%)";
@@ -1136,7 +1139,10 @@
         grid.textContent = "";
         if (tab === "stickers") {
           var g = el("div", "v9-stk");
-          Object.keys(a.STICKERS).forEach(function (id) {
+          var ids = Object.keys(a.STICKERS);
+          // v15: say how many there are, so a grid taller than the screen reads as "scroll for more".
+          grid.appendChild(el("p", "v15-stkn", ids.length + " stickers · scroll for more"));
+          ids.forEach(function (id) {
             var b = btn("v9-stk-b", "", async function () { a.sheetClose(); a.haptic("send"); await a.sendText("[[sticker:" + id + "]]"); }, a.STICKERS[id].label);
             b.appendChild(a.stickerNode(id));
             b.appendChild(el("small", "", a.STICKERS[id].label));

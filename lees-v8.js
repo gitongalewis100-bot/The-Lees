@@ -391,6 +391,18 @@
       body.classList.add("v8");
       setPanel(null);
       var save = function () { if (!editing) store.set("v8-letter-draft-" + a.me, draft); };
+      // v15: one scrollable page. A live envelope preview at the top, the title and letter under it, then
+      // To, Wax seal, Paper and Open when. Same fields, same writes, same send path as before.
+      body.classList.add("v15-ch");
+      var prev = el("div", "v15-prev");
+      var paintPrev = function () {
+        var t = draft.onOpen ? Date.now() + 60000 : Date.parse(dt.value);
+        prev.textContent = "";
+        var art = envelopeArt({ from: a.me, to: a.other, seal: draft.seal, paper: draft.paper, openAt: isFinite(t) ? t : Date.now() + 864e5 }, true);
+        var cap = el("div", "v15-prev-cap");
+        cap.append(el("b", "", title.value.trim() || "A sealed letter"), el("span", "", draft.onOpen ? "Opens when " + a.name(a.other) + " next opens the app" : (isFinite(t) && t > Date.now() ? "Opens " + fmtWhen(t) : "Choose when it opens")));
+        prev.append(art, cap);
+      };
       var sheet = el("div", "v8-compose");
       var paper = el("div", "v8-paper edit");
       var setPaper = function () { paper.style.setProperty("--paper", (PAPERS[draft.paper] || PAPERS.cream)[0]); paper.className = "v8-paper edit p-" + draft.paper; };
@@ -398,73 +410,85 @@
       var title = el("input", "v8-title");
       title.placeholder = "Open when…"; title.maxLength = 80; title.value = draft.title;
       title.setAttribute("aria-label", "What's written on the envelope");
-      title.addEventListener("input", function () { draft.title = title.value; save(); });
+      title.addEventListener("input", function () { draft.title = title.value; save(); paintPrev(); });
       var chips = el("div", "v8-chips");
-      TITLES.forEach(function (t) { var c = el("button", "chip", t); c.type = "button"; c.addEventListener("click", function () { title.value = t; draft.title = t; save(); }); chips.appendChild(c); });
+      TITLES.forEach(function (t) { var c = el("button", "chip", t); c.type = "button"; c.addEventListener("click", function () { title.value = t; draft.title = t; save(); paintPrev(); }); chips.appendChild(c); });
       var ta = el("textarea", "v8-body");
       ta.placeholder = "Dear " + a.name(a.other) + ",\n\n";
       ta.maxLength = 20000; ta.value = draft.body;
       ta.setAttribute("aria-label", "Your letter");
       var count = el("div", "v8-count mono");
       var fit = function () { ta.style.height = "auto"; ta.style.height = Math.max(220, ta.scrollHeight) + "px"; count.textContent = ta.value.length ? ta.value.trim().split(/\s+/).length + " words" : ""; };
-      ta.addEventListener("input", function () { draft.body = ta.value; save(); fit(); });
+      ta.addEventListener("input", function () { draft.body = ta.value; save(); fit(); ready(); });
       paper.append(title, ta, el("p", "v8-sign", "— " + a.name(a.me)));
-      sheet.append(chips, paper, count);
-      // When it can be opened
-      var when = el("div", "v8-when");
-      when.appendChild(el("div", "v8-lab", "Can be opened from"));
+      sheet.append(paper, chips, count);
+      var sec = function (label) { var s = el("section", "v15-sec"); s.appendChild(el("div", "v8-lab", label)); return s; };
+      // To (read only)
+      var toSec = sec("To");
+      var toRow = el("div", "v15-to"); toRow.textContent = a.name(a.other); toRow.setAttribute("aria-readonly", "true");
+      toSec.appendChild(toRow);
+      // Wax seal
+      var sealSec = sec("Wax seal");
+      var seals = el("div", "v8-swatches v15-sw");
+      Object.keys(SEALS).forEach(function (k) {
+        var b = el("button", "v8-sw seal" + (draft.seal === k ? " on" : "")); b.type = "button"; b.style.setProperty("--c", SEALS[k][0]); b.setAttribute("aria-label", SEALS[k][1] + " seal"); b.setAttribute("aria-pressed", String(draft.seal === k));
+        b.addEventListener("click", function () { draft.seal = k; save(); seals.querySelectorAll(".v8-sw").forEach(function (n) { n.classList.toggle("on", n === b); n.setAttribute("aria-pressed", String(n === b)); }); paintPrev(); });
+        seals.appendChild(b);
+      });
+      sealSec.appendChild(seals);
+      // Paper
+      var paperSec = sec("Paper");
+      var papers = el("div", "v8-swatches v15-sw");
+      Object.keys(PAPERS).forEach(function (k) {
+        var b = el("button", "v8-sw paper" + (draft.paper === k ? " on" : "")); b.type = "button"; b.style.setProperty("--c", PAPERS[k][0]); b.setAttribute("aria-label", PAPERS[k][1] + " paper"); b.setAttribute("aria-pressed", String(draft.paper === k));
+        b.addEventListener("click", function () { draft.paper = k; save(); setPaper(); papers.querySelectorAll(".v8-sw").forEach(function (n) { n.classList.toggle("on", n === b); n.setAttribute("aria-pressed", String(n === b)); }); paintPrev(); });
+        papers.appendChild(b);
+      });
+      paperSec.appendChild(papers);
+      // Open when
+      var when = sec("Open when");
+      when.classList.add("v8-when");
       var quick = el("div", "v8-chips");
       var dt = el("input", "in plain v8-dt");
       dt.type = "datetime-local";
+      dt.setAttribute("aria-label", "Date and time it can be opened");
       var min = new Date(Date.now() + 60000);
       dt.min = localInput(min);
-      var initialAt = draft.at && Date.parse(draft.at) > Date.now() ? new Date(draft.at) : (function () { var d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); return d; })();
+      var hadAt = !!(draft.at && Date.parse(draft.at) > Date.now());
+      var initialAt = hadAt ? new Date(draft.at) : (function () { var d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); return d; })();
       dt.value = localInput(initialAt);
+      var picked = !!(editing || hadAt || draft.onOpen);
       var hint = el("div", "v8-hint");
-      // "When they next open the app": the letter is sealed for a minute, then opens itself, full screen, the
-      // next time the other person opens The Lees.
+      // "When they next open the app" (kept from v12): sealed for a minute, then opens itself the next time they open The Lees.
       var onOpenBtn = el("button", "chip v12-onopen" + (draft.onOpen ? " on" : ""), "When " + a.name(a.other) + " next opens the app");
       onOpenBtn.type = "button";
       var showHint = function () {
         if (draft.onOpen) { hint.textContent = "Opens by itself, full screen, the next time " + a.name(a.other) + " opens The Lees."; hint.classList.remove("bad"); dt.classList.add("v12-dim"); return; }
         dt.classList.remove("v12-dim");
+        if (!picked) { hint.textContent = "Choose when it can be opened."; hint.classList.remove("bad"); return; }
         var t = Date.parse(dt.value); hint.textContent = isFinite(t) ? (t <= Date.now() ? "Choose a time in the future." : until(t) + " · " + fmtWhen(t)) : ""; hint.classList.toggle("bad", !(t > Date.now()));
       };
-      onOpenBtn.addEventListener("click", function () { draft.onOpen = !draft.onOpen; onOpenBtn.classList.toggle("on", !!draft.onOpen); save(); showHint(); markQuick(); });
-      dt.addEventListener("input", function () { var t = Date.parse(dt.value); draft.at = isFinite(t) ? new Date(t).toISOString() : null; draft.onOpen = false; onOpenBtn.classList.remove("on"); save(); showHint(); markQuick(); });
+      var pickBtn = el("button", "chip v15-pick", "Pick a date and time"); pickBtn.type = "button";
+      var after = function () { save(); showHint(); markQuick(); paintPrev(); ready(); };
+      onOpenBtn.addEventListener("click", function () { draft.onOpen = !draft.onOpen; picked = true; onOpenBtn.classList.toggle("on", !!draft.onOpen); dt.hidden = true; after(); });
+      pickBtn.addEventListener("click", function () { draft.onOpen = false; onOpenBtn.classList.remove("on"); picked = true; dt.hidden = false; draft.at = new Date(Date.parse(dt.value)).toISOString(); try { dt.focus(); if (dt.showPicker) dt.showPicker(); } catch (e) {} after(); });
+      dt.addEventListener("input", function () { var t = Date.parse(dt.value); draft.at = isFinite(t) ? new Date(t).toISOString() : null; draft.onOpen = false; picked = true; onOpenBtn.classList.remove("on"); after(); });
       var quicks = [
-        ["Tonight, 9 pm", function () { var d = new Date(); d.setHours(21, 0, 0, 0); if (d <= new Date()) d.setDate(d.getDate() + 1); return d; }],
         ["Tomorrow morning", function () { var d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); return d; }],
-        ["In a week", function () { var d = new Date(); d.setDate(d.getDate() + 7); d.setSeconds(0, 0); return d; }],
-        ["In a month", function () { var d = new Date(); d.setMonth(d.getMonth() + 1); d.setSeconds(0, 0); return d; }],
-        ["In a year", function () { var d = new Date(); d.setFullYear(d.getFullYear() + 1); d.setSeconds(0, 0); return d; }]
+        ["This weekend", function () { var d = new Date(); var add = (6 - d.getDay() + 7) % 7; if (add === 0 && d.getHours() >= 10) add = 7; d.setDate(d.getDate() + add); d.setHours(10, 0, 0, 0); return d; }]
       ];
       var qbtns = [];
-      var markQuick = function () { qbtns.forEach(function (b) { b.classList.toggle("on", !draft.onOpen && localInput(b._fn()) === dt.value); }); };
-      quick.appendChild(onOpenBtn);
-      quicks.forEach(function (q) { var b = el("button", "chip", q[0]); b.type = "button"; b._fn = q[1]; b.addEventListener("click", function () { dt.value = localInput(q[1]()); draft.at = new Date(dt.value).toISOString(); draft.onOpen = false; onOpenBtn.classList.remove("on"); save(); showHint(); markQuick(); }); quick.appendChild(b); qbtns.push(b); });
+      var markQuick = function () { var any = false; qbtns.forEach(function (b) { var on = picked && !draft.onOpen && localInput(b._fn()) === dt.value; any = any || on; b.classList.toggle("on", on); }); pickBtn.classList.toggle("on", picked && !draft.onOpen && !any); };
+      quicks.forEach(function (q) { var b = el("button", "chip", q[0]); b.type = "button"; b._fn = q[1]; b.addEventListener("click", function () { dt.value = localInput(q[1]()); draft.at = new Date(dt.value).toISOString(); draft.onOpen = false; picked = true; dt.hidden = true; onOpenBtn.classList.remove("on"); after(); }); quick.appendChild(b); qbtns.push(b); });
+      quick.append(pickBtn, onOpenBtn);
+      dt.hidden = !(picked && !draft.onOpen && !quicks.some(function (q) { return localInput(q[1]()) === dt.value; }));
       when.append(quick, dt, hint);
-      // Seal and paper
       var looks = el("div", "v8-looks");
-      looks.appendChild(el("div", "v8-lab", "Wax seal"));
-      var seals = el("div", "v8-swatches");
-      Object.keys(SEALS).forEach(function (k) {
-        var b = el("button", "v8-sw seal" + (draft.seal === k ? " on" : "")); b.type = "button"; b.style.setProperty("--c", SEALS[k][0]); b.setAttribute("aria-label", SEALS[k][1] + " seal");
-        b.addEventListener("click", function () { draft.seal = k; save(); seals.querySelectorAll(".v8-sw").forEach(function (n) { n.classList.toggle("on", n === b); }); });
-        seals.appendChild(b);
-      });
-      looks.appendChild(seals);
-      looks.appendChild(el("div", "v8-lab", "Paper"));
-      var papers = el("div", "v8-swatches");
-      Object.keys(PAPERS).forEach(function (k) {
-        var b = el("button", "v8-sw paper" + (draft.paper === k ? " on" : "")); b.type = "button"; b.style.setProperty("--c", PAPERS[k][0]); b.setAttribute("aria-label", PAPERS[k][1] + " paper");
-        b.addEventListener("click", function () { draft.paper = k; save(); setPaper(); papers.querySelectorAll(".v8-sw").forEach(function (n) { n.classList.toggle("on", n === b); }); });
-        papers.appendChild(b);
-      });
-      looks.appendChild(papers);
+      looks.append(toSec, sealSec, paperSec);
       var go = el("button", "btn wide v8-seal-btn");
       go.type = "button";
-      go.innerHTML = '<span class="v8-wax-mini"></span><span>' + (editing ? "Save and reseal" : "Seal and send") + '</span>';
+      go.innerHTML = '<span class="v8-wax-mini"></span><span>' + (editing ? "Save and reseal" : "Seal") + '</span>';
+      var ready = function () { var t = draft.onOpen ? Date.now() + 60000 : Date.parse(dt.value); go.disabled = !(ta.value.trim() && picked && t > Date.now() + 30000); };
       go.addEventListener("click", async function () {
         var t = draft.onOpen ? Date.now() + 60000 : Date.parse(dt.value);
         if (!ta.value.trim()) { a.notice("Write the letter first", "", { error: true }); ta.focus(); return; }
@@ -478,7 +502,7 @@
           ? await c.from("sealed_letters").update(fields).eq("id", editing.id).select("id, open_at").maybeSingle()
           : await c.from("sealed_letters").insert(Object.assign({ pair_id: a.pairId, author_id: a.userId, author_side: a.me, recipient_side: a.other }, fields)).select("id, open_at").maybeSingle();
         if (editing && !r.error && !r.data) r = { error: { message: "It may already be open, so it can't be changed" } };
-        go.disabled = false;
+        ready();
         if (r.error) { a.notice("Couldn't seal the letter", friendly(r.error) + " Your letter is still here.", { error: true }); return; }
         if (!editing) store.set("v8-letter-draft-" + a.me, { title: "", body: "", seal: draft.seal, paper: draft.paper, at: null, onOpen: false });
         ping("letter", { kind: editing ? "edited" : "sealed", id: r.data && r.data.id, open_at: new Date(t).toISOString() });
@@ -488,8 +512,8 @@
         var wasOnOpen = !!draft.onOpen;
         sealAnimation(draft.seal, function () { a.goBack(); openLetters("out"); a.notice("Letter sealed", wasOnOpen ? "It opens itself the next time " + a.name(a.other) + " opens The Lees." : a.name(a.other) + " can open it " + fmtWhen(t) + "."); });
       });
-      body.append(sheet, when, looks, go);
-      showHint(); markQuick();
+      body.append(prev, sheet, looks, when, go);
+      showHint(); markQuick(); paintPrev(); ready();
       setTimeout(fit, 0);
     }));
   }

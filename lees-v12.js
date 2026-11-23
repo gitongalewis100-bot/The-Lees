@@ -230,47 +230,103 @@
     });
     return out.reverse();
   }
-  var NOTE_KINDS = { letter: 1, letter_open: 1, send_media: 1, send_photo: 1, send_video: 1, send_text: 1, nudge: 1, game: 1 };
+  var NOTE_KINDS = { letter: 1, letter_open: 1, send_media: 1, send_photo: 1, send_video: 1, send_voice: 1, send_text: 1, nudge: 1, game: 1 };
+  // v15: days are kept for 10 days. Day D clears on D + 10; from that day on it is no longer shown.
+  var KEEP_DAYS = 10;
+  function dayStart(t) { var d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); }
+  function addDays(t, n) { var d = new Date(t); d.setDate(d.getDate() + n); return d.getTime(); }
+  function longDay(t) { return new Date(t).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" }); }
+  function keptDay(t) { return addDays(dayStart(t), KEEP_DAYS) > dayStart(Date.now()); }
+  var purgeAt = 0;
+  function purgeRetained() {
+    var a = A(); if (!a || !a.sb || !a.unlocked || Date.now() - purgeAt < 20000) return;
+    purgeAt = Date.now();
+    try { a.sb.rpc("purge_retained_for_me").then(function () {}, function () {}); } catch (e) {}
+  }
+  // One sheet with a single field and Send. The note goes through the normal send path (sendText), so the
+  // other person is notified exactly as for any message.
+  function openAddNote(actionLabel, host) {
+    var a = A(); if (!a) return;
+    var old = document.querySelector(".an15"); if (old) old.remove();
+    var scrim = el("div", "an15"); scrim.setAttribute("role", "dialog"); scrim.setAttribute("aria-modal", "true"); scrim.setAttribute("aria-label", "Add note");
+    var card = el("div", "an15-card");
+    var ttl = el("b", "an15-t", "Add note");
+    var sub = el("small", "an15-s", "About: " + actionLabel);
+    var ta = el("textarea", "in an15-in"); ta.maxLength = 500; ta.rows = 3; ta.placeholder = "A short note for " + a.name(a.other); ta.setAttribute("aria-label", "Note");
+    var row = el("div", "an15-row");
+    var cancel = btn("btn ghost an15-b", "Cancel", null, function () { close(); });
+    var send = btn("btn an15-b", "Send", null, async function () {
+      var text = ta.value.trim(); if (!text) { ta.focus(); return; }
+      send.disabled = true;
+      var ok = a.sendText ? await a.sendText("Note about: " + actionLabel + "\n" + text) : false;
+      send.disabled = false;
+      if (ok !== false) { close(); if (a.notice) a.notice("Note sent", a.name(a.other) + " will see it in the chat."); }
+    });
+    row.append(cancel, send);
+    card.append(ttl, sub, ta, row);
+    scrim.appendChild(card);
+    scrim.addEventListener("click", function (e) { if (e.target === scrim) close(); });
+    (host || document.body).appendChild(scrim);
+    function close() { scrim.remove(); }
+    setTimeout(function () { try { ta.focus(); } catch (e) {} }, 60);
+  }
+  function addNoteBtn(label, host) {
+    var b = btn("an15-add", "Add note", "Add note about " + label, function (e) { e.stopPropagation(); openAddNote(label, host); });
+    return b;
+  }
   function openActivity(side) {
     var a = A(); if (!a) return;
     try { localStorage.setItem("lees-activity-opened-v13", "1"); } catch (e) {}
     try { if (a.renderHome) a.renderHome(); } catch (e) {}
-    Act.flush(); Act.load();
+    Act.flush(); Act.load(); purgeRetained();
     var old = document.querySelector(".act14"); if (old) old.remove();
-    var root = el("div", "act14");
+    var root = el("div", "act14 act15");
     root.setAttribute("role", "dialog");
     root.setAttribute("aria-label", "Activity");
-    Activity.side = "all";
+    Activity.side = Activity.side15 || "all";
     Activity.open = true;
     Activity.root = root;
     var head = el("header", "act14-head");
     var back = btn("act14-x", svg(P.back), "Back", function () { closeAct(); });
     var ttl = el("div", "act14-ttl");
-    ttl.append(el("b", "", "Activity"), el("small", "", "Last seen and what happened"));
+    ttl.append(el("b", "", "Activity"), el("small", "", "Kept for 10 days, then cleared"));
     var x = btn("act14-x", svg(P.close), "Close", function () { closeAct(); });
     head.append(back, ttl, x);
-    var filters = el("div", "act14-filters");
+    var filters = el("div", "act14-filters"); filters.setAttribute("role", "tablist");
     var scroller = el("div", "act14-list");
-    var jump = btn("act14-jump", "Top", "Back to the top", function () { scroller.scrollTo({ top: 0, behavior: reduce() ? "auto" : "smooth" }); });
+    var jump = btn("act14-jump", svg(P.back, "i sm act15-up") + "<span>Top</span>", "Back to the top", function () { scroller.scrollTo({ top: 0, behavior: reduce() ? "auto" : "smooth" }); });
     jump.hidden = true;
     root.append(head, filters, scroller, jump);
     document.body.appendChild(root);
     function closeAct() {
       Activity.open = false; Activity.detail = null;
       root.classList.add("out");
-      setTimeout(function () { root.remove(); }, 180);
+      setTimeout(function () { root.remove(); if (Arten.built) Arten.position(); }, 180);
     }
-    function rows() {
+    // Sessions per side (sign-in to sign-out, or a 30-minute gap), then bucketed by the local day they began.
+    function days() {
       var a2 = A(); if (!a2) return [];
       var sides = Activity.side === "mine" ? [a2.me] : Activity.side === "theirs" ? [a2.other] : [a2.me, a2.other];
-      var all = [];
-      sides.forEach(function (sd) { Act.list(sd).forEach(function (x) { all.push(x); }); });
-      all.sort(function (x, y) { return y.at - x.at; });
-      return all.slice(0, 600);
+      var byDay = {};
+      sides.forEach(function (sd) {
+        var list = Act.list(sd).filter(function (x) { return keptDay(x.at); }).slice(0, 600);
+        sessionsOf(list).forEach(function (ss) {
+          // A session that crosses midnight is split so each entry sits under its own day.
+          var parts = {};
+          ss.items.forEach(function (it) { var k = dayStart(it.at); (parts[k] = parts[k] || []).push(it); });
+          Object.keys(parts).forEach(function (k) {
+            var items = parts[k];
+            (byDay[k] = byDay[k] || []).push({ side: sd, start: items[0].at, end: items[items.length - 1].at, items: items });
+          });
+        });
+      });
+      return Object.keys(byDay).map(Number).sort(function (x, y) { return y - x; }).map(function (k) {
+        var ss = byDay[k].sort(function (x, y) { return y.start - x.start; });
+        return { day: k, sessions: ss, n: ss.reduce(function (n, s) { return n + s.items.length; }, 0) };
+      });
     }
     function sessionOf(item) {
-      var list = Act.list(item.side);
-      var sessions = sessionsOf(list);
+      var sessions = sessionsOf(Act.list(item.side));
       for (var i = 0; i < sessions.length; i++) {
         if (sessions[i].items.some(function (x) { return x.at === item.at && x.action === item.action; })) return sessions[i];
       }
@@ -280,71 +336,77 @@
       Activity.detail = item;
       var a2 = A();
       var d = ACT[item.action] || ACT.panel;
-      var page = el("div", "act14-detail");
-      var bar = el("header", "act14-head");
-      bar.append(
-        btn("act14-x", svg(P.back), "Back", function () { page.remove(); Activity.detail = null; }),
-        (function () { var t = el("div", "act14-ttl"); t.append(el("b", "", "Entry"), el("small", "", hm12(item.at))); return t; })(),
-        btn("act14-x", svg(P.close), "Close", closeAct)
-      );
-      var body = el("div", "act14-dbody");
-      body.append(el("h3", "", d[0]), el("p", "", hm12(item.at) + " · " + dayLabel(item.at)), el("p", "", item.detail || "No extra detail."));
+      var who = item.side === a2.me ? "You" : a2.name(item.side);
+      var old2 = root.querySelector(".act15-sheet"); if (old2) old2.remove();
+      var scrim = el("div", "act15-sheet"); scrim.setAttribute("role", "dialog"); scrim.setAttribute("aria-label", "Entry");
+      var sh = el("div", "act15-sh");
+      var top = el("div", "act15-shtop");
+      var ic = el("span", "act15-ic"); ic.innerHTML = svg(d[1]);
+      var tt = el("div", "act15-shttl"); tt.append(el("b", "", who + " · " + d[0]), el("small", "", hm12(item.at) + " · " + longDay(item.at)));
+      top.append(ic, tt, btn("act14-x", svg(P.close), "Close", function () { scrim.remove(); Activity.detail = null; }));
+      sh.appendChild(top);
+      sh.appendChild(el("p", "act15-det", item.detail ? item.detail : "No extra detail."));
       var sess = sessionOf(item);
-      body.appendChild(el("h4", "", "Same session"));
-      var ol = el("ol", "act14-rel");
-      sess.items.slice().reverse().forEach(function (x) {
-        var lab = (ACT[x.action] || ACT.panel)[0];
-        ol.appendChild(el("li", "", hm12(x.at) + " · " + lab + (x.detail ? " · " + x.detail : "")));
+      sh.appendChild(el("h4", "act15-h4", "Same session · " + hm12(sess.start) + (sess.end !== sess.start ? " to " + hm12(sess.end) : "")));
+      var ol = el("ol", "act15-rel");
+      sess.items.slice().reverse().forEach(function (y) {
+        var li = el("li", y.at === item.at && y.action === item.action ? "cur" : "");
+        li.append(el("time", "", hm12(y.at)), el("span", "", (ACT[y.action] || ACT.panel)[0] + (y.detail ? " · " + y.detail : "")));
+        ol.appendChild(li);
       });
-      body.appendChild(ol);
-      if (NOTE_KINDS[item.action]) {
-        var box = el("div", "act14-note");
-        var ta = el("textarea", "in");
-        ta.maxLength = 500;
-        ta.placeholder = "A short note for " + a2.name(a2.other);
-        ta.setAttribute("aria-label", "Note");
-        var send = el("button", "btn", "Send a note");
-        send.type = "button";
-        send.addEventListener("click", async function () {
-          var text = ta.value.trim();
-          if (!text) return;
-          send.disabled = true;
-          var msg = "Note about: " + d[0] + "\n" + text;
-          var ok = a2.sendText ? await a2.sendText(msg) : false;
-          send.disabled = false;
-          if (ok !== false) { ta.value = ""; if (a2.notice) a2.notice("Note sent", a2.name(a2.other) + " will see it in the chat."); }
-        });
-        box.append(el("b", "", "Send a note"), ta, send);
-        body.appendChild(box);
-      }
-      page.append(bar, body);
-      root.appendChild(page);
+      sh.appendChild(ol);
+      if (NOTE_KINDS[item.action]) { var r = el("div", "act15-noterow"); r.appendChild(addNoteBtn(d[0] + (item.detail ? " (" + item.detail + ")" : ""), root)); sh.appendChild(r); }
+      scrim.appendChild(sh);
+      scrim.addEventListener("click", function (e) { if (e.target === scrim) { scrim.remove(); Activity.detail = null; } });
+      root.appendChild(scrim);
     }
     Activity.paint = function () {
       if (!root.isConnected) { Activity.open = false; return; }
       var a2 = A(); if (!a2) return;
       filters.textContent = "";
       [["all", "All"], ["mine", "Mine"], ["theirs", "Theirs"]].forEach(function (f) {
-        var b = btn("act14-f" + (Activity.side === f[0] ? " on" : ""), f[1], f[1], function () { Activity.side = f[0]; Activity.paint(); });
+        var b = btn("act14-f" + (Activity.side === f[0] ? " on" : ""), f[1], null, function () { Activity.side = Activity.side15 = f[0]; Activity.paint(); });
+        b.setAttribute("role", "tab"); b.setAttribute("aria-selected", String(Activity.side === f[0]));
         filters.appendChild(b);
       });
       var keep = scroller.scrollTop;
       scroller.textContent = "";
-      var list = rows();
-      if (!list.length) scroller.appendChild(el("p", "act14-empty", "Nothing in this filter yet."));
-      list.forEach(function (item) {
-        var d = ACT[item.action] || ACT.panel;
-        var row = el("button", "act14-row");
-        row.type = "button";
-        var who = item.side === a2.me ? "You" : a2.name(item.side);
-        row.append(el("b", "", who + " · " + d[0]), el("span", "", (item.detail ? item.detail + " · " : "") + hm12(item.at)));
-        row.addEventListener("click", function () { openDetail(item); });
-        scroller.appendChild(row);
+      var list = days();
+      if (!list.length) scroller.appendChild(el("p", "act14-empty", "Nothing in the last 10 days for this filter."));
+      list.forEach(function (day) {
+        var card = el("section", "act15-day");
+        var hd = el("header", "act15-dh");
+        var h = el("h3", "", longDay(day.day));
+        var meta = el("div", "act15-meta");
+        meta.append(el("span", "act15-n", day.n === 1 ? "1 action" : day.n + " actions"), el("span", "act15-clear", "Clears on " + longDay(addDays(day.day, KEEP_DAYS))));
+        hd.append(h, meta);
+        card.appendChild(hd);
+        day.sessions.forEach(function (ss) {
+          var sec = el("div", "act15-sess" + (ss.side === a2.me ? " mine" : " theirs"));
+          var who = ss.side === a2.me ? "You" : a2.name(ss.side);
+          sec.appendChild(el("div", "act15-sh4", who + " · " + hm12(ss.start) + (ss.end !== ss.start ? " to " + hm12(ss.end) : "")));
+          var tl = el("ol", "act15-tl");
+          ss.items.slice().reverse().forEach(function (item) {
+            var d = ACT[item.action] || ACT.panel;
+            var li = el("li", "act15-e");
+            var row = el("button", "act15-row"); row.type = "button";
+            var ic = el("span", "act15-ic"); ic.innerHTML = svg(d[1]);
+            var tx = el("span", "act15-tx"); tx.append(el("b", "", d[0]), item.detail ? el("small", "", item.detail) : "");
+            row.append(el("time", "act15-time", hm12(item.at)), ic, tx);
+            row.addEventListener("click", function () { openDetail(item); });
+            li.appendChild(row);
+            tl.appendChild(li);
+          });
+          sec.appendChild(tl);
+          card.appendChild(sec);
+        });
+        scroller.appendChild(card);
       });
       scroller.scrollTop = keep;
     };
     scroller.addEventListener("scroll", function () { jump.hidden = scroller.scrollTop < 240; }, { passive: true });
     Activity.paint();
+    if (Arten.built) Arten.position();
   }
   function note(title, text) { var n = el("div", "v12-note"); n.append(el("b", "", title), el("span", "", text)); return n; }
 
@@ -711,22 +773,22 @@
      ===================================================================================================== */
   // Knowledge: every feature, the words people use for it, a full answer, and where "Take me there" goes.
   var KB = [
-    { id: "send", title: "Sending a message", kw: "send message text write type chat reply talk say", q: ["how do i send a message", "how to text", "write to her", "write to him"], tour: "chat", go: "chat",
+    { id: "send", title: "Sending a message", kw: "send message text write type chat talk say", q: ["how do i send a message", "how to text", "write to her", "write to him"], tour: "chat", go: "chat",
       a: "Open the conversation from the card with their name on the home screen. Type in the box at the bottom and tap Send (the paper plane). On a keyboard, Enter sends and Shift+Enter starts a new line.", steps: ["Home › tap their name", "Type in the message box", "Tap Send"], more: "Press and hold Send to schedule the message for later. For five seconds after sending you can tap Undo." },
     { id: "photos", title: "Photos and videos as one set", kw: "photo photos picture pictures image images video videos attach gallery camera stack set album batch many multiple send", q: ["send many photos", "send photos at once", "why do i get many notifications for photos", "stacked photos"], tour: "photos", go: "attach",
       a: "In the chat, tap + and then Attach, and pick as many photos and videos as you like, up to 30. They open in a preview where you can swipe between them, rotate, flip, crop, choose HD, mark View once or Quiet, and add one caption. Send delivers them as one set: one album card in the chat and one notification on their phone, not one per photo.", steps: ["Open the chat", "Tap + and choose photos or videos", "Adjust any of them, add a caption", "Tap Send once"], more: "Tap the album in the chat to see every photo full size. Each one can be loved, replied to, saved, shared or forwarded on its own." },
     { id: "voice", title: "Voice notes", kw: "voice note record recording audio mic microphone speak listen transcript transcribe", q: ["record a voice note", "send audio"], tour: "voice", go: "mic",
       a: "In the chat, tap the microphone to start recording. Tap the square to stop and listen back (you can drag along the waveform and change speed), then tap Send. Or tap the plane while recording to send at once.", steps: ["Open the chat", "Tap the microphone", "Tap the square to stop", "Listen, then Send"], more: "If the microphone is not allowed, The Lees shows a short how-to for your browser. Transcripts can be switched on in Settings › Privacy." },
-    { id: "lastseen", title: "Online and last seen", kw: "last seen online offline active status presence time date hour", q: ["when were they last online", "when was she last online", "when was he last online", "are they online now", "show last seen", "last seen today", "online now status", "what time were they last seen"], tour: "lastseen", go: "activity",
-      a: "Online shows only after about 3 seconds of activity, and while they have been active in the last 10 minutes. After 10 minutes with no activity, The Lees shows Last seen with a 12-hour time, such as Last seen today at 3:42 pm. The line under their name on the home card opens the chat. If you are both online, each of you sees You're both online once every 30 minutes.", steps: ["Look under their name on the home card", "Tap that line to open the chat"] },
-    { id: "activity", title: "Activity", kw: "activity session sessions actions what did doing history list did they do page opened", q: ["what did they do", "see activity", "open activity", "what are they doing", "activity list", "their activity history", "what did she do today", "show me their sessions"], tour: "lastseen", go: "activity",
-      a: "The ACTIVITY button sits on the top right of the chat card on the home screen. It opens Activity: every session, newest first, up to the last 600 actions. Switch between them and you at the top. The list scrolls. The chat header line also opens Activity.", steps: ["Home", "Tap ACTIVITY on their card", "Scroll the list"] },
+    { id: "lastseen", title: "Online and last seen", kw: "last seen online offline active status presence time date hour green blue red colour color dot not available", q: ["when were they last online", "when was she last online", "when was he last online", "are they online now", "show last seen", "last seen today", "online now status", "what time were they last seen", "what do the status colours mean", "why is the dot red", "why is the status blue", "what does green online mean", "what does not available right now mean"], go: "activity",
+      a: "The line under their name shows one of three colours. Green Online means they were active in the last 10 minutes; it appears after about 3 seconds of activity. Blue Last seen means 10 minutes to 10 hours ago, with a 12-hour time such as Last seen today at 6:18 pm. Red means more than 10 hours: Seen early yesterday at 9:05 am if it was yesterday, otherwise Not available right now. The same line shows in the chat header, and tapping the home line opens the chat." },
+    { id: "activity", title: "Activity", kw: "activity session sessions actions what did doing list did they do page opened log logs timeline day days grouped clears cleared clearing kept keep ten 10 retention auto delete deleted older filter mine theirs note", q: ["what did they do", "see activity", "open activity", "what are they doing", "activity list", "their activity history", "what did she do today", "show me their sessions", "how long is activity kept", "when does activity clear", "why did old activity disappear", "activity 10 days", "add a note to an activity entry"], go: "activity",
+      a: "Activity is grouped by day. Each day card shows the date, how many actions there were, and the day it clears: activity is kept for 10 days, then cleared automatically. Inside a day, each session is a timeline with the 12-hour time, an icon and what happened. Filter All, Mine or Theirs at the top. Tap an entry for its detail and the rest of that session; messages, letters, photos, nudges and games have an Add note button that sends a short note to the chat.", steps: ["Tap ACTIVITY on their card on the home screen", "Choose All, Mine or Theirs", "Tap an entry for its detail"] },
     { id: "unread", title: "The unread line", kw: "unread new messages blur blurred read count badge seen", q: ["why are messages blurred", "how do messages get marked read"], tour: "chat", go: "chat",
       a: "New messages arrive softly blurred. A message counts as read once the whole card is in view above the message box. Then the blur lifts and the count drops by one. A set of photos counts as one message. Scrolling to the very bottom reads everything." },
     { id: "hold", title: "Reply, love, edit or delete", kw: "reply love heart like edit delete remove copy pin forward react reaction emoji long press hold double tap", q: ["how to reply", "how to delete a message", "how to like a message", "edit a message"], tour: "chat", go: "chat",
       a: "Press and hold any message for its menu: Reply, Love, Copy, Edit (your own), Pin to moments, Forward, Blur, and Delete for you or for both. Double-tap a message to send a heart. Deleted messages go to Recently deleted, where they can be restored." },
-    { id: "letters", title: "Sealed letters", kw: "letter letters sealed seal envelope capsule time future open later surprise write compose", q: ["write a letter", "send a letter that opens later", "letter that opens when she opens the app", "how do i seal a letter", "where are sealed letters", "open a sealed letter", "new sealed letter", "envelope for later"], tour: "letters", go: "letters",
-      a: "Home › Create › Sealed letters › New. Write the letter, choose a wax seal and paper, then choose when it can be opened: a date and time, a quick choice like Tomorrow morning, or When they next open the app. With that last one the letter opens itself, full screen, the moment they come in.", steps: ["Home › Create", "Sealed letters › New letter", "Write, then choose when it opens", "Seal and send"], more: "They see the envelope straight away, and a live countdown until it can be opened. You can read and edit your letter until then." },
+    { id: "letters", title: "Sealed letters", kw: "letter letters sealed seal envelope capsule time future open later surprise write compose wax paper colour color swatch chooser preview weekend tomorrow", q: ["write a letter", "send a letter that opens later", "letter that opens when she opens the app", "how do i seal a letter", "where are sealed letters", "open a sealed letter", "new sealed letter", "envelope for later", "choose a wax seal", "change the paper of a letter", "letter that opens this weekend"], go: "letters",
+      a: "Home › Create › Sealed letter › Write a sealed letter. One page has a live envelope preview at the top, then the title and the letter. Under them: who it's to, six wax seals, five papers, and Open when: Tomorrow morning, This weekend, Pick a date and time, or When they next open the app. The preview changes with every choice. Seal is ready once there's a letter and an opening time.", steps: ["Home › Create", "Sealed letter", "Write a sealed letter", "Write it, pick a seal, paper and time", "Tap Seal"], more: "They see the envelope straight away, and a live countdown until it can be opened. You can read and edit your letter until then." },
     { id: "letterdelete", title: "Delete a sealed letter", kw: "delete remove hide select withdraw withdrawn letters letter sealed both checkbox", q: ["delete a sealed letter", "remove a letter from my side", "delete for both", "delete for me", "select letters", "delete all letters", "remove from your letters", "withdraw a letter i sent"], go: "letters",
       a: "Open Sealed letters and tap Select. Tick the letters in the current tab, then Delete selected or Delete all. A letter you received can only be removed from your side. A letter you sent can be deleted for you or for both, and Delete for both removes it for your partner too. The chat card then says Letter removed.", steps: ["Sealed letters", "Tap Select", "Choose Delete selected or Delete all"] },
     { id: "game", title: "Tic-tac-toe", kw: "game games play tic tac toe noughts crosses challenge match", q: ["play a game", "start tic tac toe"], tour: "game", go: "game",
@@ -735,14 +797,18 @@
       a: "On the home screen tap Thinking of you. Their phone gets a heartbeat buzz, rising hearts and a card to send one back. You can send one a minute." },
     { id: "journal", title: "Journal", kw: "journal diary write entry entries notes prompt pages page", q: ["write in the journal", "open the journal", "how do i add a journal page", "where is the diary", "journal prompts", "search the journal", "edit a journal page", "shared journal"], tour: "journal", go: "journal",
       a: "Home › Journal. Tap + to write a page; there are prompts if you're stuck, and it saves as you type. Search and filters are at the top. You both see every page." },
-    { id: "stickers", title: "Stickers", kw: "sticker stickers emoji reaction send sticker luck congrats cuddle sparkle rainy", q: ["send a sticker", "where are stickers", "open the sticker picker", "how do i send stickers", "good luck sticker", "sticker menu", "emoji stickers", "more stickers"], go: "stickers",
-      a: "In the chat, tap + and choose Stickers & emoji. The grid shows all 46 stickers. Tap one to send it. If reduced motion is on, the sticker stays still with no particles." },
+    { id: "stickers", title: "Stickers", kw: "sticker stickers emoji reaction send sticker luck congrats cuddle sparkle rainy 46 count missing only some", q: ["send a sticker", "where are stickers", "open the sticker picker", "how do i send stickers", "good luck sticker", "sticker menu", "emoji stickers", "more stickers", "how many stickers are there", "why do i only see some stickers"], go: "stickers",
+      a: "In the chat, tap + and choose Stickers & emoji. There are 46 stickers; the grid scrolls, and the count at the top says so. Tap one to send it. Drag the top of the sheet down to close it. If reduced motion is on, stickers stay still with no particles." },
     { id: "idle", title: "Idle sign-out", kw: "idle inactive inactivity timeout signout warning countdown minutes automatic autosign", q: ["will i be signed out if i leave it", "still there warning", "idle sign out", "signed out after 5 minutes", "inactivity limit", "why was i signed out", "30 second warning", "auto sign out"], go: null,
       a: "After 5 minutes with no taps, keys or scrolling, The Lees asks Still there? and counts down 30 seconds. Cancel, or any tap, key or scroll, keeps you signed in and starts the 5 minutes again. Sign out, or doing nothing until the countdown ends, signs you out and locks the app. Coming back after the app was hidden for more than 5 minutes shows the same warning. It does not sign you out instantly. The unsend window is unchanged." },
-    { id: "facts", title: "Partner facts", kw: "partner facts fact know about favourite favorite boyfriend girlfriend husband wife remember note things name", q: ["what do you know about my partner", "whats my partners name", "remember that she likes sushi", "note that he likes running", "things we know", "facts about her", "what does my partner like", "tell me about them"], go: "facts",
-      a: "Things we know has two notes: About me, and About your partner. Ask me and I'll answer in full sentences from those notes. Your partner's name comes first. Say remember that she likes sushi, or note that he likes running, and I'll add that sentence to the partner note. Open Settings › Things we know to write, edit or delete either note. Each note holds up to 4000 characters." },
-    { id: "history", title: "Chat history", kw: "history arten conversations clock past questions earlier asked", q: ["show chat history", "arten history", "what did i ask you", "past questions", "open chat history", "clock history", "previous conversation with arten", "see earlier questions"], go: null,
-      a: "In the ARTEN panel, the clock button labelled Chat history opens a full-screen list. Each row is the date and time and the first question, cut at 80 characters. Tap a row to read that whole conversation. History lasts for this sign-in only. Signing out or locking clears it." },
+    { id: "facts", title: "About me and your partner", kw: "partner facts fact know about favourite favorite boyfriend girlfriend husband wife remember note notes things name list written added", q: ["what do you know about my partner", "whats my partners name", "remember that she likes sushi", "note that he likes running", "things we know", "facts about her", "what does my partner like", "tell me about them", "about me page", "edit my about me", "delete something i wrote about her"], go: "facts",
+      a: "About me and your partner has two cards: About me, and About your partner. Each line shows who wrote it, or Added by ARTEN, and the date. Tap Add to write a line (up to 300 characters), tap a line you wrote to edit it, or the bin to delete it. Lines your partner wrote about you show in About me with their name. Say remember that she likes sushi and I'll offer to add it; I only add it when you tap Add to the list.", steps: ["Close ARTEN", "Settings", "Privacy", "About me and your partner"] },
+    { id: "history", title: "Chat history", kw: "history arten conversations clock past questions earlier asked older previous kept", q: ["show chat history", "arten history", "what did i ask you", "past questions", "open chat history", "clock history", "previous conversation with arten", "see earlier questions", "older chats with arten", "how long is arten history kept"], go: null,
+      a: "In ARTEN, the History button (the clock) opens your chat history, full screen and grouped by day. Each row shows the 12-hour time and the first question. Tap a row to read the whole conversation. Conversations are kept for 10 days, survive signing out, and only you can see yours." },
+    { id: "newchat", title: "New chat with ARTEN", kw: "new chat fresh conversation clear start over arten empty begin again", q: ["start a new chat", "new chat with arten", "clear the arten chat", "start over with arten", "fresh conversation with arten", "empty the arten chat", "begin a new conversation", "new arten conversation"], go: null,
+      a: "Tap New chat at the top of ARTEN. The current conversation moves to History and you get an empty chat. Signing out does the same: the conversation is saved to History and the chat starts empty next time." },
+    { id: "artenmemory", title: "ARTEN after you sign out", kw: "arten remember memory sign out signout signed kept saved forget conversation after", q: ["does arten remember after i sign out", "what happens to arten chat when i sign out", "is my arten chat saved", "does arten forget", "arten memory sign out", "where did my arten chat go", "arten chat after signing in", "is the arten conversation kept"], go: null,
+      a: "When you sign out, your ARTEN conversation is saved to History and the chat on screen is cleared. Sign in again and open History (the clock) to find it. It's kept for 10 days. What ARTEN knows about the two of you lives in About me and your partner, not in the chat." },
     { id: "notifications", title: "Notifications", kw: "notifications alerts bell feed sound buzz mute quiet push telegram", q: ["turn off notifications", "mute", "why so many notifications"], tour: "notifications", go: "notifications",
       a: "Home › Notifications shows everything from the other person in one feed. To silence alerts, go to Settings › Notifications › Mute (8 hours or a week). Photos sent together make a single alert. A message sent as Quiet arrives without any sound." },
     { id: "media", title: "Media", kw: "media gallery photos videos voice notes all pictures month save download", q: ["see all photos", "find a photo"], tour: "media", go: "media",
@@ -773,21 +839,29 @@
       a: "Settings › Messages & data has Export, an encrypted Backup and Restore from backup." },
     { id: "mood", title: "Moods and today's question", kw: "mood feeling question daily streak closeness best time on this day", q: ["share my mood"], go: "home",
       a: "On the home screen, in the column under Settings: Streak, Mood (share how you feel, they're told at once), Today's question, Closeness, the Best time to talk, and On this day memories." },
-    { id: "guide", title: "The guide", kw: "guide tour help tutorial walkthrough onboarding show how learn tips turn off", q: ["show me around", "start the tour", "turn off tips"], tour: "full", go: "help",
-      a: "Settings › Guide & ARTEN › Take the tour runs the whole walkthrough, most important first. The Guide switch turns the tour and tips on or off (it's on by default). When the app is reset, the tour starts again by itself." },
-    { id: "arten", title: "About ARTEN", kw: "arten flower who are you assistant help bot", q: ["who are you", "what can you do"], tour: "arten",
-      a: "I'm ARTEN, the guide built into The Lees. I know every part of the app. Ask me how to do something and I'll explain it, then Show me walks you through it on screen, and Take me there opens it. I work on your phone, so nothing you type here is sent anywhere." }
+    { id: "guide", title: "The guide", kw: "guide tour help tutorial walkthrough onboarding show how learn tips turn off steps spotlight", q: ["show me around", "start the tour", "turn off tips", "show me the steps", "how do steps work", "walk me through it", "guide me", "highlight where to tap"], go: "help",
+      a: "Ask ARTEN about anything and tap Show me the steps. Each step lights up the button to tap with a card saying, for example, Step 2 of 4: tap the + button. You tap it yourself; ARTEN never moves you. Back, Next and Stop are on the card. Settings › Guide & ARTEN › Take the tour runs the whole walkthrough, and the Guide switch turns tips on or off." },
+    { id: "arten", title: "About ARTEN", kw: "arten who are you assistant help bot", q: ["who are you", "what can you do"],
+      a: "I'm ARTEN, the guide built into The Lees. Ask me how something works and I'll explain it, then Show me the steps lights up each thing to tap. I can also answer from what you've both saved in About me and your partner, and offer to add new things when you tap Add to the list." },
+    { id: "flower", title: "The flower", kw: "flower corner arten icon disappear disappeared hidden missing gone button bottom", q: ["where is the flower", "why did the flower disappear", "the flower is gone", "where is arten", "how do i open arten", "flower missing", "flower hidden in the chat", "what is the flower in the corner"], go: null,
+      a: "The flower in the bottom corner opens ARTEN. It stays on home, Activity, Settings, Journal, Sealed letters, Media, Notifications and About me and your partner. It hides only in the conversation, so it never covers the message box, and while ARTEN, the sticker sheet or a full-screen viewer is open." }
   ];
   var SYN = { pic: "photo", pics: "photos", picture: "photo", pictures: "photos", image: "photo", images: "photos", img: "photo", vid: "video", vids: "videos", clip: "video",
     text: "message", texts: "messages", msg: "message", msgs: "messages", dm: "message", talk: "message", chat: "message", pw: "passphrase", password: "passphrase", pass: "passphrase", pin: "passphrase",
     bin: "deleted", trash: "deleted", recycle: "deleted", undelete: "restore", recover: "restore", erase: "reset", wipe: "reset", factory: "reset", fresh: "reset", restart: "reset",
     online: "seen", offline: "seen", active: "seen", activity: "seen", lastseen: "seen", status: "seen", recording: "voice", audio: "voice", vn: "voice", mic: "voice",
     notif: "notifications", notification: "notifications", alert: "notifications", alerts: "notifications", noti: "notifications", ttt: "game", xo: "game",
-    dark: "theme", colour: "theme", color: "theme", wallpaper: "theme", her: "partner", him: "partner", she: "partner", he: "partner", wife: "partner", husband: "partner",
+    dark: "theme", colour: "theme", color: "theme", wallpaper: "theme", wife: "partner", husband: "partner",
     boyfriend: "partner", girlfriend: "partner", favourite: "favorite", favorite: "favorite", fact: "facts", facts: "facts",
     sticker: "stickers", emoji: "stickers", idle: "idle", inactivity: "idle", timeout: "idle", autosign: "idle",
     tutorial: "guide", tour: "guide", walkthrough: "guide", help: "guide", stack: "photos", stacked: "photos", album: "photos", batch: "photos", many: "photos" };
-  var STOP = { a: 1, an: 1, the: 1, i: 1, to: 1, do: 1, does: 1, how: 1, can: 1, my: 1, me: 1, is: 1, it: 1, of: 1, in: 1, on: 1, for: 1, and: 1, or: 1, what: 1, where: 1, why: 1, when: 1, you: 1, your: 1, we: 1, our: 1, us: 1, be: 1, are: 1, there: 1, this: 1, that: 1, with: 1, at: 1, from: 1, please: 1, want: 1, would: 1, like: 1, could: 1, should: 1, get: 1, make: 1, use: 1, using: 1, app: 1, lees: 1 };
+  // v15: phrases people use for one thing, folded into one word before matching.
+  var PHRASES = [[/\bvoice (message|msg|note)s?\b|\baudio (message|note)s?\b/g, "voice"], [/\blast seen\b/g, "seen"], [/\bthinking of you\b/g, "nudge"], [/\btic[ -]?tac[ -]?toe\b|\bnoughts and crosses\b/g, "game"],
+    [/\bsend later\b|\bschedul\w*/g, "schedule"], [/\brecently deleted\b/g, "deleted"], [/\bchat history\b|\bolder chats?\b|\bprevious (chat|conversation)s?\b/g, "history"], [/\bnew chat\b|\bfresh (chat|conversation)\b|\bstart (a )?(fresh|new) (chat|conversation)\b/g, "newchat"],
+    [/\babout me\b|\bthings we know\b|\babout (my )?partner\b/g, "facts"], [/\bsealed letters?\b/g, "letter"], [/\btoday'?s question\b|\bhow i'?m feeling\b|\bmy mood\b/g, "mood"], [/\bred status\b|\bstatus colou?rs?\b|\bthe dot\b/g, "seen"],
+    [/\bparticular (date|day)\b|\bon a (date|day)\b/g, "calendar"], [/\bblur the chat\b/g, "shield"], [/\bstep by step\b|\bshow me the steps\b/g, "steps"], [/\bsign(ed|ing)? me out\b/g, "idle"]];
+  function phrase(q) { var x = String(q || "").toLowerCase().replace(/[’']/g, "'"); PHRASES.forEach(function (p) { x = x.replace(p[0], " " + p[1] + " "); }); return x; }
+  var STOP = { open: 1, opens: 1, show: 1, her: 1, him: 1, she: 1, he: 1, his: 1, hers: 1, take: 1, go: 1, bring: 1, navigate: 1, me: 1, a: 1, an: 1, the: 1, i: 1, to: 1, do: 1, does: 1, how: 1, can: 1, my: 1, me: 1, is: 1, it: 1, of: 1, in: 1, on: 1, for: 1, and: 1, or: 1, what: 1, where: 1, why: 1, when: 1, you: 1, your: 1, we: 1, our: 1, us: 1, be: 1, are: 1, there: 1, this: 1, that: 1, with: 1, at: 1, from: 1, please: 1, want: 1, would: 1, like: 1, could: 1, should: 1, get: 1, make: 1, use: 1, using: 1, app: 1, lees: 1 };
   function stem(w) { if (w.length > 5 && /ing$/.test(w)) return w.slice(0, -3); if (w.length > 4 && /ed$/.test(w)) return w.slice(0, -2); if (w.length > 3 && /s$/.test(w) && !/ss$/.test(w)) return w.slice(0, -1); return w; }
   function toks(s) { return String(s || "").toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter(Boolean); }
   function near(a, b) {
@@ -797,11 +871,15 @@
     return d + (a.length - i) + (b.length - j) <= 1;
   }
   var INDEX = KB.map(function (e) {
-    var words = toks(e.kw + " " + e.title).map(stem), qs = e.q.map(function (q) { return toks(q).filter(function (w) { return !STOP[w]; }).map(stem); });
+    var words = toks(e.kw + " " + e.title).map(stem), qs = e.q.map(function (q) { return toks(phrase(q)).filter(function (w) { return !STOP[w]; }).map(stem); });
     return { e: e, words: words, qs: qs, titleW: toks(e.title).map(stem) };
   });
+  // Rarer words say more: a word found in few entries weighs more than one found in many.
+  var DF = {};
+  INDEX.forEach(function (ix) { var seen = {}; ix.words.forEach(function (w) { if (!seen[w]) { seen[w] = 1; DF[w] = (DF[w] || 0) + 1; } }); });
+  function idf(w) { var d = DF[w] || 1; return 0.6 + Math.log(INDEX.length / d) / Math.log(INDEX.length); }
   function search(question) {
-    var raw = toks(question), q = [];
+    var raw = toks(phrase(question)), q = [];
     raw.forEach(function (w) { if (STOP[w]) return; var s = SYN[w] || w; q.push(stem(s)); if (SYN[w]) q.push(stem(w)); });
     if (!q.length) return [];
     var res = INDEX.map(function (ix) {
@@ -812,9 +890,9 @@
         else if (ix.words.indexOf(w) >= 0) best = 2;
         else if (ix.words.some(function (x) { return near(x, w) || (w.length > 4 && x.indexOf(w) === 0) || (x.length > 4 && w.indexOf(x) === 0); })) best = 1.2;
         if (best) hit++;
-        s += best;
+        s += best * idf(w);
       });
-      ix.qs.forEach(function (pq) { var m = pq.filter(function (w) { return q.indexOf(w) >= 0; }).length; if (pq.length && m / pq.length >= 0.6) s += 3 * m / pq.length; });
+      ix.qs.forEach(function (pq) { var m = pq.filter(function (w) { return q.indexOf(w) >= 0; }).length; if (pq.length && m / pq.length >= 0.6) s += (pq.length === 1 ? 1.5 : 3) * m / pq.length; });
       s *= 0.6 + 0.4 * (hit / q.length);
       return { e: ix.e, s: s };
     }).filter(function (x) { return x.s > 1.1; }).sort(function (x, y) { return y.s - x.s; });
@@ -1053,66 +1131,380 @@
     }
     return composePersonal(q, { meName: a.name(a.me), otherName: name, meBody: meBody, otherBody: otherBody });
   }
-  function openFacts() {
+  /* =====================================================================================================
+     v15: WHAT ARTEN KNOWS ABOUT THE TWO OF YOU (arten_items), HOW IT ANSWERS, AND ITS CONVERSATIONS
+     ===================================================================================================== */
+  var PRON = { Agnes: { s: "she", o: "her", p: "her" }, Lewis: { s: "he", o: "him", p: "his" } };
+  function pron(side) { return PRON[side] || { s: "they", o: "them", p: "their" }; }
+  function cap1(x) { return x ? x.charAt(0).toUpperCase() + x.slice(1) : x; }
+  function reEsc(x) { return String(x).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+  var ITEM_MAX = 300, ITEMS_PER_PERSON = 200;
+  // Saved lines. arten_items when the v15 SQL has run; until then the v14 notes (one line per item) stand in.
+  var Items = {
+    rows: null, at: 0, mode: "items",
+    norm: function (x) { return { id: x.id, author: x.author_side, subject: x.subject_side, body: String(x.body || ""), source: x.source || "written", status: x.status || "saved", at: Date.parse(x.updated_at || x.created_at) || Date.now(), created: Date.parse(x.created_at) || Date.now() }; },
+    load: async function (force) {
+      var a = A(); if (!a || !a.sb || !a.pairId) return [];
+      if (!force && this.rows && Date.now() - this.at < 15000) return this.rows;
+      var r = null;
+      try { r = await a.sb.from("arten_items").select("*").eq("pair_id", a.pairId).order("created_at", { ascending: true }); } catch (e) { r = { error: e }; }
+      if (r && r.error) {
+        if (missingFn(r.error)) { this.mode = "legacy"; this.rows = await this.legacy(); }
+        else this.rows = this.rows || [];
+      } else {
+        this.mode = "items";
+        this.rows = (r.data || []).filter(function (x) { return x.status === "saved" || x.author_side === a.me; }).map(this.norm);
+      }
+      this.at = Date.now();
+      return this.rows;
+    },
+    legacy: async function () {
+      var a = A(), out = [];
+      var add = function (subject, body) { String(body || "").split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean).forEach(function (l, i) { out.push({ id: "legacy-" + subject + "-" + i, author: a.me, subject: subject === "me" ? a.me : a.other, body: l.slice(0, ITEM_MAX), source: "written", status: "saved", at: 0, created: 0, legacy: subject }); }); };
+      try { add("me", await loadNote("me")); add("other", await loadNote("other")); } catch (e) {}
+      return out;
+    },
+    writeLegacy: async function (subject) {
+      var a = A(), key = subject === a.me ? "me" : "other";
+      var body = (this.rows || []).filter(function (x) { return x.legacy === key; }).map(function (x) { return x.body; }).join("\n");
+      return saveNote(key, body);
+    },
+    count: function (subject) { var a = A(); return (this.rows || []).filter(function (x) { return x.subject === subject && x.author === a.me; }).length; },
+    add: async function (subject, body, source) {
+      var a = A(); if (!a || !a.sb) return { error: { message: "Sign in first." } };
+      body = String(body || "").replace(/\s+/g, " ").trim().slice(0, ITEM_MAX);
+      if (!body) return { error: { message: "Write something first." } };
+      await this.load();
+      if (this.count(subject) >= ITEMS_PER_PERSON) return { error: { message: "There are already " + ITEMS_PER_PERSON + " lines here. Delete one first." } };
+      if (this.mode === "legacy") {
+        this.rows.push({ id: "legacy-new-" + Date.now(), author: a.me, subject: subject, body: body, source: source || "written", status: "saved", at: Date.now(), created: Date.now(), legacy: subject === a.me ? "me" : "other" });
+        var lr = await this.writeLegacy(subject); this.at = 0; return lr || {};
+      }
+      var r = await a.sb.from("arten_items").insert({ pair_id: a.pairId, author_side: a.me, subject_side: subject, body: body, source: source === "arten" ? "arten" : "written", status: "saved" }).select("*").maybeSingle();
+      this.at = 0;
+      return r || {};
+    },
+    update: async function (it, body) {
+      var a = A(); body = String(body || "").replace(/\s+/g, " ").trim().slice(0, ITEM_MAX);
+      if (!body) return { error: { message: "Write something first." } };
+      if (this.mode === "legacy" || it.legacy) { it.body = body; var lr = await this.writeLegacy(it.subject); this.at = 0; return lr || {}; }
+      var r = await a.sb.from("arten_items").update({ body: body, updated_at: new Date().toISOString() }).eq("id", it.id).select("*").maybeSingle();
+      this.at = 0; return r || {};
+    },
+    remove: async function (it) {
+      var a = A();
+      if (this.mode === "legacy" || it.legacy) { this.rows = this.rows.filter(function (x) { return x !== it; }); var lr = await this.writeLegacy(it.subject); this.at = 0; return lr || {}; }
+      var r = await a.sb.from("arten_items").delete().eq("id", it.id);
+      this.at = 0; return r || {};
+    }
+  };
+  // Never stored: numbers and secrets belong somewhere built for them.
+  var SENSITIVE = [
+    [/[\w.+-]+@[\w-]+\.[a-z]{2,}/i, "Email addresses"], [/\be-?mail\b/i, "Email addresses"],
+    [/\b(phone|mobile|cell|whatsapp|telephone)\b/i, "Phone numbers"],
+    [/\b(id number|id no|national id|passport|ssn|social security|kra pin|tax pin|licen[cs]e number)\b/i, "ID numbers"],
+    [/\b(bank|account number|acc no|iban|swift|sort code|card number|credit card|debit card|cvv|cvc|m-?pesa)\b/i, "Bank and card details"],
+    [/(\+?\d[\d\s().-]{6,}\d)/, "Phone, card and account numbers"],
+    [/\b(home address|address|postcode|zip code|p\.?\s?o\.? box)\b|\b\d+\s+\w+\s+(street|st|road|rd|avenue|ave|drive|dr|lane|ln|close|crescent)\b/i, "Addresses"],
+    [/\b(password|passcode|passphrase|pin|pin code|secret|otp|security code|recovery code|login details)\b/i, "Passwords and secrets"]
+  ];
+  function sensitiveKind(t) { for (var i = 0; i < SENSITIVE.length; i++) if (SENSITIVE[i][0].test(t)) return SENSITIVE[i][1]; return null; }
+  // Verb agreement for "I like" -> "she likes" and "he likes" -> "you like".
+  function third(v) { var l = v.toLowerCase(); if (l === "have") return "has"; if (l === "am" || l === "are") return "is"; if (l === "were") return "was"; if (l === "do") return "does"; if (l === "go") return "goes"; if (/(s|sh|ch|x|z|o)$/.test(l)) return v + "es"; if (/[^aeiou]y$/.test(l)) return v.slice(0, -1) + "ies"; return v + "s"; }
+  function plain(v) { var l = v.toLowerCase(); if (l === "has") return "have"; if (l === "is") return "are"; if (l === "was") return "were"; if (l === "does") return "do"; if (l === "goes") return "go"; if (/ies$/.test(l) && l.length > 4) return v.slice(0, -3) + "y"; if (/(sses|shes|ches|xes|zes|oes)$/.test(l)) return v.slice(0, -2); if (/s$/.test(l) && !/ss$/.test(l)) return v.slice(0, -1); return v; }
+  var MODAL = /^(can|could|will|would|should|must|may|might|can't|won't|doesn't|didn't|never|always|usually|really|also|still|often|sometimes|just)$/i;
+  // One saved line as a full sentence from the reader's side. lead: the name, or a pronoun when the name is already used.
+  function itemSentence(it, lead) {
+    var a = A(), me = a.me, s = String(it.body || "").replace(/\s+/g, " ").trim().replace(/[.!?]+$/, "");
+    if (!s) return "";
+    var subj = it.subject, self = it.author === subj, name = a.name(subj), pr = pron(subj);
+    var L = lead || name, Lpos = /^(she|he|they)$/i.test(L) ? pron(subj).p : L + "'s";
+    var nameRe = new RegExp("^" + reEsc(name) + "\\b", "i");
+    if (subj === me) {
+      // About the reader: second person.
+      if (self) s = s.replace(/^i'?m\b/i, "you are").replace(/^i am\b/i, "you are").replace(/^i was\b/i, "you were").replace(/^i\b/i, "you").replace(/^my\b/i, "your");
+      else {
+        var w = s.split(" ");
+        if (/^(she|he|they)$/i.test(w[0]) || nameRe.test(s)) { var rest = nameRe.test(s) ? s.replace(nameRe, "").trim().split(" ") : w.slice(1); if (rest.length && !MODAL.test(rest[0])) rest[0] = plain(rest[0]); s = "you " + rest.join(" "); }
+        else if (/^(her|his|their)\b/i.test(s) || new RegExp("^" + reEsc(name) + "'s\\b", "i").test(s)) s = s.replace(/^(\S+)/, "your");
+        else if (/^(she's|he's)\b/i.test(s)) s = s.replace(/^\S+/, "you're");
+        else s = "you " + (/\b(is|are|was|has|have|likes?|loves?|enjoys?|plays?|wants?|works?|lives?)\b/i.test(s.split(" ")[0]) ? plain(s.split(" ")[0]) + " " + s.split(" ").slice(1).join(" ") : "like " + s);
+      }
+      s = s.replace(/\bmyself\b/gi, "yourself").replace(/\b(he|she) is\b/gi, "you are");
+      s = cap1(s);
+    } else {
+      if (self) {
+        // They wrote it about themselves: "I want to visit Zanzibar" -> "she wants to visit Zanzibar".
+        var m = s.match(/^(i'm|i am|i was|i)\s+(\S+)(.*)$/i);
+        if (/^my\b/i.test(s)) s = Lpos + s.slice(2);
+        else if (m) { var v = m[1].toLowerCase(); s = v === "i'm" || v === "i am" ? L + " is " + m[2] + m[3] : v === "i was" ? L + " was " + m[2] + m[3] : L + " " + (MODAL.test(m[2]) ? m[2] : third(m[2])) + m[3]; }
+        else if (!nameRe.test(s)) s = L + " " + s;
+        s = s.replace(/\bmy\b/gi, pr.p).replace(/\bme\b/gi, pr.o).replace(/\bmyself\b/gi, pr.o + "self");
+      } else {
+        if (/^(she's|he's)\b/i.test(s)) s = L + " is" + s.replace(/^\S+/, "");
+        else if (/^(she|he|they)\b/i.test(s)) s = L + s.replace(/^\S+/, "");
+        else if (/^(her|his|their)\b/i.test(s)) s = Lpos + s.replace(/^\S+/, "");
+        else if (nameRe.test(s)) s = L + s.replace(nameRe, "");
+        else {
+          var hasVerb = /\b(is|are|was|were|am|likes?|loves?|has|have|had|enjoys?|writes?|plays?|wants?|lives?|works?|knows?|misses|prefers?|hates?|drinks?|eats?|sings?|collects?|reads?|studies|gets?|goes|wakes?)\b/i.test(s);
+          s = L + " " + (hasVerb ? s.charAt(0).toLowerCase() + s.slice(1) : "likes " + s);
+        }
+      }
+      s = cap1(s);
+    }
+    if (new RegExp("^(\\S+) (is|likes) \\1$", "i").test(s)) return "";
+    return s + ".";
+  }
+  // "Agnes wrote that you love football." for lines the other person wrote.
+  function cited(it, lead) {
+    var a = A(), s = itemSentence(it, it.author !== it.subject && it.subject !== a.me ? lead : (it.author === a.other && it.subject === a.other ? pron(it.subject).s : lead));
+    if (!s) return "";
+    if (it.author === a.other) return a.name(a.other) + " wrote that " + (/^(You|Your|You're|She|Her|He|His|They|Their)\b/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s);
+    return s;
+  }
+  var GROUPS = [
+    ["food", "eat", "eats", "eating", "ate", "dish", "meal", "meals", "cook", "cooking", "cuisine", "snack", "lunch", "dinner", "breakfast", "like", "likes"],
+    ["like", "likes", "love", "loves", "enjoy", "enjoys", "adore", "adores", "fond", "favourite", "favorite", "prefer", "prefers"],
+    ["colour", "color", "colours", "colors"], ["birthday", "born", "birth", "bday", "birthdate", "age", "old"],
+    ["work", "works", "working", "job", "career", "profession", "occupation", "employed", "office", "living"],
+    ["allergic", "allergy", "allergies"], ["film", "films", "movie", "movies", "cinema", "series"],
+    ["drink", "drinks", "drinking", "chai", "tea", "coffee", "juice"], ["sister", "brother", "sibling", "siblings", "family"],
+    ["travel", "visit", "trip", "holiday", "vacation", "destination", "country"], ["hike", "hiking", "walk", "walking", "outdoors", "mountain", "hills"],
+    ["sing", "sings", "singing", "song", "songs", "music", "choir", "singer"], ["sport", "sports", "football", "soccer", "team", "rugby", "basketball", "tennis"],
+    ["instrument", "guitar", "piano", "violin", "drums", "play", "plays"], ["language", "languages", "french", "english", "swahili", "learning", "learn", "studying"],
+    ["scared", "afraid", "fear", "fears", "phobia", "frightened"], ["name", "called", "named"]
+  ];
+  var PSTOP = toSet("what whats what's s does do did is are am i me my myself mine you your yours she he her hers him his they them their about know knows tell any anything something some facts fact the a an to of for on in at with how when where who which according written wrote write saved has have had remind there can could would please much many kind sort thing things stuff us we our partner wife husband girlfriend boyfriend list everything all");
+  function toSet(x) { var o = {}; x.split(" ").forEach(function (w) { o[w] = 1; }); return o; }
+  function pstem(w) { return stem(w.replace(/'s$/, "")); }
+  function groupOf(w) { var out = [w]; GROUPS.forEach(function (g) { if (g.indexOf(w) >= 0 || g.map(pstem).indexOf(pstem(w)) >= 0) out = out.concat(g); }); return out.map(pstem); }
+  function personRefs() { var a = A(); var n = [a.name(a.other), a.other].concat(a.name(a.other).split(/\s+/)).map(function (x) { return x.toLowerCase(); }); return n.filter(function (x) { return x.length > 2 && !/^(mr|mrs|ms|the)$/.test(x); }); }
+  var FEATURE_RE = /\b(message|messages|msg|chat|conversation|photo|photos|picture|pictures|video|videos|voice|audio|sticker|stickers|emoji|letter|letters|journal|theme|settings?|notifications?|activity|last seen|online|status|blur|shield|game|tic|noughts|calendar|moments?|archive|reset|passphrase|backup|export|guide|tour|arten|flower|app|button|page|screen|tile|send|reply|delete|restore|record|mood|streak|signed|sign out|idle|history|new chat|feeling|steps|nudge|thinking of you|reaction|react|draw|sketch|schedule|undo|pin|font|colour theme|dark mode)\b/i;
+  var ADD_RE = /^(?:please\s+|hey\s+arten,?\s+|arten,?\s+)?(?:can you\s+|could you\s+)?(?:remember|rember|remeber|remmber|note(?: down)?|save|store|keep in mind|don'?t forget|add(?: a note)?(?: to (?:the|my|her|his) list)?)\b(?:\s+that)?\s*(.*)$/i;
+  var MOD_RE = /\b(change|edit|delete|remove|update|fix|erase|correct|clear)\b/i;
+  var MOD_WHAT = /\b(note|notes|wrote|written|saved|fact|facts|line|lines|about me|about (?:her|him|them)|knows? about|what i (?:wrote|saved|said)|list|typo)\b/i;
+  function intentOf(q) {
+    var t = String(q || "").trim(), low = t.toLowerCase(), a = A();
+    var names = personRefs();
+    var partnerRef = /\b(she|he|her|him|his|hers|they|them|partner|wife|husband|girlfriend|boyfriend)\b/i.test(low) || names.some(function (n) { return new RegExp("\\b" + reEsc(n) + "\\b").test(low); });
+    var core = low.replace(/\b(remind|tell|show|give|help|take|bring) me\b/g, " ");
+    var firstPerson = /\b(i|i'm|im|me|my|myself|mine)\b/.test(core);
+    if (MOD_RE.test(low) && MOD_WHAT.test(low) && !/\b(message|letter|photo|video|journal|sticker|theme|passphrase|chat history)\b/.test(low)) return { k: "modify" };
+    var m = t.match(ADD_RE);
+    if (m && !/^(how|where|what|why|when)\b/i.test(t) && !/\b(page|photo|photos|sticker|message|letter|journal)\b/i.test(m[1] || "") ) return { k: "add", rest: (m[1] || "").trim() };
+    if (/^(how|where|why|what's the way|whats the way)\b/i.test(t) && !partnerRef) return { k: "app" };
+    if (/^(take me|go to|open|bring|navigate|show me (the|my|our|where)|where is|where's|where are)\b/i.test(t)) return { k: "app" };
+    if (FEATURE_RE.test(low)) return { k: "app" };
+    if (partnerRef || firstPerson) {
+      var aboutMe = firstPerson && (!partnerRef || /\babout me\b|\baccording to\b|\b(know|knows|wrote|written|said|say|says|think|thinks) about me\b/.test(core));
+      var byOther = aboutMe && (/\baccording to\b/.test(core) || /\b(know|knows|wrote|written|said|say|says|think|thinks|saved) about me\b/.test(core)) && partnerRef;
+      var bySelf = aboutMe && /\b(i|i've) (wrote|write|written|saved|said)\b.*\b(myself|me)\b/.test(core);
+      return { k: "personal", aboutMe: aboutMe, author: byOther ? a.other : bySelf ? a.me : null };
+    }
+    return { k: "app" };
+  }
+  function contentTerms(q) {
+    var names = personRefs();
+    return toks(String(q || "").toLowerCase().replace(/\b(remind|tell|show|give) me\b/g, " ")).filter(function (w) { return !PSTOP[w] && names.indexOf(w) < 0 && w.length > 1; });
+  }
+  async function personalAnswer(q, it) {
+    var a = A(), other = a.other, subject = it.aboutMe ? a.me : other, name = a.name(other);
+    var rows = await Items.load();
+    var pool = rows.filter(function (x) { return x.subject === subject && (x.status === "saved") && (!it.author || x.author === it.author); });
+    var who = it.aboutMe ? "you" : name;
+    var pageName = "About me and " + name;
+    if (!pool.length) return { id: "facts", kind: "personal", lead: "Nothing is saved about " + who + " yet.", paras: [], offer: { subject: subject, label: it.aboutMe ? "Add to About me" : "Add to About " + name } };
+    var terms = contentTerms(q);
+    var picked;
+    if (!terms.length) picked = pool.slice(0, 8);
+    else {
+      var scored = pool.map(function (x) {
+        var words = toks(x.body).map(pstem), sc = 0;
+        terms.forEach(function (t) { var g = groupOf(t); if (words.some(function (w) { return g.indexOf(w) >= 0 || (w.length > 4 && near(w, pstem(t))); })) sc++; });
+        return { x: x, s: sc };
+      }).filter(function (o) { return o.s > 0; }).sort(function (p1, p2) { return p2.s - p1.s; });
+      if (!scored.length) return { id: "facts", kind: "personal", lead: "I don't have that saved about " + who + " yet.", paras: [], offer: { subject: subject, label: it.aboutMe ? "Add to About me" : "Add to About " + name } };
+      picked = scored.filter(function (o) { return o.s >= scored[0].s * 0.6; }).slice(0, 3).map(function (o) { return o.x; });
+    }
+    // The partner's name leads each paragraph; the second sentence of a paragraph uses the pronoun.
+    var sents = picked.map(function (x, i) { return cited(x, i % 2 === 1 && !it.aboutMe ? cap1(pron(other).s) : null); }).filter(Boolean);
+    if (!sents.length) return { id: "facts", kind: "personal", lead: "I don't have that saved about " + who + " yet.", paras: [], offer: { subject: subject, label: "Add a line" } };
+    var lead, rest;
+    if (!terms.length) { lead = "Here's what's saved about " + who + "."; rest = sents; }
+    else { lead = sents[0]; rest = sents.slice(1); }
+    var paras = [];
+    for (var i = 0; i < rest.length; i += 2) paras.push(rest.slice(i, i + 2).join(" "));
+    if (!terms.length && pool.length > picked.length) paras.push("There " + (pool.length - picked.length === 1 ? "is 1 more line" : "are " + (pool.length - picked.length) + " more lines") + " in " + pageName + ".");
+    return { id: "facts", kind: "personal", lead: lead, paras: paras };
+  }
+  function addProposal(rest) {
+    var a = A(), name = a.name(a.other);
+    var t = String(rest || "").replace(/^that\s+/i, "").replace(/[.!?]+$/, "").trim();
+    var kind = sensitiveKind(t);
+    if (kind) return { id: "facts", kind: "refuse", lead: "I won't save that.", paras: [kind + " are safer somewhere built for them, like your phone's contacts or a password manager. Anything else about " + name + " I can add?"] };
+    if (!t) return { id: "facts", kind: "add", lead: "Tell me the line to add, for example: remember that " + pron(a.other).s + " likes sushi.", paras: [] };
+    var names = personRefs();
+    var lowT = t.toLowerCase();
+    var subject = /^(i|i'm|im|i've|my|me)\b/.test(lowT) ? a.me : a.other;
+    if (names.some(function (n) { return lowT.indexOf(n + "'s ") === 0; })) t = (pron(a.other).p) + " " + t.replace(/^\S+\s/, "");
+    else if (names.some(function (n) { return lowT.indexOf(n + " ") === 0; })) t = pron(a.other).s + " " + t.replace(new RegExp("^(" + names.map(reEsc).join("|") + ")\\s+", "i"), "");
+    var body = cap1(t).slice(0, ITEM_MAX) + ".";
+    var preview = itemSentence({ author: a.me, subject: subject, body: body });
+    var page = subject === a.me ? "About me" : "About " + name;
+    return { id: "facts", kind: "add", lead: "Shall I add this to " + page + "?", paras: ["“" + preview + "”"], proposal: { subject: subject, body: body, page: page, preview: preview, status: "proposed" } };
+  }
+  async function respond(q) {
+    var it = intentOf(q), a = A();
+    if (it.k === "modify") {
+      var name = a.name(a.other);
+      return { id: "facts", kind: "edit", lead: "You can change that in About me and " + name + ".", paras: ["Tap a line you wrote to edit it, or its bin to delete it. Lines " + name + " wrote can only be changed by " + pron(a.other).o + "."], steps: "facts" };
+    }
+    if (it.k === "add") return addProposal(it.rest);
+    if (it.k === "personal") { try { return await personalAnswer(q, it); } catch (e) { return { id: "facts", kind: "personal", lead: "I couldn't read the saved lines just now.", paras: ["Try again in a moment."] }; } }
+    var nav = /^(take me|go to|open|bring|navigate|show me|where is|where's|where do i|where are)\b/i.test(String(q).trim());
+    var hits = search(q);
+    if (!hits.length) return { id: null, kind: "none", lead: "I couldn't match that to a part of The Lees.", paras: ["Here's what I can help with:"], hits: [] };
+    var e = hits[0].e;
+    var sents = String(e.a).match(/[^.!?]+[.!?]+(\s|$)/g) || [e.a];
+    sents = sents.map(function (x) { return x.trim(); });
+    var paras = [];
+    for (var i = 1; i < sents.length; i += 2) paras.push(sents.slice(i, i + 2).join(" "));
+    return { id: e.id, kind: nav ? "nav" : "app", entry: e, lead: sents[0], paras: paras, hits: hits };
+  }
+  function respondText(r) { return [r.lead].concat(r.paras || []).join(" ") + (r.entry && r.entry.steps ? " " + r.entry.steps.join(". ") + "." : ""); }
+
+  /* ARTEN conversations: kept per person for 10 days (arten_conversations), archived by New chat and sign-out. */
+  var CONV_LOCAL = "v15-arten-conv-";
+  var Convo = {
+    server: true,
+    localKey: function () { var a = A(); return CONV_LOCAL + (a && a.me); },
+    localAll: function () { return LS.get(this.localKey(), []).filter(function (c) { return keptDay(c.started_at); }); },
+    localPut: function (c) { var all = this.localAll().filter(function (x) { return x.lid !== c.lid; }); all.push({ lid: c.lid, id: c.id || null, title: c.title, messages: c.messages, started_at: c.started_at, archived_at: c.archived_at || null }); LS.set(this.localKey(), all.slice(-60)); },
+    fresh: function () { return { lid: "l" + Date.now() + Math.random().toString(36).slice(2, 6), id: null, title: "", messages: [], started_at: Date.now(), archived_at: null }; },
+    save: async function (c) {
+      var a = A(); if (!a || !c || !c.messages.length) return;
+      if (!c.title) { var f = c.messages.find(function (m) { return m.r === "u"; }); c.title = String((f && f.t) || "").slice(0, 120); }
+      this.localPut(c);
+      if (!this.server || !a.sb || !a.userId) return;
+      var row = { title: c.title, messages: c.messages.slice(-200) };
+      try {
+        var r;
+        if (!c.id) { r = await a.sb.from("arten_conversations").insert(Object.assign({ pair_id: a.pairId, user_id: a.userId, side: a.me, started_at: new Date(c.started_at).toISOString() }, row)).select("id").maybeSingle(); if (r && r.data && r.data.id) { c.id = r.data.id; this.localPut(c); } }
+        else r = await a.sb.from("arten_conversations").update(row).eq("id", c.id);
+        if (r && r.error && missingFn(r.error)) this.server = false;
+      } catch (e) {}
+    },
+    archive: async function (c) {
+      var a = A(); if (!a || !c || !c.messages.length) return;
+      c.archived_at = Date.now();
+      this.localPut(c);
+      if (!this.server || !a.sb) return;
+      try {
+        if (!c.id) await this.save(c);
+        if (c.id) { var r = await a.sb.from("arten_conversations").update({ archived_at: new Date(c.archived_at).toISOString() }).eq("id", c.id); if (r && r.error && missingFn(r.error)) this.server = false; }
+      } catch (e) {}
+    },
+    list: async function () {
+      var a = A(), out = this.localAll();
+      if (this.server && a && a.sb && a.userId) {
+        try {
+          var r = await a.sb.from("arten_conversations").select("id, title, messages, started_at, archived_at").eq("user_id", a.userId).order("started_at", { ascending: false }).limit(80);
+          if (r && r.error) { if (missingFn(r.error)) this.server = false; }
+          else {
+            var srv = (r.data || []).map(function (x) { return { lid: "s" + x.id, id: x.id, title: x.title || "", messages: Array.isArray(x.messages) ? x.messages : [], started_at: Date.parse(x.started_at) || 0, archived_at: x.archived_at ? Date.parse(x.archived_at) : null }; });
+            out = srv.concat(out.filter(function (l) { return !l.id || !srv.some(function (s2) { return s2.id === l.id; }); }));
+          }
+        } catch (e) {}
+      }
+      return out.filter(function (c) { return c.messages && c.messages.length && keptDay(c.started_at); }).sort(function (x, y) { return y.started_at - x.started_at; });
+    }
+  };
+
+  /* About me / About [partner]: two cards of saved lines, each with its author and date. */
+  function openFacts(focus) {
     var a = A(); if (!a || !a.openPanel) return;
-    a.openPanel("Things we know", "About you and " + a.name(a.other), function (body) {
-      body.classList.add("facts14");
-      var partner = a.name(a.other);
-      function area(subject, title) {
-        var box = el("section", "facts14-box");
-        box.appendChild(el("h3", "", title));
-        var ta = el("textarea", "in");
-        ta.maxLength = 4000;
-        ta.readOnly = true;
-        ta.setAttribute("aria-label", title);
-        var count = el("span", "facts14-n", "0 / 4000");
-        var row = el("div", "facts14-row");
-        var save = el("button", "btn sm", "Save"); save.type = "button";
-        var edit = el("button", "btn ghost sm", "Edit"); edit.type = "button";
-        var del = el("button", "btn ghost sm", "Delete"); del.type = "button";
-        function paintCount() { count.textContent = ta.value.length + " / 4000"; }
-        ta.addEventListener("input", paintCount);
-        edit.addEventListener("click", function () { ta.readOnly = false; ta.focus(); });
-        save.addEventListener("click", async function () {
-          save.disabled = true;
-          var r = await saveNote(subject, ta.value.slice(0, 4000));
-          save.disabled = false;
-          ta.readOnly = true;
-          if (r && r.error) { a.notice("Couldn't save", r.error.message, { error: true }); return; }
-          a.notice("Saved", title + " is saved.");
+    var partner = a.name(a.other);
+    a.openPanel("About me and " + partner, "What ARTEN knows about the two of you", function (body) {
+      body.classList.add("ab15");
+      var host = el("div", "ab15-wrap");
+      body.appendChild(host);
+      var note = el("p", "ab15-note", "Up to 300 characters a line. Only you can change lines you wrote.");
+      async function paint() {
+        if (!host.isConnected) return;
+        var rows = await Items.load(true);
+        if (!host.isConnected) return;
+        host.textContent = "";
+        [[a.me, "About me"], [a.other, "About " + partner]].forEach(function (c) {
+          var card = el("section", "ab15-card"); card.dataset.subject = c[0];
+          var hd = el("header", "ab15-h"); hd.append(el("h3", "", c[1]));
+          var mine = rows.filter(function (x) { return x.subject === c[0]; });
+          hd.appendChild(el("span", "ab15-n", mine.length === 1 ? "1 line" : mine.length + " lines"));
+          card.appendChild(hd);
+          var ul = el("ul", "ab15-list");
+          if (!mine.length) ul.appendChild(el("li", "ab15-empty", "Nothing here yet."));
+          mine.forEach(function (it) {
+            var li = el("li", "ab15-row"); li.dataset.id = it.id;
+            var canEdit = it.author === a.me;
+            var main = el(canEdit ? "button" : "div", "ab15-main"); if (canEdit) { main.type = "button"; main.setAttribute("aria-label", "Edit: " + it.body); }
+            var by = it.source === "arten" ? "Added by ARTEN" : "Written by " + (it.author === a.me ? "you" : a.name(it.author));
+            var when = it.at ? new Date(it.at).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" }) : "";
+            main.append(el("span", "ab15-t", it.body), el("small", "ab15-by", by + (when ? " · " + when : "")));
+            li.appendChild(main);
+            if (canEdit) {
+              main.addEventListener("click", function () { editRow(li, it); });
+              li.appendChild(btn("ab15-del", svg(P.trash), "Delete this line", function () { del(it); }));
+              bindRowSwipe(li, function () { del(it); });
+            }
+            ul.appendChild(li);
+          });
+          card.appendChild(ul);
+          var addRow = btn("ab15-add", svg("M12 5v14M5 12h14") + "<span>Add</span>", c[0] === a.me ? "Add a line about you" : "Add a line about " + partner, function () { addField(card, c[0], addRow); });
+          card.appendChild(addRow);
+          host.appendChild(card);
         });
-        del.addEventListener("click", async function () {
-          var ok = await a.centredBanner({ title: "Delete this note?", desc: "The text in " + title + " will be cleared.", okLabel: "Delete" });
-          if (!ok) return;
-          ta.value = "";
-          paintCount();
-          ta.readOnly = true;
-          var r = await saveNote(subject, "");
-          if (r && r.error) a.notice("Couldn't delete", r.error.message, { error: true });
-          else a.notice("Deleted", title + " is empty.");
-        });
-        row.append(save, edit, del, count);
+        host.appendChild(note);
+        if (focus && focus.subject) { var cardF = host.querySelector('.ab15-card[data-subject="' + focus.subject + '"] .ab15-add'); var f0 = focus; focus = null; if (cardF && f0.add) cardF.click(); else if (cardF) cardF.classList.add("gd12-glow"); }
+      }
+      function field(value, onSave, onCancel) {
+        var box = el("div", "ab15-edit");
+        var ta = el("textarea", "in ab15-in"); ta.maxLength = ITEM_MAX; ta.rows = 2; ta.value = value || ""; ta.setAttribute("aria-label", "Line");
+        var n = el("small", "ab15-cnt", (ta.value.length) + " / " + ITEM_MAX);
+        ta.addEventListener("input", function () { n.textContent = ta.value.length + " / " + ITEM_MAX; });
+        var row = el("div", "ab15-erow");
+        var cancel = btn("btn ghost sm", "Cancel", null, onCancel);
+        var save = btn("btn sm", "Save", null, async function () { var v = ta.value.trim(); if (!v) { ta.focus(); return; } save.disabled = true; await onSave(v); save.disabled = false; });
+        row.append(n, cancel, save);
         box.append(ta, row);
-        box._ta = ta;
-        box._subject = subject;
+        setTimeout(function () { try { ta.focus(); } catch (e) {} }, 30);
         return box;
       }
-      var meBox = area("me", "About me");
-      var otBox = area("other", "About " + partner);
-      body.append(meBox, otBox);
-      (async function () {
-        var meBody = await loadNote("me");
-        var ot = await loadNote("other");
-        if (!ot && a.sb) {
-          var r = await a.sb.from("arten_facts").select("fact").eq("pair_id", a.pairId).eq("owner_side", a.me).order("created_at", { ascending: true });
-          var facts = ((r && r.data) || []).map(function (x) { return x.fact; }).filter(Boolean);
-          if (facts.length) ot = facts.join("\n");
-        }
-        meBox._ta.value = meBody;
-        otBox._ta.value = ot;
-        meBox.querySelector(".facts14-n").textContent = meBody.length + " / 4000";
-        otBox.querySelector(".facts14-n").textContent = ot.length + " / 4000";
-      })();
+      function addField(card, subject, addRow) {
+        if (card.querySelector(".ab15-edit")) return;
+        var f = field("", async function (v) { var r = await Items.add(subject, v, "written"); if (r && r.error) { a.notice("Couldn't save", r.error.message || "", { error: true }); return; } paint(); }, function () { f.remove(); addRow.hidden = false; });
+        addRow.hidden = true;
+        card.insertBefore(f, addRow);
+      }
+      function editRow(li, it) {
+        if (li.querySelector(".ab15-edit")) return;
+        var main = li.querySelector(".ab15-main"); main.hidden = true;
+        var f = field(it.body, async function (v) { var r = await Items.update(it, v); if (r && r.error) { a.notice("Couldn't save", r.error.message || "", { error: true }); return; } paint(); }, function () { f.remove(); main.hidden = false; });
+        li.insertBefore(f, main);
+      }
+      async function del(it) {
+        var ok = await a.centredBanner({ title: "Delete this line?", desc: "“" + it.body.slice(0, 120) + "” will be removed for both of you.", okLabel: "Delete" });
+        if (!ok) { paint(); return; }
+        var r = await Items.remove(it);
+        if (r && r.error) a.notice("Couldn't delete", r.error.message || "", { error: true });
+        paint();
+      }
+      function bindRowSwipe(li, onDelete) {
+        var x0 = 0, dx = 0, on = false;
+        li.addEventListener("pointerdown", function (e) { if (e.target.closest("textarea, .ab15-del")) return; on = true; x0 = e.clientX; dx = 0; });
+        li.addEventListener("pointermove", function (e) { if (!on) return; dx = Math.min(0, e.clientX - x0); if (dx < -6) li.style.transform = "translateX(" + Math.max(-120, dx) + "px)"; });
+        var end = function () { if (!on) return; on = false; li.style.transform = ""; if (dx < -90) onDelete(); };
+        li.addEventListener("pointerup", end); li.addEventListener("pointercancel", end);
+      }
+      paint();
     });
   }
 
@@ -1770,7 +2162,7 @@
   setTimeout(wrapSettings, 0);
 
   window.LeesV12 = {
-    presenceLine: presenceLine, openActivity: openActivity, openReset: openReset, guide: Guide, arten: Arten, ask: search, composePersonal: composePersonal, factsReply: factsReply, log: function (k, d) { Act.log(k, d); },
+    presenceLine: presenceLine, openActivity: openActivity, openReset: openReset, guide: Guide, arten: Arten, ask: search, composePersonal: composePersonal, factsReply: factsReply, respond: async function (q) { var r = await respond(q); r.text = respondText(r); return r; }, intentOf: intentOf, items: Items, convo: Convo, openAbout: openFacts, itemSentence: itemSentence, log: function (k, d) { Act.log(k, d); },
     beforeSignOut: async function (why) { Act.log(why === "idle" ? "idle" : "signout"); clearArtenHistory(); await Act.flush(); },
     _act: Act, _usage: Usage, _kb: KB, maybeTip: maybeTip
   };

@@ -1,6 +1,6 @@
 /* v15 ARTEN holdout runner. Loads lees-v12.js in a VM with an in-memory store holding the fixture
    (as arten_notes rows for the v14 code, and as arten_items rows for v15), then asks each question
-   through the same path the ARTEN panel uses. Usage: node tests/arten-holdout.test.cjs [--json] [--misses] */
+   through the same path the ARTEN panel uses. Usage: node tests/arten-holdout.test.cjs [--misses] [--answers] */
 const fs = require("fs"), path = require("path"), vm = require("vm");
 const H = JSON.parse(fs.readFileSync(path.join(__dirname, "arten-holdout.json"), "utf8"));
 const code = fs.readFileSync(path.join(__dirname, "..", "lees-v12.js"), "utf8");
@@ -86,6 +86,7 @@ const REFUSE = /\b(won.?t|can.?t|cannot|not going to|rather not|not safe|safer)\
     else if (it.kind === "refuse") { const wrote = ["arten_notes", "arten_items"].some((t) => (DB[t] || []).some((x) => String(x.body).includes(it.not[0]))); pass = REFUSE.test(r.text) && !it.not.some((b) => r.text.includes(b)) && !wrote; }
     else if (it.kind === "edit") pass = /about me|about agnes|things we know/i.test(r.text);
     const g = it.g === "edit" ? "edit" : it.g;
+    if (process.argv.includes("--answers") && (it.g === "personal" || it.g === "edit")) console.log("Q: " + it.q + "\nA: " + r.text + "\n");
     groups[g] = groups[g] || [0, 0]; groups[g][1]++; if (pass) groups[g][0]++;
     if (!pass) misses.push(`[${g}${it.kind ? "/" + it.kind : ""}] ${it.q} -> ${r.id || "-"} :: ${r.text.slice(0, 140).replace(/\n/g, " ")}`);
   }
