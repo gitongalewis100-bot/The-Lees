@@ -12,7 +12,7 @@
     ],
     pair_settings: [{ pair_id: PAIR, theme: 'warm', archive_days: 0, chat_lock_mode: 'off' }],
     messages: [], notes: [], scheduled_messages: [], read_markers: [], note_reads: [], journal_entries: [], drafts: [],
-    sealed_letters: [], game_sessions: [], awards: [], message_trash: [], activity_log: [], notify_log: []
+    sealed_letters: [], game_sessions: [], awards: [], message_trash: [], activity_log: [], notify_log: [], arten_items: (seed.items || []), arten_conversations: [], arten_notes: []
   };
   const t0 = Date.now() - 864e5;
   const txt = ['Morning love ☀️', 'Did you sleep well? 😴', 'Yes! Dreamt of the beach 🏖️', 'Coffee later? ☕', 'Always ❤️', 'Leaving work at 5', 'I miss you 🥺', 'Send me a photo of the sunset 🌅', 'On it 😘', 'Love you more 💕'];
@@ -110,6 +110,7 @@
     factory_reset: (a) => { if (a.p_pass !== (seed.pass || 'test')) throw { message: 'wrong passphrase', code: '28P01' }; const paths = DB.messages.map((m) => m.media_path).filter(Boolean); ['messages', 'notes', 'scheduled_messages', 'journal_entries', 'drafts', 'sealed_letters', 'game_sessions', 'awards', 'message_trash', 'activity_log', 'note_reads'].forEach((t) => { DB[t] = []; }); DB.pair_settings[0].reset_at = now(); emit('pair_settings', 'UPDATE', DB.pair_settings[0]); return paths; },
     touch_last_seen: () => { const r = mine(); if (r) { r.last_seen_at = now(); } return null; },
     log_activity: (a) => { (a.p_items || []).forEach((it) => { const row = { id: uuid(), pair_id: PAIR, user_id: userId(), side: sideOf(userId()), at: it.at || now(), action: it.action, detail: it.detail || '' }; DB.activity_log.push(row); emit('activity_log', 'INSERT', row); }); const r = mine(); if (r) r.last_seen_at = now(); return null; },
+    purge_retained_for_me: () => { const cut = new Date(); cut.setUTCHours(0, 0, 0, 0); cut.setUTCDate(cut.getUTCDate() - 10); const c = cut.toISOString(); DB.activity_log = DB.activity_log.filter((r) => r.at >= c); DB.arten_conversations = DB.arten_conversations.filter((r) => r.user_id !== userId() || r.started_at >= c); window.__purged = (window.__purged || 0) + 1; return null; },
     undo_send: () => true, game_start: () => null, delete_for_me: () => null, archive_message: () => null, mark_opened_once: () => null, set_emoji: () => null, set_moment: () => null, set_hidden: () => null
   };
   function rpc(name, args) {

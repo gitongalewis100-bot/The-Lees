@@ -235,7 +235,9 @@
   var KEEP_DAYS = 10;
   function dayStart(t) { var d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); }
   function addDays(t, n) { var d = new Date(t); d.setDate(d.getDate() + n); return d.getTime(); }
-  function longDay(t) { return new Date(t).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" }); }
+  // "Monday 23 November", the same order everywhere.
+  var WD = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], MO = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  function longDay(t) { var d = new Date(t); return WD[d.getDay()] + " " + d.getDate() + " " + MO[d.getMonth()]; }
   function keptDay(t) { return addDays(dayStart(t), KEEP_DAYS) > dayStart(Date.now()); }
   var purgeAt = 0;
   function purgeRetained() {
@@ -267,7 +269,8 @@
     scrim.appendChild(card);
     scrim.addEventListener("click", function (e) { if (e.target === scrim) close(); });
     (host || document.body).appendChild(scrim);
-    function close() { scrim.remove(); }
+    function close() { scrim.remove(); if (Arten.built) Arten.position(); }
+    if (Arten.built) Arten.position();
     setTimeout(function () { try { ta.focus(); } catch (e) {} }, 60);
   }
   function addNoteBtn(label, host) {
@@ -343,7 +346,7 @@
       var top = el("div", "act15-shtop");
       var ic = el("span", "act15-ic"); ic.innerHTML = svg(d[1]);
       var tt = el("div", "act15-shttl"); tt.append(el("b", "", who + " · " + d[0]), el("small", "", hm12(item.at) + " · " + longDay(item.at)));
-      top.append(ic, tt, btn("act14-x", svg(P.close), "Close", function () { scrim.remove(); Activity.detail = null; }));
+      top.append(ic, tt, btn("act14-x", svg(P.close), "Close", function () { scrim.remove(); Activity.detail = null; if (Arten.built) Arten.position(); }));
       sh.appendChild(top);
       sh.appendChild(el("p", "act15-det", item.detail ? item.detail : "No extra detail."));
       var sess = sessionOf(item);
@@ -357,8 +360,9 @@
       sh.appendChild(ol);
       if (NOTE_KINDS[item.action]) { var r = el("div", "act15-noterow"); r.appendChild(addNoteBtn(d[0] + (item.detail ? " (" + item.detail + ")" : ""), root)); sh.appendChild(r); }
       scrim.appendChild(sh);
-      scrim.addEventListener("click", function (e) { if (e.target === scrim) { scrim.remove(); Activity.detail = null; } });
+      scrim.addEventListener("click", function (e) { if (e.target === scrim) { scrim.remove(); Activity.detail = null; if (Arten.built) Arten.position(); } });
       root.appendChild(scrim);
+      if (Arten.built) Arten.position();
     }
     Activity.paint = function () {
       if (!root.isConnected) { Activity.open = false; return; }
@@ -796,7 +800,7 @@
     { id: "nudge", title: "Thinking of you", kw: "thinking nudge heartbeat miss love ping buzz hearts", q: ["send thinking of you", "nudge her"], tour: "nudge", go: "nudge",
       a: "On the home screen tap Thinking of you. Their phone gets a heartbeat buzz, rising hearts and a card to send one back. You can send one a minute." },
     { id: "journal", title: "Journal", kw: "journal diary write entry entries notes prompt pages page", q: ["write in the journal", "open the journal", "how do i add a journal page", "where is the diary", "journal prompts", "search the journal", "edit a journal page", "shared journal"], tour: "journal", go: "journal",
-      a: "Home › Journal. Tap + to write a page; there are prompts if you're stuck, and it saves as you type. Search and filters are at the top. You both see every page." },
+      a: "Open Journal on the home screen and tap Write in the journal. There are prompts if you're stuck, and it saves as you type. Search and the All, Mine and Notes filters are at the top. You both see every page." },
     { id: "stickers", title: "Stickers", kw: "sticker stickers emoji reaction send sticker luck congrats cuddle sparkle rainy 46 count missing only some", q: ["send a sticker", "where are stickers", "open the sticker picker", "how do i send stickers", "good luck sticker", "sticker menu", "emoji stickers", "more stickers", "how many stickers are there", "why do i only see some stickers"], go: "stickers",
       a: "In the chat, tap + and choose Stickers & emoji. There are 46 stickers; the grid scrolls, and the count at the top says so. Tap one to send it. Drag the top of the sheet down to close it. If reduced motion is on, stickers stay still with no particles." },
     { id: "idle", title: "Idle sign-out", kw: "idle inactive inactivity timeout signout warning countdown minutes automatic autosign", q: ["will i be signed out if i leave it", "still there warning", "idle sign out", "signed out after 5 minutes", "inactivity limit", "why was i signed out", "30 second warning", "auto sign out"], go: null,
@@ -1037,7 +1041,7 @@
       for (var i = 0; i < sessionStorage.length; i++) { var k = sessionStorage.key(i); if (k && k.indexOf("lees-arten") === 0) drop.push(k); }
       drop.forEach(function (k) { sessionStorage.removeItem(k); });
     } catch (e2) {}
-    try { Arten.convo = null; Arten.history = []; } catch (e3) {}
+    try { Arten.clearChat(); } catch (e3) {}
   }
   function histWhen(t) {
     var d = new Date(t);
@@ -1274,7 +1278,7 @@
     ["instrument", "guitar", "piano", "violin", "drums", "play", "plays"], ["language", "languages", "french", "english", "swahili", "learning", "learn", "studying"],
     ["scared", "afraid", "fear", "fears", "phobia", "frightened"], ["name", "called", "named"]
   ];
-  var PSTOP = toSet("what whats what's s does do did is are am i me my myself mine you your yours she he her hers him his they them their about know knows tell any anything something some facts fact the a an to of for on in at with how when where who which according written wrote write saved has have had remind there can could would please much many kind sort thing things stuff us we our partner wife husband girlfriend boyfriend list everything all");
+  var PSTOP = toSet("mr mrs ms miss dr what whats what's s does do did is are am i me my myself mine you your yours she he her hers him his they them their about know knows tell any anything something some facts fact the a an to of for on in at with how when where who which according written wrote write saved has have had remind there can could would please much many kind sort thing things stuff us we our partner wife husband girlfriend boyfriend list everything all");
   function toSet(x) { var o = {}; x.split(" ").forEach(function (w) { o[w] = 1; }); return o; }
   function pstem(w) { return stem(w.replace(/'s$/, "")); }
   function groupOf(w) { var out = [w]; GROUPS.forEach(function (g) { if (g.indexOf(w) >= 0 || g.map(pstem).indexOf(pstem(w)) >= 0) out = out.concat(g); }); return out.map(pstem); }
@@ -1508,8 +1512,167 @@
     });
   }
 
+  /* v15: "Show me the steps". A spotlight on the real control and a card ("Step 2 of 4: tap the + button")
+     with Back, Next and Stop. The app never moves you: you tap each target yourself, and tapping it moves
+     the card on. A target that isn't on screen says so and Next skips it. */
+  var HOME = true;
+  function S15(t, sel, text, home) { return { t: t, sel: sel, text: text || null, home: !!home }; }
+  function stepsFor(id) {
+    var a = A(), nm = a ? a.name(a.other) : "their";
+    var card = S15("tap " + nm + "'s card to open the chat", "#people .person", null, HOME);
+    var plus = S15("tap Create (+)", '.navbtn[data-key="plus"]', null, HOME);
+    var settings = S15("tap Settings", ".settings-main", null, HOME);
+    var data = S15("tap Messages & data", '[data-sid="cat-data"]');
+    var L = {
+      send: [card, S15("type your message in the box", "#input"), S15("tap Send", "#send")],
+      photos: [card, S15("tap the + button", "#footer .lp-plus"), S15("tap Attach and pick your photos", ".v9-mi", "Attach")],
+      voice: [card, S15("tap the microphone", "#mic")],
+      lastseen: [S15("look at the coloured line under " + nm + "'s name", "#people .seen12", null, HOME), S15("tap ACTIVITY for everything, day by day", "#people .act13")],
+      activity: [S15("tap ACTIVITY on " + nm + "'s card", "#people .act13", null, HOME), S15("choose All, Mine or Theirs", ".act14-filters"), S15("tap any entry for its detail", ".act15-row")],
+      unread: [card, S15("scroll until each new message is fully in view", "#list")],
+      hold: [card, S15("press and hold a message", "#list .row .msg")],
+      letters: [plus, S15("tap Sealed letter", ".v8-card.v8-letter"), S15("tap Write a sealed letter", ".v8-write")],
+      letterdelete: [plus, S15("tap Sealed letter", ".v8-card.v8-letter"), S15("tap Select", "#panelBody button", "Select"), S15("tick the letters, then choose Delete selected or Delete all", "#panelBody")],
+      game: [plus, S15("tap Tic-tac-toe", ".v8-card.v8-ttt")],
+      nudge: [S15("tap Thinking of you", '.navbtn[data-key="heart"]', null, HOME)],
+      journal: [S15("tap Journal", '.navbtn[data-key="book"]', null, HOME), S15("tap Write in the journal", ".v9-write")],
+      stickers: [card, S15("tap the + button", "#footer .lp-plus"), S15("tap Stickers & emoji", ".v9-mi", "Stickers")],
+      facts: [settings, S15("tap Privacy", '[data-sid="cat-privacy"]'), S15("tap About me and " + nm, '[data-sid="facts"]')],
+      history: [S15("tap History at the top of ARTEN", "#ar15Hist")],
+      artenmemory: [S15("tap History at the top of ARTEN", "#ar15Hist")],
+      newchat: [S15("tap New chat at the top of ARTEN", "#ar15New")],
+      notifications: [S15("tap Notifications", '.navbtn[data-key="bell"]', null, HOME)],
+      media: [S15("tap Media", '.navbtn[data-key="image"]', null, HOME)],
+      calendar: [S15("tap Calendar", '.navbtn[data-key="calendar"]', null, HOME)],
+      moments: [S15("tap Moments", '.navbtn[data-key="star"]', null, HOME)],
+      archive: [S15("tap Archive", '.navbtn[data-key="archive"]', null, HOME)],
+      shield: [S15("tap Shield", '.navbtn[data-key="shield"]', null, HOME)],
+      theme: [settings, S15("tap Appearance", '[data-sid="cat-look"]'), S15("tap Theme", '[data-sid="theme"]')],
+      passphrase: [settings, S15("tap Security & sign-in", '[data-sid="cat-security"]'), S15("tap Change passphrase", '[data-sid="pass"]')],
+      deleted: [settings, data, S15("tap Recently deleted", '[data-sid="vault"]')],
+      reset: [settings, data, S15("tap Reset everything", '[data-sid="reset"]')],
+      clear: [settings, data, S15("tap Clear conversation", '[data-sid="clear"]')],
+      backup: [settings, data, S15("tap Encrypted backup", '[data-sid="backup"]')],
+      schedule: [card, S15("type your message", "#input"), S15("tap the + button", "#footer .lp-plus"), S15("tap Send later", ".v9-mi", "Send later")],
+      mood: [S15("tap Mood", ".hx9-t", "Mood", HOME)],
+      guide: [settings, S15("tap Guide & ARTEN", '[data-sid="cat-help"]'), S15("tap Take the tour", '[data-sid="tour"]')],
+      arten: [S15("tap the flower", "#ar12Fab", null, HOME)],
+      flower: [S15("tap the flower", "#ar12Fab", null, HOME)]
+    };
+    return L[id] ? L[id].slice() : null;
+  }
+  var Steps = {
+    on: false, list: [], i: 0, layer: null, ring: null, card: null, timer: 0, title: "",
+    start: function (list, title, opts) {
+      var a = A(); if (!a || !a.unlocked || !list || !list.length) return;
+      opts = opts || {};
+      this.stop(true);
+      var steps = list.slice();
+      var inArten = steps[0] && /^#ar15(Hist|New)$/.test(steps[0].sel);
+      if (steps[0] && steps[0].home && a.view && a.view !== "home") steps.unshift(S15(a.view === "chat" ? "tap Back to go to the home screen" : "tap Back until you're on the home screen", a.view === "chat" ? "#back" : "#panelBack"));
+      if (Arten.isOpen() && !inArten && !opts.noClose) steps.unshift(S15("close ARTEN", "#ar15Close"));
+      this.list = steps; this.i = 0; this.on = true; this.title = title || "";
+      var lay = el("div", "st15"); lay.setAttribute("role", "dialog"); lay.setAttribute("aria-live", "polite"); lay.setAttribute("aria-label", "Steps" + (title ? ": " + title : ""));
+      var ring = el("div", "st15-ring"), card = el("div", "st15-card");
+      lay.append(ring, card); document.body.appendChild(lay);
+      this.layer = lay; this.ring = ring; this.card = card;
+      var self = this;
+      this.onClick = function (e) {
+        if (!self.on) return;
+        var t = self.target();
+        if (t && (t === e.target || t.contains(e.target))) { var at = self.i; setTimeout(function () { if (self.on && self.i === at) self.next(); }, 450); }
+      };
+      document.addEventListener("click", this.onClick, true);
+      this.onKey = function (e) { if (self.on && e.key === "Escape" && !Arten.isOpen()) { e.preventDefault(); self.stop(); } };
+      document.addEventListener("keydown", this.onKey, true);
+      this.timer = setInterval(function () { self.place(); }, 250);
+      this.paint();
+      Act.log("guide", "Steps: " + (title || ""));
+    },
+    target: function () {
+      var s = this.list[this.i]; if (!s || !s.sel) return null;
+      var parts = s.sel.split(",");
+      for (var k = 0; k < parts.length; k++) {
+        var all = document.querySelectorAll(parts[k].trim());
+        for (var j = 0; j < all.length; j++) {
+          var n = all[j];
+          if (s.text && (n.textContent || "").indexOf(s.text) < 0) continue;
+          var r = n.getBoundingClientRect(); if (!(r.width && r.height) || r.bottom < 0 || r.top > innerHeight) continue;
+          var x = Math.min(innerWidth - 1, Math.max(0, r.left + r.width / 2)), y = Math.min(innerHeight - 1, Math.max(0, r.top + Math.min(r.height / 2, 14)));
+          this.layer.style.visibility = "hidden";
+          var hit = document.elementFromPoint(x, y);
+          this.layer.style.visibility = "";
+          if (hit && (hit === n || n.contains(hit) || hit.contains(n))) return n;
+        }
+      }
+      return null;
+    },
+    paint: function () {
+      var s = this.list[this.i]; if (!s) return this.stop();
+      var c = this.card; c.textContent = "";
+      var top = el("div", "st15-top");
+      top.append(el("span", "st15-k", this.title ? "Show me the steps · " + this.title : "Show me the steps"));
+      var p = el("p", "st15-t"); p.append(el("b", "", "Step " + (this.i + 1) + " of " + this.list.length + ": "), document.createTextNode(s.t));
+      var miss = el("p", "st15-miss", "I can't find this yet. Tap Next to skip."); miss.hidden = true;
+      var bar = el("div", "st15-bar");
+      var self = this;
+      var stop = btn("st15-b ghost", "Stop", null, function () { self.stop(); });
+      var back = btn("st15-b ghost", "Back", null, function () { self.back(); }); back.disabled = this.i === 0;
+      var last = this.i === this.list.length - 1;
+      var nx = btn("st15-b primary", last ? "Done" : "Next", null, function () { self.next(); });
+      bar.append(stop, el("span", "grow"), back, nx);
+      c.append(top, p, miss, bar);
+      this.miss = miss;
+      this.place();
+    },
+    place: function () {
+      if (!this.on || !this.card) return;
+      var t = this.target(), ring = this.ring, card = this.card, vw = innerWidth, vh = innerHeight;
+      var cw = Math.min(360, vw - 24); card.style.width = cw + "px";
+      var ch = card.offsetHeight || 150;
+      if (this.miss) this.miss.hidden = !!t;
+      if (!t) { ring.classList.add("none"); card.style.left = Math.round((vw - cw) / 2) + "px"; card.style.top = Math.round(vh - ch - 24) + "px"; return; }
+      ring.classList.remove("none");
+      var r = t.getBoundingClientRect(), pad = 6;
+      var L = Math.max(4, r.left - pad), T = Math.max(4, r.top - pad), W = Math.min(vw - 8, r.width + pad * 2), H = Math.min(vh - 8, r.height + pad * 2);
+      ring.style.cssText = "left:" + L + "px;top:" + T + "px;width:" + W + "px;height:" + H + "px;border-radius:" + Math.min(24, Math.min(W, H) / 2) + "px";
+      var top = T + H + 12 + ch < vh - 8 ? T + H + 12 : (T - 12 - ch > 8 ? T - 12 - ch : vh - ch - 16);
+      card.style.left = Math.round(Math.min(vw - cw - 12, Math.max(12, r.left + r.width / 2 - cw / 2))) + "px";
+      card.style.top = Math.round(top) + "px";
+    },
+    next: function () { if (this.i < this.list.length - 1) { this.i++; this.paint(); } else this.stop(); },
+    back: function () { if (this.i > 0) { this.i--; this.paint(); } },
+    stop: function () {
+      clearInterval(this.timer);
+      if (this.onClick) document.removeEventListener("click", this.onClick, true);
+      if (this.onKey) document.removeEventListener("keydown", this.onKey, true);
+      if (this.layer) this.layer.remove();
+      this.layer = null; this.on = false;
+    }
+  };
+
+  // Suggestion chips: each opens a short list of actions; tapping one runs it.
+  function chipSets() {
+    var a = A(), nm = a.name(a.other);
+    var steps = function (id, title) { return function () { Steps.start(stepsFor(id), title); }; };
+    var ask = function (q) { return function () { Arten.ask(q); }; };
+    var later = function (fn) { return function () { Arten.close().then(function () { setTimeout(fn, 120); }); }; };
+    var profileThen = function (sel, t1, t2) { return later(function () { A().openSettingsCategory("profile"); setTimeout(function () { Steps.start([S15(t1, sel[0])].concat(sel[1] ? [S15(t2, sel[1])] : []), "Profile", { noClose: true }); }, 420); }); };
+    return {
+      profile: ["Profile", [["Edit name", profileThen(['[data-sid="names"] input', '[data-sid="names"] button'], "type the names here", "tap Save")], ["Edit photo", profileThen(['[data-sid="photo"]'], "tap Photo and choose a new one")], ["About me", later(function () { openFacts({ subject: A().me }); })]]],
+      letters: ["Sealed letters", [["Write a letter", steps("letters", "Write a sealed letter")], ["Delete a letter", steps("letterdelete", "Delete a letter")], ["How they open", ask("how do sealed letters open")]]],
+      photos: ["Photos", [["Send photos", steps("photos", "Send photos")], ["See all photos", steps("media", "See all photos")], ["Photos as one set", ask("send many photos at once")]]],
+      activity: ["Activity", [["Open Activity", later(function () { openActivity(A().other); })], ["What the colours mean", ask("what do the status colours mean")], ["How long it's kept", ask("how long is activity kept")]]],
+      journal: ["Journal", [["Write a page", steps("journal", "Write in the journal")], ["How it works", ask("how does the journal work")]]],
+      stickers: ["Stickers", [["Send a sticker", steps("stickers", "Send a sticker")], ["How many there are", ask("how many stickers are there")]]],
+      about: ["About us", [["What you know about " + nm, ask("what do you know about " + nm)], ["Add something", later(function () { openFacts({ subject: A().other, add: true }); })], ["Open the page", later(function () { openFacts(); })]]],
+      history: ["Chat history", [["Open history", function () { Arten.showHistory(); }], ["Start a new chat", function () { Arten.newChat(); }]]],
+      settings: ["Settings", [["Change theme", steps("theme", "Change theme")], ["Recently deleted", steps("deleted", "Recently deleted")], ["Reset everything", steps("reset", "Reset everything")]]]
+    };
+  }
+
   var Arten = {
-    built: false, open_: false, animating: false, busy: false, flower: null, fab: null, panel: null, list: null, input: null, mode: "ask", history: [],
+    built: false, open_: false, animating: false, busy: false, flower: null, fab: null, panel: null, list: null, input: null, mode: "ask", convo: null,
     isOpen: function () { return this.open_; },
     build: function () {
       if (this.built) return; this.built = true;
@@ -1524,41 +1687,52 @@
       ["pointerenter", "pointerdown"].forEach(function (ev) { fab.addEventListener(ev, function () { self.flower.target = 2.4; }); });
       ["pointerleave", "pointerup", "pointercancel"].forEach(function (ev) { fab.addEventListener(ev, function () { self.flower.target = 1; }); });
       fab.addEventListener("click", function () { self.open(); });
-      // The panel: small, anchored next to the flower, never the whole page.
-      var root = el("div", "ar12-root closed"); root.setAttribute("aria-hidden", "true"); root.inert = true;
+      var root = el("div", "ar12-root ar15 closed"); root.setAttribute("aria-hidden", "true"); root.inert = true;
       var pan = el("div", "ar12-panel"); pan.setAttribute("role", "dialog"); pan.setAttribute("aria-label", "ARTEN, your guide");
-      var head = el("header", "ar12-head");
-      var mk = el("span", "ar12-mark"); var mcv = document.createElement("canvas"); mcv.width = mcv.height = 80; mk.appendChild(mcv); this.mark = mcv;
+      // Header: back, the flower in a ring, ARTEN and its subtitle, close. Under it: New chat, History, Take me to.
+      var head = el("header", "ar12-head ar15-head");
+      var row1 = el("div", "ar15-row1");
+      var mk = el("span", "ar12-mark ar15-mark"); var mcv = document.createElement("canvas"); mcv.width = mcv.height = 80; mk.appendChild(mcv); this.mark = mcv; this.markBox = mk;
       var ttl = el("div", "ar12-ttl"); ttl.append(el("b", "", "ARTEN"), el("small", "", "Your guide to The Lees"));
-      var back = btn("ar12-hb", svg(P.back), "Back", function () { if (self.mode === "history") self.leaveHistory(); else self.close(); });
-      var modeBtn = btn("ar12-hb", svg(P.arrow), "Take me to…", function () { self.setMode(self.mode === "go" ? "ask" : "go"); });
-      modeBtn.title = "Take me to…";
-      var histBtn = btn("ar12-hb", svg(P.clock), "Chat history", function () { openArtenHistory(); });
-      histBtn.title = "Chat history";
-      var x = btn("ar12-hb", svg(P.close), "Close ARTEN", function () { self.close(); });
-      head.append(back, mk, ttl, histBtn, modeBtn, x);
+      var back = btn("ar12-hb", svg(P.back), "Back", function () { if (self.mode === "history" && self.histConv) self.showHistory(); else if (self.mode === "history") self.leaveHistory(); else self.close(); }); back.id = "ar15Back";
+      var x = btn("ar12-hb", svg(P.close), "Close ARTEN", function () { self.close(); }); x.id = "ar15Close";
+      row1.append(back, mk, ttl, x);
+      var row2 = el("div", "ar15-row2");
+      var newB = btn("ar15-tb", svg("M12 5v14M5 12h14") + "<span>New chat</span>", "New chat", function () { self.newChat(); }); newB.id = "ar15New";
+      var histB = btn("ar15-tb", svg(P.clock) + "<span>History</span>", "Chat history", function () { self.showHistory(); }); histB.id = "ar15Hist";
+      var modeBtn = btn("ar15-tb", svg(P.arrow) + "<span>Take me to</span>", "Take me to…", function () { self.setMode(self.mode === "go" ? "ask" : "go"); });
+      row2.append(el("span", "grow"), newB, histB, modeBtn);
+      head.append(row1, row2);
       this.modeBtn = modeBtn;
+      // The greeting is pinned under the header; it does not scroll with the chat.
+      var greet = el("div", "ar15-greet"); greet.hidden = true;
       var list = el("div", "ar12-list"); list.setAttribute("aria-live", "polite");
+      var hist = el("div", "ar15-hist"); hist.hidden = true;
+      var dock = el("div", "ar15-dock");
       var chips = el("div", "ar12-chips");
       var form = el("form", "ar12-form"); form.autocomplete = "off";
       var inp = el("textarea", "ar12-in"); inp.rows = 1; inp.placeholder = "Ask about anything in The Lees…"; inp.setAttribute("aria-label", "Your question");
       var send = btn("ar12-send", svg(P.send), "Ask");
       send.type = "submit";
       form.append(inp, send);
+      dock.append(chips, form);
       inp.addEventListener("input", function () { inp.style.height = "auto"; inp.style.height = Math.min(96, inp.scrollHeight) + "px"; send.disabled = !inp.value.trim(); });
       inp.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event("submit")); } });
       form.addEventListener("submit", function (e) { e.preventDefault(); var v = inp.value.trim(); if (!v || self.busy) return; inp.value = ""; inp.style.height = "auto"; send.disabled = true; if (self.mode === "go") self.takeMe(v); else self.ask(v); });
       send.disabled = true;
-      pan.append(head, list, chips, form);
+      pan.append(head, greet, list, hist, dock);
       root.appendChild(pan);
       document.body.appendChild(root);
-      this.root = root; this.panel = pan; this.list = list; this.input = inp; this.chips = chips; this.form = form;
-      root.addEventListener("click", function (e) { if (e.target === root) self.close(); });
-      document.addEventListener("keydown", function (e) { if (e.key === "Escape" && self.open_ && !Guide.on) { e.preventDefault(); e.stopPropagation(); self.close(); } }, true);
+      this.root = root; this.panel = pan; this.list = list; this.hist = hist; this.input = inp; this.chips = chips; this.form = form; this.dock = dock; this.greetEl = greet; this.head = head;
+      // The message list always leaves room for the floating composer.
+      var pad = function () { var h = dock.offsetHeight || 120; list.style.paddingBottom = (h + 12) + "px"; hist.style.paddingBottom = "24px"; };
+      try { new ResizeObserver(pad).observe(dock); } catch (e) { setInterval(pad, 1000); }
+      pad();
+      document.addEventListener("keydown", function (e) { if (e.key === "Escape" && self.open_ && !Guide.on && !Steps.on) { e.preventDefault(); e.stopPropagation(); self.close(); } }, true);
       window.addEventListener("popstate", function () { if (self.open_ && !(history.state && history.state.arten)) self.close(); });
       this.theme();
       new MutationObserver(function () { self.theme(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-      this.welcome();
+      this.convo = Convo.fresh();
       this.setMode("ask");
       this.bindSwipe();
     },
@@ -1566,7 +1740,6 @@
       var cs = getComputedStyle(document.documentElement), g = function (n) { return hexOf(cs.getPropertyValue(n)); };
       var brand = g("--accent") || "#9a5a48", surface = g("--surface") || "#ffffff", bg = g("--bg") || "#f8f4ee", ink = g("--ink") || "#2a2420";
       var dark = lum(bg) < 0.2;
-      var deep = mix(brand, dark ? "#000000" : ink, dark ? 0.55 : 0.45);
       var body = dark ? mix(brand, "#000000", 0.35) : brand;
       var fl = hexToRgb(mix(brand, "#ffffff", dark ? 0.42 : 0.28)), fd = hexToRgb(mix(brand, "#000000", dark ? 0.5 : 0.42));
       var ask = "#ffffff";
@@ -1579,9 +1752,8 @@
       this.mode = m;
       this.panel.classList.toggle("go", m === "go");
       this.modeBtn.classList.toggle("on", m === "go");
+      this.modeBtn.setAttribute("aria-pressed", String(m === "go"));
       this.input.placeholder = m === "go" ? "Where to? e.g. seal a letter" : "Ask about anything in The Lees…";
-      this.form.querySelector(".ar12-send").innerHTML = m === "go" ? '<span>Get started</span>' : svg(P.send);
-      this.form.querySelector(".ar12-send").classList.toggle("wide", m === "go");
       this.paintChips();
       try { this.input.focus({ preventScroll: true }); } catch (e) {}
     },
@@ -1591,111 +1763,129 @@
       try { t = (document.getElementById("panelTitle") || {}).textContent || ""; } catch (e) {}
       if (document.querySelector(".act14")) return "activity";
       if (a.view === "panel") {
-        if (t === "Activity") return "activity";
-        if (t === "Sealed letters" || t === "New sealed letter" || t === "Edit sealed letter") return "letters";
-        if (/Sticker/i.test(t)) return "stickers";
+        if (/^Sealed letters|sealed letter$/.test(t)) return "letters";
         if (t === "Media") return "media";
+        if (/^About me and/.test(t)) return "about";
+        if (t === "Settings" || /Settings/.test((document.getElementById("panelSub") || {}).textContent || "")) return "settings";
+        if (t === "Journal") return "journal";
       }
       if (a.view === "chat") return "chat";
-      if (a.view === "home") return "home";
-      return "default";
+      return "home";
     },
     paintChips: function () {
       var self = this, c = this.chips; c.textContent = "";
-      var map = {
-        home: [["Open chat", "chat"], ["Send photos", "attach"], ["Sealed letters", "letters"], ["Last seen", "activity"], ["Journal", "journal"], ["Stickers", "stickers"]],
-        chat: [["Stickers", "stickers"], ["Send photos", "attach"], ["Sealed letters", "letters"], ["Last seen", "activity"], ["Recently deleted", "vault"], ["Reset everything", "reset"]],
-        activity: [["Sealed letters", "letters"], ["Send photos", "attach"], ["Journal", "journal"], ["Stickers", "stickers"], ["Last seen", "activity"], ["Reset everything", "reset"]],
-        letters: [["Write a letter", "letters"], ["Delete a letter", "letters"], ["Last seen", "activity"], ["Send photos", "attach"], ["Journal", "journal"], ["Stickers", "stickers"]],
-        stickers: [["Send a sticker", "stickers"], ["Send photos", "attach"], ["Last seen", "activity"], ["Sealed letters", "letters"], ["Journal", "journal"], ["Reset everything", "reset"]],
-        media: [["Send photos", "attach"], ["Journal", "journal"], ["Stickers", "stickers"], ["Last seen", "activity"], ["Sealed letters", "letters"], ["Open chat", "chat"]],
-        default: [["Open chat", "chat"], ["Send photos", "attach"], ["Sealed letters", "letters"], ["Last seen", "activity"], ["Journal", "journal"], ["Stickers", "stickers"]]
-      };
-      var list = map[this.screenOf()] || map.default;
-      list.forEach(function (it) {
-        var b = btn("ar12-chip", "", null, function () { self.explainChip(it[0], it[1]); });
-        b.textContent = it[0];
+      var sets = chipSets();
+      var order = { home: ["profile", "letters", "photos", "activity", "journal", "stickers", "about", "history"], chat: ["stickers", "photos", "letters", "activity", "about", "history", "settings"], activity: ["activity", "letters", "photos", "about", "history"], letters: ["letters", "photos", "journal", "about", "history"], media: ["photos", "journal", "stickers", "about", "history"], about: ["about", "profile", "history"], settings: ["settings", "profile", "about", "history"], journal: ["journal", "letters", "about", "history"] };
+      (order[this.screenOf()] || order.home).forEach(function (k) {
+        var set = sets[k]; if (!set) return;
+        var b = btn("ar12-chip", "", null, function () { self.chipActions(set); });
+        b.textContent = set[0];
         c.appendChild(b);
       });
     },
-    rememberTurn: function (q, answer) {
-      if (!this.convo || this.convo.closed) this.convo = { id: String(Date.now()), at: Date.now(), turns: [], closed: false };
-      if (!this.convo.turns.length) this.convo.at = Date.now();
-      this.convo.turns.push({ q: String(q || ""), a: String(answer || "") });
-      var all = histRead().filter(function (c) { return c.id !== Arten.convo.id; });
-      all.push(Arten.convo);
-      histWrite(all);
+    chipActions: function (set) {
+      this.say("me", set[0]);
+      var b = this.bubble("bot");
+      b.appendChild(el("p", "ar15-lead", "What would you like to do?"));
+      var acts = el("div", "ar15-alist");
+      set[1].forEach(function (it) { acts.appendChild(btn("ar15-ai", "<span>" + esc(it[0]) + "</span>" + svg(P.next), null, function () { it[1](); })); });
+      b.appendChild(acts);
+      this.scroll();
     },
-    welcome: function () {
-      var a = A();
-      var m = this.bubble("bot");
-      m.innerHTML = "<p><b>Hi" + (a && a.me ? ", " + esc(a.name(a.me)) : "") + ".</b> I'm ARTEN. Ask me how anything in The Lees works and I'll explain it. Then I can <b>show you</b> on screen, or <b>take you there</b>.</p><p class=\"ar12-hint\">Tap the arrow at the top to tell me where you want to go instead.</p>";
+    greet: function () {
+      var a = A(); if (!a || !a.me) return;
+      var off = false; try { off = sessionStorage.getItem("lees-arten-greet-off") === "1"; } catch (e) {}
+      var g = this.greetEl; g.textContent = "";
+      if (off) { g.hidden = true; return; }
+      var h = new Date().getHours(), part = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+      var p = el("p", "", part + ", " + a.name(a.me) + ". I'm ARTEN, and I'm here whenever you want help with The Lees, or want to remember something about " + a.name(a.other) + " together. Ask me anything, or tap a suggestion below.");
+      var x = btn("ar15-gx", svg(P.close), "Hide this greeting", function () { try { sessionStorage.setItem("lees-arten-greet-off", "1"); } catch (e) {} g.hidden = true; });
+      g.append(p, x);
+      g.hidden = false;
     },
     bubble: function (who) { var b = el("div", "ar12-msg " + who); this.list.appendChild(b); this.scroll(); return b; },
     say: function (who, text) { var b = this.bubble(who); b.textContent = text; return b; },
     scroll: function () { var l = this.list; requestAnimationFrame(function () { l.scrollTop = l.scrollHeight; }); },
-    think: function (b, q, problem) {
+    // Thinking: the flower beside the name turns slowly and pulses; the bubble says ARTEN is thinking.
+    think: function (b, problem) {
       var self = this;
-      var words = ["Thinking", "Cooking", "ARTENING"].concat(problem ? ["Troubleshooting"] : []);
-      var pool = ["Almost there", "One moment", "Looking it up", "With you", "Just a second", "On it", "Warming up", "Piecing it", "Checking now", "Finding it", "Quietly looking", "Nearly ready", "Hold on", "Sorting it", "Reading carefully", "Matching words", "Turning pages", "Softly thinking", "Right with you", "Gathering steps", "Little pause", "Opening up"];
-      var seq = words.concat(pool);
-      var pairAt = 0;
+      var words = ["thinking", "cooking", "ARTENING"].concat(problem ? ["troubleshooting"] : []);
+      var at = 0;
       b.classList.add("think");
-      b.innerHTML = '<div class="ar12-think"><b>Thinking</b><span class="ar12-thinksub"></span></div>';
-      var label = b.querySelector("b"), sub = b.querySelector(".ar12-thinksub");
-      if (this.flower) this.flower.target = 7;
-      var showPair = function () {
-        var a1 = seq[pairAt % seq.length], b1 = seq[(pairAt + 1) % seq.length];
-        label.textContent = a1;
-        sub.textContent = a1 === b1 ? "" : b1;
-      };
-      showPair();
-      var wt = setInterval(function () { pairAt = (pairAt + 1) % seq.length; showPair(); }, 520);
+      b.innerHTML = '<div class="ar15-think"><span class="ar15-dot" aria-hidden="true"></span><b class="ar15-tl">ARTEN is thinking</b></div>';
+      var label = b.querySelector(".ar15-tl");
+      this.markBox.classList.add("thinking");
+      if (this.flower) this.flower.target = 4;
+      var wt = setInterval(function () { at = (at + 1) % words.length; label.textContent = "ARTEN is " + words[at]; }, 1100);
       var t0 = performance.now();
-      return { el: b, done: function (ms) { return new Promise(function (r) { setTimeout(function () { clearInterval(wt); b.classList.remove("think"); b.textContent = ""; if (self.flower) self.flower.target = 1; r(); }, Math.max(0, ms)); }); } };
+      return { done: function (ms) { return new Promise(function (r) { setTimeout(function () { clearInterval(wt); b.classList.remove("think"); b.textContent = ""; self.markBox.classList.remove("thinking"); if (self.flower) self.flower.target = 1; r((performance.now() - t0) / 1000); }, Math.max(0, ms)); }); } };
     },
     ask: async function (q) {
       if (this.busy) return; this.busy = true;
+      if (this.mode === "history") this.leaveHistory();
       this.say("me", q);
       Act.log("arten", q.slice(0, 80));
       var t0 = performance.now();
-      var factText = null;
-      try { factText = await factsReply(q); } catch (e) {}
-      var hits = factText ? [{ e: { id: "facts", title: "Things we know", a: factText, go: "facts" }, s: 9 }] : search(q);
       var b = this.bubble("bot");
-      var th = this.think(b, q, /not work|doesn.?t|broken|error|problem|can.?t|cannot|fail|wrong|issue|stuck/i.test(q));
-      var wait = Math.max(900, Math.min(1600, 700 + q.length * 8));
-      await th.done(wait - (performance.now() - t0));
-      if (!hits.length) {
-        b.innerHTML = "<p>I couldn't match that to a part of The Lees. Here's what I can help with:</p>";
+      var th = this.think(b, /not work|doesn.?t|broken|error|problem|can.?t|cannot|fail|wrong|issue|stuck/i.test(q));
+      var r = null;
+      try { r = await respond(q); } catch (e) { r = { kind: "none", lead: "Something went wrong on my side.", paras: ["Try asking again."] }; }
+      var wait = Math.max(900, Math.min(1700, 700 + q.length * 8));
+      var secs = await th.done(wait - (performance.now() - t0));
+      await this.render(b, r, secs);
+      this.remember(q, respondText(r));
+      this.busy = false;
+    },
+    remember: function (q, a) {
+      if (!this.convo) this.convo = Convo.fresh();
+      var now = Date.now();
+      this.convo.messages.push({ r: "u", t: String(q || "").slice(0, 2000), at: now }, { r: "a", t: String(a || "").slice(0, 4000), at: now });
+      Convo.save(this.convo);
+    },
+    render: async function (b, r, secs) {
+      var self = this;
+      var pill = btn("ar15-thought", "Thought for " + (Math.round(secs * 10) / 10).toFixed(1) + " s", null, function () { pill.classList.toggle("open"); });
+      pill.setAttribute("aria-expanded", "false");
+      b.appendChild(pill);
+      var lead = el("p", "ar15-lead"); b.appendChild(lead);
+      await this.type(lead, r.lead || "");
+      var e = r.entry;
+      if (e && e.steps && e.steps.length) {
+        var sl = el("p", "ar15-steplead"); sl.appendChild(el("b", "", e.title)); b.appendChild(sl);
+        var ol = el("ol", "ar12-steps"); b.appendChild(ol);
+        for (var i = 0; i < e.steps.length; i++) { ol.appendChild(el("li", "", e.steps[i])); await sleep(reduce() ? 0 : 70); this.scroll(); }
+      }
+      for (var j = 0; j < (r.paras || []).length; j++) { var p = el("p", ""); b.appendChild(p); await this.type(p, r.paras[j]); }
+      if (e && e.more) { var m = el("p", "ar12-more"); b.appendChild(m); await this.type(m, e.more); }
+      var acts = el("div", "ar12-acts");
+      var sid = r.steps || (e && e.id);
+      if (sid && stepsFor(sid)) acts.appendChild(btn("ar12-act primary", svg(P.spark) + "<span>Show me the steps</span>", null, function () { Steps.start(stepsFor(sid), (e && e.title) || "About me and " + A().name(A().other)); }));
+      if (r.proposal) {
+        var pr = r.proposal;
+        var addB = btn("ar12-act primary", svg("M12 5v14M5 12h14") + "<span>Add to the list</span>", null, async function () {
+          addB.disabled = true; noB.disabled = true;
+          var res = await Items.add(pr.subject, pr.body, "arten");
+          acts.remove();
+          if (res && res.error) { b.appendChild(el("p", "ar15-note", "That didn't save: " + (res.error.message || "try again") + ".")); return; }
+          pr.status = "saved";
+          b.appendChild(el("p", "ar15-note", "Added to " + pr.page + "."));
+          self.remember("Add to the list", "Added to " + pr.page + ": " + pr.preview);
+          self.scroll();
+        });
+        var noB = btn("ar12-act", "<span>Not now</span>", null, function () { acts.remove(); b.appendChild(el("p", "ar15-note", "Not added.")); });
+        acts.append(addB, noB);
+      }
+      if (r.offer) acts.appendChild(btn("ar12-act", svg("M12 5v14M5 12h14") + "<span>" + esc(r.offer.label) + "</span>", null, function () { var sub = r.offer.subject; self.close().then(function () { openFacts({ subject: sub, add: true }); }); }));
+      if (acts.children.length) b.appendChild(acts);
+      if (r.kind === "none") {
         var ul = el("div", "ar12-sugg");
         ["Sending photos", "Last seen", "Sealed letters", "Voice notes", "Recently deleted", "Reset everything", "Themes", "Notifications"].forEach(function (t) { ul.appendChild(btn("ar12-chip", esc(t), null, function () { Arten.ask(t); })); });
         b.appendChild(ul);
-        this.rememberTurn(q, "I couldn't match that to a part of The Lees.");
-        this.busy = false; this.scroll(); return;
       }
-      var top = hits[0].e, also = hits.slice(1).filter(function (h) { return h.s >= hits[0].s * 0.72; }).slice(0, 2).map(function (h) { return h.e; });
-      await this.write(b, top, also, q);
-      this.rememberTurn(q, top.a);
-      this.busy = false;
-    },
-    write: async function (b, e, also, q) {
-      var h = el("div", "ar12-ah"); h.textContent = e.title; b.appendChild(h);
-      var p = el("p", ""); b.appendChild(p);
-      await this.type(p, e.a);
-      if (e.steps && e.steps.length) {
-        var ol = el("ol", "ar12-steps"); b.appendChild(ol);
-        for (var i = 0; i < e.steps.length; i++) { var li = el("li", "", e.steps[i]); ol.appendChild(li); await sleep(reduce() ? 0 : 90); this.scroll(); }
-      }
-      if (e.more) { var m = el("p", "ar12-more"); b.appendChild(m); await this.type(m, e.more); }
-      var acts = el("div", "ar12-acts");
-      var self = this;
-      if (e.tour) acts.appendChild(btn("ar12-act primary", svg(P.spark) + "<span>Show me how</span>", null, function () { self.close().then(function () { Guide.start(e.tour); }); }));
-      if (e.go) acts.appendChild(btn("ar12-act", svg(P.arrow) + "<span>Take me there</span>", null, function () { self.go(e.go, e.title); }));
-      if (acts.children.length) b.appendChild(acts);
+      var also = (r.hits || []).slice(1).filter(function (h) { return h.s >= r.hits[0].s * 0.72; }).slice(0, 2).map(function (h) { return h.e; });
       if (also.length) {
         var rel = el("div", "ar12-rel"); rel.appendChild(el("small", "", "You might also mean"));
-        also.forEach(function (x) { rel.appendChild(btn("ar12-chip", esc(x.title), null, function () { self.say("me", x.title); var bb = self.bubble("bot"); self.write(bb, x, [], x.title); })); });
+        also.forEach(function (x) { rel.appendChild(btn("ar12-chip", esc(x.title), null, function () { self.ask(x.title); })); });
         b.appendChild(rel);
       }
       this.scroll();
@@ -1703,142 +1893,175 @@
     type: async function (node, text) {
       if (reduce()) { node.textContent = text; return; }
       var words = text.split(/(\s+)/), out = "";
-      for (var i = 0; i < words.length; i++) { out += words[i]; if (i % 3 === 0) { node.textContent = out; this.scroll(); await sleep(16); } }
+      for (var i = 0; i < words.length; i++) { out += words[i]; if (i % 4 === 0) { node.textContent = out; this.scroll(); await sleep(14); } }
       node.textContent = text; this.scroll();
     },
     takeMe: async function (v) {
       this.say("me", "Take me to: " + v);
       var hits = search(v), b;
-      var e = hits.find(function (h) { return h.e.go; });
+      var e = hits.find(function (h) { return stepsFor(h.e.id); });
       if (!e) { b = this.bubble("bot"); b.innerHTML = "<p>I'm not sure where that is. Try words like <i>letter</i>, <i>photos</i>, <i>last seen</i>, <i>theme</i> or <i>reset</i>.</p>"; return; }
-      this.go(e.e.go, e.e.title);
+      b = this.bubble("bot");
+      b.appendChild(el("p", "ar15-lead", "Here's the way to " + e.e.title + ". I'll light up each step; you tap it."));
+      Steps.start(stepsFor(e.e.id), e.e.title);
+      this.remember("Take me to: " + v, "Steps for " + e.e.title);
     },
-    explainChip: function (label, where) {
-      var hits = search(label);
-      var text = hits.length ? hits[0].e.a : "This is " + label + ".";
-      var b = this.bubble("bot");
-      var p = el("p", "", text);
-      b.appendChild(p);
-      var acts = el("div", "ar12-acts");
-      var self = this;
-      acts.appendChild(btn("ar12-act primary", "<span>Take me there</span>", null, function () { self.close().then(function () { goTo(where); }); }));
-      acts.appendChild(btn("ar12-act", "<span>Not now</span>", null, function () { acts.remove(); }));
-      b.appendChild(acts);
-      this.scroll();
-    },
-    showHistory: function () {
-      var self = this;
-      this.mode = "history";
-      this._askHtml = null;
+    newChat: async function () {
+      if (this.mode === "history") this.leaveHistory();
+      var c = this.convo; this.convo = Convo.fresh();
       this.list.textContent = "";
-      var items = histRead().slice().reverse();
-      this.list.appendChild(el("p", "ar12-histlead", "Chat history"));
-      if (!items.length) { this.list.appendChild(el("p", "snote", "No conversations yet")); return; }
+      if (c && c.messages.length) await Convo.archive(c);
+      try { this.input.focus({ preventScroll: true }); } catch (e) {}
+    },
+    // Chat history: full screen inside ARTEN, grouped by day, 12-hour times; tap a row for the whole conversation.
+    showHistory: async function () {
+      var self = this;
+      if (!this.open_) await this.open();
+      this.mode = "history"; this.histConv = false;
+      this.panel.classList.add("hist");
+      this.list.hidden = true; this.dock.hidden = true; this.greetEl.hidden = true;
+      var h = this.hist; h.hidden = false; h.textContent = "";
+      h.appendChild(el("h3", "ar15-hh", "Chat history"));
+      h.appendChild(el("p", "ar15-hsub", "Your conversations with ARTEN from the last 10 days. Only you can see them."));
+      var box = el("div", "ar15-hlist"); h.appendChild(box);
+      box.appendChild(el("p", "snote", "Loading…"));
+      var items = await Convo.list();
+      if (this.mode !== "history") return;
+      box.textContent = "";
+      if (!items.length) { box.appendChild(el("p", "snote", "No conversations yet.")); return; }
+      var lastDay = null;
       items.forEach(function (c) {
-        var b = el("button", "ah13"); b.type = "button";
-        var q0 = (c.turns && c.turns[0] && c.turns[0].q) || "";
-        b.append(el("b", "", histWhen(c.at || Date.now())), el("span", "", String(q0).slice(0, 80)));
-        b.addEventListener("click", function () {
-          self.list.textContent = "";
-          self.list.appendChild(btn("ar12-act", "Back to the list", null, function () { self.showHistory(); }));
-          (c.turns || []).forEach(function (turn) {
-            self.list.appendChild(el("p", "ah13-q", turn.q || ""));
-            self.list.appendChild(el("p", "ah13-a", turn.a || ""));
-          });
-        });
-        self.list.appendChild(b);
+        var d = dayStart(c.started_at);
+        if (d !== lastDay) { lastDay = d; box.appendChild(el("h4", "ar15-hday", longDay(d))); }
+        var row = el("button", "ah13 ar15-hrow"); row.type = "button";
+        var first = (c.messages.find(function (m) { return m.r === "u"; }) || {}).t || c.title || "";
+        row.append(el("b", "", hm12(c.started_at)), el("span", "", String(first).split("\n")[0]));
+        row.addEventListener("click", function () { self.openConvo(c); });
+        box.appendChild(row);
       });
+    },
+    openConvo: function (c) {
+      var self = this, h = this.hist; h.textContent = ""; this.histConv = true;
+      h.appendChild(btn("ar12-act ar15-hback", svg(P.back) + "<span>Back to history</span>", null, function () { self.showHistory(); }));
+      h.appendChild(el("h4", "ar15-hday", longDay(c.started_at) + " · " + hm12(c.started_at)));
+      var wrap = el("div", "ar15-hconv");
+      c.messages.forEach(function (m) { var b = el("div", "ar12-msg " + (m.r === "u" ? "me" : "bot")); b.textContent = m.t; wrap.appendChild(b); });
+      h.appendChild(wrap);
+      h.scrollTop = 0;
     },
     leaveHistory: function () {
       this.mode = "ask";
-      this.list.textContent = "";
-      this.welcome();
+      this.panel.classList.remove("hist");
+      this.hist.hidden = true; this.hist.textContent = "";
+      this.list.hidden = false; this.dock.hidden = false;
+      this.greet();
       this.paintChips();
     },
+    clearChat: function () {
+      if (!this.built) return;
+      this.convo = Convo.fresh();
+      this.list.textContent = "";
+      if (this.mode === "history") this.leaveHistory();
+    },
+    // Swipe down on the top area to dismiss, with rubber-band while dragging.
     bindSwipe: function () {
-      var self = this, host = this.root, startY = 0, dy = 0, tracking = false, t0 = 0;
+      var self = this, host = this.panel, startY = 0, dy = 0, tracking = false, samples = [];
       host.addEventListener("pointerdown", function (e) {
-        if (!self.open_ || e.clientY > 120) return;
-        tracking = true; startY = e.clientY; dy = 0; t0 = performance.now();
-        self.panel.style.transition = "none";
+        if (!self.open_ || self.animating) return;
+        var top = host.getBoundingClientRect().top;
+        if (e.clientY > top + 120 || (e.target.closest && e.target.closest("textarea, input"))) return;
+        tracking = true; startY = e.clientY; dy = 0; samples = [[performance.now(), 0]];
       });
       host.addEventListener("pointermove", function (e) {
         if (!tracking) return;
         dy = Math.max(0, e.clientY - startY);
-        var cap = innerHeight * 0.55;
-        var rubber = dy > cap ? cap + (dy - cap) * 0.3 : dy;
-        self.panel.style.transform = "translateY(" + rubber + "px)";
+        samples.push([performance.now(), dy]); if (samples.length > 12) samples.shift();
+        if (dy < 4) return;
+        host.style.transition = "none";
+        var cap = innerHeight * 0.3;
+        var rubber = dy > cap ? cap + (dy - cap) * 0.55 : dy;
+        host.style.transform = "translateY(" + rubber + "px)";
       });
       var end = function () {
         if (!tracking) return;
         tracking = false;
-        var dt = Math.max(1, performance.now() - t0);
-        var v = dy / dt;
-        self.panel.style.transition = "transform .28s cubic-bezier(.2,.8,.2,1)";
+        var now = performance.now(), v = 0;
+        for (var i = samples.length - 1; i >= 0; i--) { if (now - samples[i][0] > 80 || i === 0) { v = (dy - samples[i][1]) / Math.max(1, now - samples[i][0]); break; } }
+        if (dy < 4) { host.style.transform = ""; return; }
         if (dy > innerHeight * 0.25 || v > 0.7) {
-          self.panel.style.transform = "";
-          self.panel.style.transition = "";
-          self.close();
+          host.style.transition = "transform .24s cubic-bezier(.4,0,1,1)";
+          host.style.transform = "translateY(" + innerHeight + "px)";
+          setTimeout(function () { self.close({ slid: true }); }, 240);
         } else {
-          self.panel.style.transform = "translateY(0)";
-          setTimeout(function () { self.panel.style.transform = ""; self.panel.style.transition = ""; }, 280);
+          host.style.transition = "transform .28s cubic-bezier(.2,.8,.2,1)";
+          host.style.transform = "translateY(0)";
+          setTimeout(function () { host.style.transform = ""; host.style.transition = ""; }, 290);
         }
       };
       host.addEventListener("pointerup", end);
       host.addEventListener("pointercancel", end);
     },
-    go: function (where, title) {
-      var b = this.bubble("bot"); b.innerHTML = "<p>Opening <b>" + esc(title) + "</b>…</p>";
-      var self = this;
-      setTimeout(function () { self.close().then(function () { goTo(where); }); }, 380);
-    },
-    // Zoom open from the flower into the small panel, like an app opening on a phone; zoom back on close.
+    // Zoom out of the flower to the full screen (420 ms); content fades in during the last 150 ms. Close reverses
+    // it into the flower's current position. Reduced motion: a fade only.
     open: async function () {
       if (this.open_ || this.animating) return;
       var a = A(); if (!a || !a.unlocked) return;
-      if (!this.convo || this.convo.closed) this.convo = { id: String(Date.now()), at: Date.now(), turns: [], closed: false };
+      Steps.stop();
+      if (!this.convo) this.convo = Convo.fresh();
       this.paintChips();
+      this.greet();
       this.animating = true; Ask.reset();
       Usage.mark("arten");
       var root = this.root, pan = this.panel, fab = this.fab, unit = fab.querySelector(".ar12-unit");
       root.classList.remove("closed"); root.inert = false; root.removeAttribute("aria-hidden");
       this.placePanel();
+      pan.style.transform = ""; pan.style.transition = "";
       var R0 = unit.getBoundingClientRect(), P1 = pan.getBoundingClientRect();
-      var sx = R0.width / P1.width, sy = R0.height / P1.height, tx = R0.left - P1.left, ty = R0.top - P1.top;
       fab.classList.add("under");
       this.open_ = true;
       try { history.pushState({ arten: 1 }, ""); } catch (e) {}
       this.flower.sync(true);
-      if (!reduce() && pan.animate) {
-        var anim = pan.animate([{ transform: "translate(" + tx + "px," + ty + "px) scale(" + sx + "," + sy + ")", borderRadius: (28 / sx) + "px / " + (28 / sy) + "px", opacity: 0.6 }, { transform: "none", borderRadius: "26px", opacity: 1 }], { duration: 420, easing: "cubic-bezier(.16,1,.3,1)" });
-        pan.querySelectorAll(".ar12-list, .ar12-chips, .ar12-form, .ar12-ttl, .ar12-hb").forEach(function (n) { n.animate([{ opacity: 0 }, { opacity: 0, offset: 0.35 }, { opacity: 1 }], { duration: 380 }); });
-        try { await anim.finished; } catch (e) {}
+      var parts = pan.querySelectorAll(".ar15-head, .ar15-greet, .ar12-list, .ar15-dock");
+      if (pan.animate) {
+        if (reduce()) { var f = pan.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 }); try { await f.finished; } catch (e) {} }
+        else if (R0.width && P1.width) {
+          var from = "translate(" + R0.left + "px," + R0.top + "px) scale(" + (R0.width / P1.width) + "," + (R0.height / P1.height) + ")";
+          var anim = pan.animate([{ transform: from, borderRadius: "50%" }, { transform: "translate(0,0) scale(1,1)", borderRadius: "0px" }], { duration: 420, easing: "cubic-bezier(.2,.8,.2,1)" });
+          parts.forEach(function (n) { n.animate([{ opacity: 0 }, { opacity: 0, offset: 0.643 }, { opacity: 1 }], { duration: 420 }); });
+          try { await anim.finished; } catch (e) {}
+        }
       }
       root.classList.add("open");
       this.animating = false;
       try { this.input.focus({ preventScroll: true }); } catch (e) {}
     },
-    close: async function () {
+    close: async function (opts) {
       if (!this.open_) return;
       if (this.animating) { await sleep(440); }
       this.animating = true;
       var root = this.root, pan = this.panel, unit = this.fab.querySelector(".ar12-unit");
       root.classList.remove("open");
-      var R0 = unit.getBoundingClientRect(), P1 = pan.getBoundingClientRect();
-      var sx = R0.width / P1.width, sy = R0.height / P1.height, tx = R0.left - P1.left, ty = R0.top - P1.top;
-      if (!reduce() && pan.animate) {
-        pan.querySelectorAll(".ar12-list, .ar12-chips, .ar12-form, .ar12-ttl, .ar12-hb").forEach(function (n) { n.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 110, fill: "forwards" }); });
-        var anim = pan.animate([{ transform: "none", borderRadius: "26px", opacity: 1 }, { transform: "translate(" + tx + "px," + ty + "px) scale(" + sx + "," + sy + ")", borderRadius: (28 / sx) + "px / " + (28 / sy) + "px", opacity: 0.4 }], { duration: 320, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" });
-        try { await anim.finished; } catch (e) {}
-        pan.getAnimations().forEach(function (x) { x.cancel(); });
-        pan.querySelectorAll(".ar12-list, .ar12-chips, .ar12-form, .ar12-ttl, .ar12-hb").forEach(function (n) { n.getAnimations().forEach(function (x) { x.cancel(); }); });
+      var parts = pan.querySelectorAll(".ar15-head, .ar15-greet, .ar12-list, .ar15-dock, .ar15-hist");
+      if (!(opts && opts.slid) && pan.animate) {
+        var R0 = unit.getBoundingClientRect(), P1 = pan.getBoundingClientRect();
+        if (reduce()) { var f = pan.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, fill: "forwards" }); try { await f.finished; } catch (e) {} }
+        else if (R0.width && P1.width) {
+          parts.forEach(function (n) { n.animate([{ opacity: 1 }, { opacity: 0, offset: 0.3 }, { opacity: 0 }], { duration: 420, fill: "forwards" }); });
+          var to = "translate(" + R0.left + "px," + R0.top + "px) scale(" + (R0.width / P1.width) + "," + (R0.height / P1.height) + ")";
+          var anim = pan.animate([{ transform: "translate(0,0) scale(1,1)", borderRadius: "0px" }, { transform: to, borderRadius: "50%" }], { duration: 420, easing: "cubic-bezier(.2,.8,.2,1)", fill: "forwards" });
+          try { await anim.finished; } catch (e) {}
+        }
       }
       root.classList.add("closed"); root.inert = true; root.setAttribute("aria-hidden", "true");
+      pan.getAnimations().forEach(function (x) { x.cancel(); });
+      parts.forEach(function (n) { n.getAnimations().forEach(function (x) { x.cancel(); }); });
+      pan.style.transform = ""; pan.style.transition = "";
+      if (this.mode === "history") this.leaveHistory();
       this.fab.classList.remove("under");
       this.open_ = false; this.animating = false;
       if (history.state && history.state.arten && !this._fromPop) { this._fromPop = true; try { history.back(); } catch (e) {} this._fromPop = false; }
-      if (this.convo && this.convo.turns && this.convo.turns.length) this.convo.closed = true;
       Ask.lastQuiet = Date.now(); Ask.schedule();
+      this.position();
       try { this.fab.focus({ preventScroll: true }); } catch (e) {}
     },
     placePanel: function () {
@@ -1846,25 +2069,22 @@
       s.top = "0"; s.right = "0"; s.bottom = "0"; s.left = "0";
       s.width = "100%"; s.height = "100%";
       s.borderRadius = "0";
-      s.transformOrigin = "bottom right";
+      s.transformOrigin = "0 0";
     },
-    // Where the flower sits: bottom right, lifted above the chat's message box and any bottom bar.
+    // Where the flower sits, and when it hides. It hides only in the conversation (it would cover the newest
+    // messages next to the composer), while ARTEN or the sticker sheet is open, and under full-screen viewers.
     position: function () {
       if (!this.fab) return;
       var a = A(), fab = this.fab;
-      var show = !!(a && a.unlocked) && a.view !== "chat" && !document.querySelector("#mediaPreview, .v9-viewer, .al11, .av12, .v8-overlay, .love9, .once-viewer");
+      var sheet = document.getElementById("sheet");
+      var stickerSheet = !!(sheet && !sheet.classList.contains("hidden") && sheet.querySelector(".v9-picker"));
+      var modal = document.querySelector("#mediaPreview:not(.hidden), .v9-viewer, .al11, .av12, .v8-overlay, .once-viewer, .ov9, .act15-sheet, .an15, .cb-scrim");
+      var show = !!(a && a.unlocked) && a.view !== "chat" && !stickerSheet && !modal;
       fab.classList.toggle("gone", !show);
       var bottom = 18;
-      if (a && a.view === "chat") {
-        var ft = document.getElementById("footer"); if (ft) { var r = ft.getBoundingClientRect(); if (r.height) bottom = innerHeight - r.top + 12; }
-        // Above the "new messages" pill when it shows, so the two never overlap.
-        var bn = document.querySelector(".lp-banner");
-        if (bn && bn.offsetParent && !bn.classList.contains("hidden")) { var br = bn.getBoundingClientRect(); if (br.height && br.right > innerWidth - 90) bottom = Math.max(bottom, innerHeight - br.top + 10); }
-      }
-      fab.style.setProperty("--ar-bottom", Math.round(bottom) + "px");
       if (a && (a.view === "home" || !a.view)) {
         var card = document.querySelector("#people .person");
-        if (card) {
+        if (card && !document.querySelector(".act14")) {
           var cb = card.getBoundingClientRect().bottom;
           var fabH = fab.offsetHeight || 64;
           var top = innerHeight - bottom - fabH;
@@ -2096,7 +2316,7 @@
         { cat: "data", id: "vault", label: "Recently deleted", sub: "Restore, or delete for good", keywords: "recently deleted restore bin trash vault recover undelete permanently", icon: "undo", run: function () { a.openVault(); } },
         { cat: "data", id: "reset", label: "Reset everything", sub: "Back to day one, for both of you", keywords: "reset factory wipe start over default erase everything", icon: "trash", danger: true, run: openReset },
         { cat: "privacy", id: "activity", label: "Last seen and activity", sub: "What each of you did, session by session", keywords: "last seen online activity history presence status", icon: "history", run: function () { openActivity(a.other); } },
-        { cat: "privacy", id: "facts", label: "Things we know", sub: "Facts you keep about " + (a ? a.name(a.other) : "them"), keywords: "facts partner know like remember things about", icon: "heart", run: function () { openFacts(); } }
+        { cat: "privacy", id: "facts", label: "About me and " + (a ? a.name(a.other) : "them"), sub: "What ARTEN knows about the two of you", keywords: "facts partner know like remember things about me notes", icon: "heart", run: function () { openFacts(); } }
       );
       return list;
     };
@@ -2118,12 +2338,13 @@
     clearInterval(Act.beat);
     Act.beat = setInterval(function () { Act.touch(); paintSeen(); Arten.position(); }, 60000);
     Act.touch();
+    setTimeout(purgeRetained, 2500);
     setTimeout(function () { var A2 = A(); if (!A2 || !A2.unlocked) return; if (Guide.enabled() && !LS.get("v12-guide-done-" + A2.me, 0) && n <= 1) Guide.start("full"); else setTimeout(maybeTip, 5000); }, 1600);
     started = true;
   }
   document.addEventListener("lees:unlocked", onUnlocked);
   document.addEventListener("lees:synced", function () { Act.load(); Act.subscribe(); paintSeen(); checkResetFlag(); setTimeout(openPendingLetters, 1500); });
-  document.addEventListener("lees:locked", function () { clearInterval(Act.beat); Guide.stop(true); clearArtenHistory(); if (Arten.built) { Arten.close(); Arten.position(); } document.querySelectorAll(".tip12").forEach(function (n) { n.remove(); }); started = false; });
+  document.addEventListener("lees:locked", function () { clearInterval(Act.beat); Guide.stop(true); Steps.stop(); purgeAt = 0; clearArtenHistory(); if (Arten.built) { Arten.close(); Arten.position(); } document.querySelectorAll(".tip12").forEach(function (n) { n.remove(); }); started = false; });
   document.addEventListener("lees:view", function (e) {
     var d = e.detail || {};
     if (d.view === "chat") { Act.log("open_chat"); readVisible(900); }
@@ -2163,7 +2384,13 @@
 
   window.LeesV12 = {
     presenceLine: presenceLine, openActivity: openActivity, openReset: openReset, guide: Guide, arten: Arten, ask: search, composePersonal: composePersonal, factsReply: factsReply, respond: async function (q) { var r = await respond(q); r.text = respondText(r); return r; }, intentOf: intentOf, items: Items, convo: Convo, openAbout: openFacts, itemSentence: itemSentence, log: function (k, d) { Act.log(k, d); },
-    beforeSignOut: async function (why) { Act.log(why === "idle" ? "idle" : "signout"); clearArtenHistory(); await Act.flush(); },
+    beforeSignOut: async function (why) {
+      Act.log(why === "idle" ? "idle" : "signout");
+      // v15: the conversation is archived to Chat history first, then the chat on screen is cleared.
+      try { if (Arten.convo && Arten.convo.messages.length) await Promise.race([Convo.archive(Arten.convo), sleep(2500)]); } catch (e) {}
+      clearArtenHistory(); await Act.flush();
+    },
+    steps: Steps, stepsFor: stepsFor,
     _act: Act, _usage: Usage, _kb: KB, maybeTip: maybeTip
   };
 })();

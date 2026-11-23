@@ -1129,7 +1129,8 @@
     var a = A(), tab = "stickers";
     a.sheetOpen(function (body) {
       body.classList.add("v9-sheet", "v9-picker");
-      var sheet = document.getElementById("sheet");
+      // v15: the drag area is the top of the visible sheet (#sheetBody), not the top of the screen.
+      var sheet = document.getElementById("sheetBody");
       if (sheet) bindSheetSwipe(sheet, function () { a.sheetClose(); });
       var tabsBox = el("div", ""), grid = el("div", "");
       body.append(tabsBox, grid);

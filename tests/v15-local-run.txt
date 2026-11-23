@@ -1,0 +1,71 @@
+PASS A5f purge_retained_for_me called after sign-in (count 1)
+PASS A8-home flower visible on home
+PASS composer placeholder is "Reply…"
+  activity {"days":["Monday 23 November","Sunday 22 November","Friday 20 November"],"clears":["Clears on Thursday 3 December","Clears on Wednesday 2 December","Clears on Monday 30 November"],"counts":["6 actions","3 actions","2 actions"],"old":false,"times":["5:11 pm","2:59 pm","2:58 pm"],"icons":11}
+PASS A5a day cards with heading, count and "Clears on"
+PASS A5g fixture older than 10 days hidden
+PASS A5b timeline entries with 12-hour time and icon
+PASS A8-activity flower visible on Activity
+PASS A5c Theirs filter shows only their sessions (Mrs Lees)
+PASS A5c2 jump-to-top appears after scrolling (or list too short to scroll)
+PASS A5d detail sheet with same-session entries (3)
+PASS A5e/4.20 Add note right-aligned, 44px tall (h=44, right gap 16)
+PASS A5e Add note sends through sendText: "Note about: Sealed a letter (Open when you miss me)\nLoved this letter"
+PASS A8-Settings flower visible on Settings
+PASS A8-Journal flower visible on Journal
+PASS A8-Sealedletters flower visible on Sealed letters
+PASS A8-Media flower visible on Media
+PASS A8-Notifications flower visible on Notifications
+PASS A8-Aboutpage flower visible on About page
+PASS A8-chat flower hidden in the conversation (by design; never covers the composer)
+PASS A21 sticker picker shows 46 and says "46 stickers · scroll for more"
+PASS A11-sheet-snap short swipe on the sticker sheet snaps back
+PASS A11-sheet long swipe closes the sticker sheet
+  open frames [ms,left,top,w,h] [[62,310,762,64,64],[95,211,519,168,313],[145,100,245,285,593],[180,61,150,326,691],[212,38,94,350,747],[268,19,47,370,796],[309,12,29,378,814],[388,3,7,387,837],[435,1,1,389,842],[477,0,0,390,844],[532,0,0,390,844],[562,0,0,390,844]]
+PASS A9-open box grows from the flower (64px) to the viewport (390x844)
+PASS A14 greeting pinned and personalised
+PASS A14b greeting is outside the scrolling list
+PASS A12 thinking: "ARTEN is thinking" at 15px, flower mark animating
+PASS A12b collapsed "Thought for N s" pill
+  overlap {"lastBottom":710,"chipsTop":728,"formTop":772,"formSide":[12,12],"headBottom":105,"listTop":260,"texts":["how do I write in the journal","Thought for 0.9 s\n\nOpen Journal on the home screen and tap Write in the journal.\n\nThere ar","what do you know about my partner","Thought for 1.0 s\n\nHere's what's saved about Mrs Lees.\n\nMrs Lees likes sushi.","what does Mrs Lees know about me","Thought for 1.0 s\n\nHere's what's saved about you.\n\nMrs Lees wrote that you love football."]}
+PASS A10-390 last message ends above the chips/composer; list starts below the header; composer 12px from each side
+PASS A20 partner-written item cited: "Mrs Lees wrote that you love football"
+PASS A13a no "X is X" in answers
+PASS A13b personal answer from saved items, name leading
+PASS A10-375 same checks at 375x667 {"lastBottom":533,"chipsTop":551,"headBottom":105,"listTop":282}
+PASS A19a proposal shown with "Add to the list"; nothing written before the tap (2→2)
+PASS A19b written only after the tap: {"body":"She likes tulips.","source":"arten","status":"saved"}
+PASS A19c phone number refused, not echoed, not stored
+PASS A15a Profile chip opens actions: Edit name, Edit photo, About me
+PASS A15b Edit name opens Profile with the name field highlighted; card "Step 1 of 2: type the names here"
+PASS A16a step 1 "Step 1 of 3: close ARTEN"; nothing moved after waiting (ARTEN still open, view home)
+PASS A16b steps advance only when the user taps: "Step 2 of 3: tap Journal" → "Step 3 of 3: tap Write in the journal"
+PASS A7a New chat leaves an empty chat (14→0) and archives the old one (1 archived)
+  history {"days":["Monday 23 November"],"rows":["5:12 pm | how many stickers are there","5:11 pm | how do I write in the journal"],"old":false,"full":true}
+PASS A6 chat history full screen, grouped by day, 12-hour times
+PASS A6b conversation older than 10 days not shown
+PASS A6c tapping a row opens the whole conversation
+PASS A6d Back from a conversation returns to the history list
+PASS A9-close close leaves no overlay behind
+PASS H4 sign-out banner has exactly Cancel and Sign out: Cancel, Sign out
+PASS A7b sign-out archived the chat (2 archived), cleared it and the lees-arten* session keys
+PASS A7c after sign-in the chat is empty and History shows the earlier chat (2 rows)
+PASS A11-snap short swipe on ARTEN snaps back
+PASS A11 swipe from y120 to y700 closes ARTEN
+  about [{"h":"About me","rows":["He loves football. | Written by Mrs Lees · Nov 21, 2026"]},{"h":"About Mrs Lees","rows":["She likes sushi. | Written by you · Nov 20, 2026","She likes tulips. | Added by ARTEN · Nov 23, 2026"]}]
+PASS A18a two cards; author labels: Written by you / Written by Mrs Lees / Added by ARTEN
+PASS A18b add in each card: Lewis:I play the guitar. / Agnes:She studies law.
+PASS A18c edit saved
+PASS A18d delete asks with Cancel / Delete, then removes
+PASS A18e reopening shows the saved state (reload of data)
+  chooser {"order":["v15-prev","v8-compose","v8-looks","v15-sec","btn"],"labs":["To","Wax seal","Paper","Open when"],"seals":6,"papers":5,"minSw":52,"chips":["Tomorrow morning","This weekend","Pick a date and time","When Mrs Lees next opens the app"],"disabled":true,"to":"Mrs Lees"}
+PASS A17a preview on top, then To / Wax seal / Paper / Open when; 6 seals, 5 papers, swatches 52px; Seal disabled at first
+PASS A17b Open when chips: Tomorrow morning, This weekend, Pick a date and time, When Mrs Lees next opens the app
+PASS A17c preview updates with paper and seal ({"paper":"#edf3fb","seal":"#b8892b"})
+PASS A17d Seal enabled only with a body and an open time
+PASS A17e saved the same fields: {"title":"Open when you miss me","seal":"wax-gold","paper":"sky","open_at":"2026-11-24T08:00:00.000Z"}
+PASS A17f letter card sent through the normal send path
+  thinking ink {"size":15,"color":"rgb(241, 235, 228)","bg":"rgb(33, 29, 26)"}
+  close frames [ms,left,top,w,h] [[11,0,0,390,844],[60,0,0,390,844],[120,144,353,239,482],[153,210,517,169,315],[194,262,643,115,185],[243,286,702,90,125],[293,298,733,76,94],[343,305,749,69,77],[393,308,758,66,68],[427,309,761,65,66],[477,310,762,64,64],[527,0,0,390,844]]
+PASS A9-closeframes box shrinks from the viewport back to the flower
+no errors
