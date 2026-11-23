@@ -2,6 +2,10 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const ALERT = "New message from Mrs Lees. Open The Lees to read it.";
+// Photos or videos sent together (one batch) produce this single alert instead of one per item.
+const BATCH_ALERT = "Mrs Lees sent you photos. Open The Lees to see them.";
+// Without a batch id (older app versions), media from the same sender this close together counts as one send.
+const BURST_MS = 45_000;
 // Used when the recipient has a chat lock: no sender name, no preview.
 const LOCKED_ALERT = "New message";
 
@@ -78,6 +82,34 @@ Deno.serve(async (req) => {
   if (!token) {
     console.error("telegram token missing");
     return new Response(null, { status: 500 });
+  }
+
+  // One alert per batch. The claim is a primary-key insert, so parallel webhooks for the same batch can't both win.
+  const batchId = record?.batch_id ?? null;
+  const isMedia = record?.kind === "image" || record?.kind === "video";
+  if (batchId) {
+    const claim = await admin.from("notify_batches").insert({ batch_id: batchId });
+    if (claim.error) {
+      if (claim.error.code === "23505") return new Response(null, { status: 200 });
+      // Table missing (v12 SQL not run yet): fall through to the time-window check below.
+      if (claim.error.code !== "42P01" && claim.error.code !== "PGRST205") {
+        console.error("notify_batches insert failed", claim.error.code ?? "error");
+        return new Response(null, { status: 500 });
+      }
+    } else if (alertText === ALERT) alertText = BATCH_ALERT;
+  }
+  if (isMedia && !batchId) {
+    const since = new Date(Date.parse(createdAt) - BURST_MS).toISOString();
+    const recent = await admin
+      .from("messages")
+      .select("id, notify_log!inner(message_id)")
+      .eq("pair_id", pairId)
+      .eq("sender_id", senderId)
+      .in("kind", ["image", "video"])
+      .gte("created_at", since)
+      .neq("id", id)
+      .limit(1);
+    if (!recent.error && recent.data && recent.data.length) return new Response(null, { status: 200 });
   }
 
   const seen = await admin.from("notify_log").select("message_id").eq("message_id", id).maybeSingle();

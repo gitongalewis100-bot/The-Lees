@@ -161,7 +161,9 @@
 .op-tag{font-weight:600;color:var(--accent)}
 
 /* ---------- One emoji look everywhere (lees-emoji.js) ---------- */
-.emx{display:inline-block;width:1.2em;height:1.2em;line-height:1.2em;margin:0 .02em;vertical-align:-.22em;overflow:hidden;white-space:nowrap;text-align:center;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;font-style:normal;font-weight:normal;background-position:center;background-repeat:no-repeat;background-size:0 0;user-select:text;-webkit-user-select:text}
+.emx{display:inline-block;width:1.2em;height:1.2em;line-height:1.2em;margin:0 .02em;vertical-align:-.22em;overflow:hidden;white-space:nowrap;text-align:center;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;font-style:normal;font-weight:normal;background-position:center;background-repeat:no-repeat;background-size:contain;color:transparent!important;-webkit-text-fill-color:transparent;text-shadow:none!important;user-select:text;-webkit-user-select:text}
+/* The 3D image is shown from the first frame (no device-emoji flash first). Only if the image fails does the glyph show. */
+.emx.fb{color:inherit!important;-webkit-text-fill-color:currentColor;background-image:none!important}
 .emx.on{color:transparent!important;-webkit-text-fill-color:transparent;text-shadow:none!important;background-size:contain}
 .emx::selection{color:transparent;background:color-mix(in srgb,var(--accent) 30%,transparent)}
 .stk9-e .emx{width:1em;height:1em;vertical-align:0;line-height:1em}

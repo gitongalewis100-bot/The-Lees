@@ -173,3 +173,16 @@ New: lees-emoji.js, emoji/ (Microsoft Fluent 3D emoji, MIT), supabase/migrations
 - Themes: the chat look (chat theme, bubble colour, text size, corners) is now shared by both of you and updates
   live; the app theme is personal. Existing shared app theme becomes each person's starting app theme. The
   wallpaper photo, dimming and blur stay personal (the photo is stored on the device).
+
+## v12 (2026-11-23)
+New: lees-v12.js, lees-v12.css, flower.webp, supabase/RUN_THIS_v12.sql (run once). notify-message updated (redeploy).
+- Last seen + activity: "Online now" / "Last seen today at 14:32" on the home card and chat header; tap for a session-by-session activity page, both sides visible.
+- Photos/videos sent together share a batch_id: one send, one album card, one in-app alert, one Telegram alert; unread counts the set as one; up to 30 per set.
+- Read line moved to just above the message box; a message fully in view lifts its blur and the count drops by one.
+- Home no longer rebuilds every 4 s (emoji flicker); 3D emoji drawn before first paint.
+- Sealed letters: "When they next open the app" opens the letter full screen on their next launch.
+- Settings: Reset everything (passphrase checked on the server), Recently deleted with Restore all / Delete all for good, Guide & ARTEN category with a Guide switch.
+- Guide: spotlight tour (essentials first), auto after first sign-in and after a reset; tips for unused features after two sign-ins.
+- ARTEN: flower icon (rotating, breathing petals, theme-coloured), zoom-open mini panel, on-device answers with a 2 s+ thinking state, Show me how / Take me there, Take-me-to mode. Hidden in the conversation view.
+- Sign-in: two identity cards; the field names whose passphrase it wants.
+- Media preview and album viewer redesigned (labelled tools, switches, feed/grid, full-screen pager).

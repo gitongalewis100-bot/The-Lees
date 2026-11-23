@@ -28,7 +28,7 @@
     pending[file] = 1;
     var im = new Image();
     im.onload = function () { loaded[file] = 1; delete pending[file]; document.querySelectorAll('.emx[data-e="' + file + '"]').forEach(function (n) { n.classList.add("on"); }); };
-    im.onerror = function () { failed[file] = 1; delete pending[file]; };
+    im.onerror = function () { failed[file] = 1; delete pending[file]; document.querySelectorAll('.emx[data-e="' + file + '"]').forEach(function (n) { n.classList.add("fb"); }); };
     im.src = "/emoji/" + file + ".webp";
   }
   function skipEl(p) {
@@ -80,7 +80,9 @@
     var q = queue; queue = [];
     for (var i = 0; i < q.length; i++) if (q[i].isConnected) walk(q[i]);
   }
-  function enqueue(n) { queue.push(n); if (!scheduled) { scheduled = true; (window.requestAnimationFrame || setTimeout)(flush); } }
+  // Swapped in the observer callback itself (a microtask, always before the next paint). Waiting for the next
+  // animation frame let the device's own emoji paint for one frame first, which read as flicker.
+  function enqueue(n) { queue.push(n); }
   function start() {
     walk(document.body);
     new MutationObserver(function (muts) {
@@ -89,6 +91,7 @@
         if (mu.type === "characterData") { if (mu.target.parentNode && !(mu.target.parentNode.classList && mu.target.parentNode.classList.contains("emx"))) enqueue(mu.target); continue; }
         for (var j = 0; j < mu.addedNodes.length; j++) { var a = mu.addedNodes[j]; if (!(a.classList && a.classList.contains("emx"))) enqueue(a); }
       }
+      if (queue.length) flush();
     }).observe(document.body, { childList: true, subtree: true, characterData: true });
   }
   window.LeesEmoji = { url: function (ch) { var f = keyOf(ch); return f ? "/emoji/" + f + ".webp" : null; }, render: walk };
