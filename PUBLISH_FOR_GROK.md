@@ -1,3 +1,5 @@
+> Historical (v4/v5 publishing). Current process: `DEPLOY.md`.
+
 # PUBLISH TO LIVE - The Lees (final v4)
 
 For: Grok (publisher).

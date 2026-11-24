@@ -1,10 +1,24 @@
 # The Lees
 
-A private shared journal and conversation for two people.
+A private app for two people (Mr and Mrs Lees): conversation, shared journal, sealed letters, a live game,
+memories, and ARTEN, a built-in guide. Live at https://the-lees-sandy.vercel.app.
 
-Status: front-end build. Data is stored in the browser for now
+- Hosting: static site, deployed by Vercel from the `main` branch. No build step.
+- Data: Supabase (project `emimwlpsfchndxaxzswh`): auth, Postgres with row-level security, realtime, storage, edge functions.
+- Current version: v15. See `CHANGELOG.md`.
 
-Hosting: static site, deployed from the `main` branch. No build step.
+## Documents
+| File | Read it for |
+|---|---|
+| `AGENTS.md` | **Start here.** Rules and workflow for anyone (human or agent) working on the project. |
+| `KNOWLEDGE.md` | What the app is and every feature, in plain language. |
+| `ARCHITECTURE.md` | Files, load order, modules, APIs, events, storage, caching. |
+| `DATABASE.md` | Tables, functions, SQL files and which have been run. |
+| `DESIGN.md` | Themes, tokens, the polish layer, adaptive rendering. |
+| `TESTING.md` | Local harness, scenarios, ARTEN tests, result labels. |
+| `ROADMAP.md` | Done, next, known issues. |
+| `OWNER_ACTIONS.md` | What is waiting on the owner (SQL to run, pushes). |
+| `DEPLOY.md` | How a release reaches the live site. |
 
 ## Voice transcription (transcribe-voice): owner steps
 

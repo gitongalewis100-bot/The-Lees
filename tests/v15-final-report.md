@@ -2,7 +2,7 @@
 
 ## R-a. Commit, address, deployment
 - Live: https://the-lees-sandy.vercel.app serves **main = 7ebfb5e** ("The Lees v15: online colours, glassy tiles, activity groups and 10-day retention, ARTEN greeting and structure, floating composer, step guide, sealed chooser, about pages, stickers"). It was a fast-forward from d455926; nothing force-pushed or deleted. Confirmed live: `lees-v12.js`, `lees-v9.js` and `lees-v8.js` match the commit byte-for-byte, and `sw.js` serves `lees-shell-v15-2`. The Vercel dashboard itself was not read: there is no Vercel access from this session.
-- Overnight work (polish, adaptive rendering, documents, tests) is committed on branch `claude/lees-v15-continuation-m4pvd1` and **not on main yet**. It is waiting for your go-ahead to push in the morning; it fast-forwards from 7ebfb5e.
+- Later work (polish, adaptive rendering, regression tests, project documents) is committed on branch `claude/lees-v15-continuation-m4pvd1` and **not on main yet**. It is waiting for your go-ahead to push in the morning; it fast-forwards from 7ebfb5e.
 - Tag `v14-baseline` exists locally on d455926; pushing it was refused by the session's git proxy (HTTP 403).
 
 ## R-b. Discovery (2.4); full write-up in `tests/v15-discovery.md`
@@ -35,12 +35,13 @@
 - `supabase/RUN_THIS_v15.sql`: new, not executed.
 - `CHANGELOG.md`: v15 section.
 - `tests/`: holdout and runner, harness and scenarios, baseline, discovery, results, contrast data, screenshots.
+- New project documents: `AGENTS.md`, `KNOWLEDGE.md`, `ARCHITECTURE.md`, `DATABASE.md`, `DESIGN.md`, `TESTING.md`, `ROADMAP.md`, `OWNER_ACTIONS.md`; `README.md` and `DEPLOY.md` rewritten; `PROGRESS.md`, `PUBLISH_FOR_GROK.md` and `test-report.md` marked historical.
 
 ## R-d. Audit A1–A27
 See the table in `tests/v15-results.md`. Summary:
 - PASS: A2, A4–A21, A23, A25–A27. Every browser result here is "(local, stand-in backend)".
 - PARTIAL: A1 (live lock clean except the sandbox's blocked Supabase host; signed-in live not run), A3 and A22 (one context only), A24.
-- NOT RUN parts: everything needing sign-in on the live site (no test passphrase provided), Telegram, voice note, tic-tac-toe move, letter open / delete.
+- NOT RUN parts: everything needing sign-in on the live site (no test passphrase provided) and Telegram. Locally the whole 9.1 list now passes, including voice note (fake microphone), tic-tac-toe move and letter open / delete for me / delete for both.
 
 ## R-e. Holdout
 Baseline 78/150 = **52.0%** → final 146/150 = **97.3%**, an improvement of **+87.2%** relative (target +58%). The misses were printed while fixing general bugs, so the set is no longer blind.

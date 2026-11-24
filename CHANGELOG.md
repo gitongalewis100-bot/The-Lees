@@ -238,3 +238,5 @@ Live on main at 7ebfb5e (core); overnight polish and documents are committed on 
 - Adaptive rendering: html[data-perf] high / mid / low from device memory, CPU cores, Save-Data, connection, reduced motion and transparency, pixel ratio and a frame-time probe; low removes blur, particles and heavy shadows and slows the flower. Override: localStorage "lees-perf".
 - Cache: sw.js lees-shell-v15-3; lees-v8.css?v=5, lees-v8.js?v=10, lees-v9.js?v=10, lees-v12.css?v=7, lees-v12.js?v=7.
 - supabase/RUN_THIS_v15.sql: arten_items (+ migration from arten_notes), arten_conversations, purge_retained_for_me / purge_retained_all, daily pg_cron at 03:10 UTC, check selects. Not executed.
+- Regression, part 2 (local, stand-in backend): sealed letters open / delete for me / delete for both, a tic-tac-toe move and a voice note (fake microphone) now pass.
+- Project documents for anyone taking over: AGENTS.md (start here), KNOWLEDGE.md, ARCHITECTURE.md, DATABASE.md, DESIGN.md, TESTING.md, ROADMAP.md, OWNER_ACTIONS.md; README.md and DEPLOY.md rewritten; older documents marked historical.

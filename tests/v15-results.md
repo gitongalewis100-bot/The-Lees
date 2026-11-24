@@ -37,7 +37,7 @@ the live site (section 1.2). No SQL was run. Raw logs: `tests/v15-local-run.txt`
 | A21 | PASS (local, stand-in backend); live NOT RUN | 46 in the picker; sticker #41 sends and renders; a partner's sticker #46 renders (`regression/reg15-02..03`). |
 | A22 | PARTIAL | One context (local, stand-in backend): Keep writes user_prefs, sign-in with device cache cleared restores Ink Night (`regression/theme-*.png`). Two contexts: NOT RUN (no test passphrase provided). |
 | A23 | PASS | 52.0% → 97.3% (+87.2%). |
-| A24 | PARTIAL | See 9.1 below. |
+| A24 | PARTIAL | Every 9.1 item passes locally except Telegram (owner confirms: NOT RUN); live signed-in regression NOT RUN (no test passphrase provided). |
 | A25 | PASS | No "Coming soon", no hour12:false, no HH:mm. "Countdown" appears only as a v14 function name and a v14 code comment (`index.html:1825`, `lees-v11.js:91`), not a feature; unchanged. |
 | A26 | PASS | All `supabase/functions/**` and `vercel.json` byte-identical to d455926 (`tests/v15-baseline.txt`). |
 | A27 | PASS | `supabase/RUN_THIS_v15.sql` written, not executed, printed in the final report. |
@@ -46,17 +46,17 @@ the live site (section 1.2). No SQL was run. Raw logs: `tests/v15-local-run.txt`
 - Sign-in and lock: PASS (wrong passphrase refused, right one opens; `regression/reg15-01-lock-wrong.png`).
 - Telegram: NOT RUN (owner confirms).
 - Journal create / edit / delete: PASS (through the app's journal functions).
-- Send text: PASS; photos as one batch: PASS on receive (`recv` scenario: 6 photos → one notice); voice note: NOT RUN (no microphone in headless Chromium); sticker: PASS.
-- Sealed letters create: PASS (A17e); open / delete for me / delete for both: NOT RUN this round.
+- Send text: PASS; photos as one batch: PASS on receive (`recv` scenario: 6 photos → one notice); voice note: PASS with Chromium's fake microphone (`reg15b`; one harmless v14 blob error logged after sending); sticker: PASS.
+- Sealed letters create: PASS (A17e); open, delete for me, delete for both: PASS (`reg15b`, `tests/v15-regression-run-2.txt`).
 - Idle sign-out: PASS ("Still there?", 30-second countdown, Cancel / Sign out; Cancel keeps you signed in).
 - Settings and reset everything: PASS (wrong passphrase: "Nothing was removed"; right one empties the data and restarts the guide).
 - Chat opens; sending jumps to newest: PASS (0px from the end).
 - Recently deleted and restore: PASS.
-- Tic-tac-toe: PARTIAL (board opens with Challenge; a move needs the other player to accept: NOT RUN).
+- Tic-tac-toe: PASS (challenge, the other side accepts in the stand-in, one move: centre taken, turn passes).
 
 ## Screenshots
 - `tests/screenshots/v15/baseline/live-lock.png`, `live-lock-after-push.png`, `live-lock-a1.png`: live, no sign-in.
 - `tests/screenshots/v15/01..08-*.png`: first partial round (status colours, composer, stickers).
 - `tests/screenshots/v15/local/01..30-*.png`: the 62-check run.
 - `tests/screenshots/v15/polish/`: home, settings, Activity, About, chooser and ARTEN in warm / ink / sage / forced-low / desktop, plus contrast captures.
-- `tests/screenshots/v15/regression/`: reg15, theme, flows and ARTEN regression scenarios.
+- `tests/screenshots/v15/regression/`: reg15, reg15b, theme, flows and ARTEN regression scenarios.

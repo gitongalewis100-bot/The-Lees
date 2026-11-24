@@ -1,3 +1,5 @@
+> Historical. Current results: `tests/v15-results.md`.
+
 # Test report - The Lees v11
 
 Method: Playwright (Chromium) against the real index.html and scripts, with a fake Supabase backend shared by two

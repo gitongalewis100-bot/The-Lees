@@ -1,3 +1,5 @@
+> Historical (v3 to v5). Current status and plans: `ROADMAP.md` and `OWNER_ACTIONS.md`.
+
 # PROGRESS - release candidate v3
 
 ## Round 6 (final)

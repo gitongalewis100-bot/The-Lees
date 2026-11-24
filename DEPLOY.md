@@ -1,4 +1,17 @@
-# DEPLOY - The Lees v3 (release candidate)
+# DEPLOY: The Lees
+
+## Current process (v12 onwards)
+1. Work on a branch. Bump `?v=` for every changed script or stylesheet in `index.html`, and `CACHE` in `sw.js`.
+2. Run the checks in `TESTING.md`.
+3. When the owner approves: `git fetch origin main`; if `main` has not moved, push the branch, then push it to
+   `main` as a fast-forward (`git push origin HEAD:main`). Never force-push.
+4. Vercel deploys `main` automatically. Confirm: the live `index.html` lists the new `?v=` values, the live
+   scripts match the commit (`curl -s https://the-lees-sandy.vercel.app/lees-v12.js | sha256sum`), and `/sw.js` shows the new `CACHE`.
+5. If the version has SQL, give the owner `supabase/RUN_THIS_vNN.sql` with the steps in `OWNER_ACTIONS.md`.
+   Agents never run it.
+6. Rollback: push the previous good commit to `main` as a new commit (git revert), never a force-push.
+
+## History (v3 to v5; kept for reference)
 
 ## Round 5 note (final v4)
 Publish only. No database step. See PUBLISH_FOR_GROK.md, which is the controlling instruction for publishing and deploying this build.
