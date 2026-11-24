@@ -1,7 +1,7 @@
 PASS A5f purge_retained_for_me called after sign-in (count 1)
 PASS A8-home flower visible on home
-PASS composer placeholder is "Reply…"
-  activity {"days":["Monday 23 November","Sunday 22 November","Friday 20 November"],"clears":["Clears on Thursday 3 December","Clears on Wednesday 2 December","Clears on Monday 30 November"],"counts":["6 actions","3 actions","2 actions"],"old":false,"times":["9:48 pm","7:36 pm","7:35 pm"],"icons":11}
+PASS composer placeholder is "Reply or hold to talk"
+  activity {"days":["Tuesday 24 November","Monday 23 November","Saturday 21 November"],"clears":["Clears on Friday 4 December","Clears on Thursday 3 December","Clears on Tuesday 1 December"],"counts":["6 actions","3 actions","2 actions"],"old":false,"times":["3:46 am","1:33 am","1:33 am"],"icons":11}
 PASS A5a day cards with heading, count and "Clears on"
 PASS A5g fixture older than 10 days hidden
 PASS A5b timeline entries with 12-hour time and icon
@@ -21,18 +21,18 @@ PASS A8-chat flower hidden in the conversation (by design; never covers the comp
 PASS A21 sticker picker shows 46 and says "46 stickers · scroll for more"
 PASS A11-sheet-snap short swipe on the sticker sheet snaps back
 PASS A11-sheet long swipe closes the sticker sheet
-  open frames [ms,left,top,w,h] [[61,310,762,64,64],[94,211,519,168,313],[143,100,245,285,593],[178,61,150,326,691],[229,30,75,358,767],[263,19,47,370,796],[318,9,23,380,821],[357,5,13,385,831],[431,1,1,389,842],[479,0,0,390,844],[543,0,0,390,844],[577,0,0,390,844]]
-PASS A9-open box grows from the flower (64px) to the viewport (390x844)
+  open frames [ms,left,top,w,h] [[66,260,640,116,189],[116,129,316,255,520],[149,78,191,308,649],[199,38,94,350,748],[234,24,60,364,783],[286,12,29,377,814],[320,7,17,383,826],[385,2,4,388,840],[429,1,1,389,842],[496,0,0,390,844],[526,0,0,390,844],[566,0,0,390,844]]
+PASS A9-open box grows from the flower (116px) to the viewport (390x844)
 PASS A14 greeting pinned and personalised
 PASS A14b greeting is outside the scrolling list
 PASS A12 thinking: "ARTEN is thinking" at 15px, flower mark animating
 PASS A12b collapsed "Thought for N s" pill
-  overlap {"lastBottom":710,"chipsTop":728,"formTop":772,"formSide":[12,12],"headBottom":105,"listTop":260,"texts":["how do I write in the journal","Thought for 0.9 s\n\nOpen Journal on the home screen and tap Write in the journal.\n\nThere ar","what do you know about my partner","Thought for 1.0 s\n\nHere's what's saved about Mrs Lees.\n\nMrs Lees likes sushi.","what does Mrs Lees know about me","Thought for 1.0 s\n\nHere's what's saved about you.\n\nMrs Lees wrote that you love football."]}
+  overlap {"lastBottom":686,"chipsTop":704,"formTop":750,"formSide":[12,12],"headBottom":105,"listTop":260,"texts":["how do I write in the journal","Thought for 0.9 s\n\nOpen Journal on the home screen and tap Write in the journal.\n\nThere ar","what do you know about my partner","Thought for 1.0 s\n\nHere's what's saved about Mrs Lees.\n\nMrs Lees likes sushi.","what does Mrs Lees know about me","Thought for 1.0 s\n\nHere's what's saved about you.\n\nMrs Lees wrote that you love football."]}
 PASS A10-390 last message ends above the chips/composer; list starts below the header; composer 12px from each side
 PASS A20 partner-written item cited: "Mrs Lees wrote that you love football"
 PASS A13a no "X is X" in answers
 PASS A13b personal answer from saved items, name leading
-PASS A10-375 same checks at 375x667 {"lastBottom":533,"chipsTop":551,"headBottom":105,"listTop":282}
+PASS A10-375 same checks at 375x667 {"lastBottom":509,"chipsTop":527,"headBottom":105,"listTop":282}
 PASS A19a proposal shown with "Add to the list"; nothing written before the tap (2→2)
 PASS A19b written only after the tap: {"body":"She likes tulips.","source":"arten","status":"saved"}
 PASS A19c phone number refused, not echoed, not stored
@@ -41,7 +41,7 @@ PASS A15b Edit name opens Profile with the name field highlighted; card "Step 1 
 PASS A16a step 1 "Step 1 of 3: close ARTEN"; nothing moved after waiting (ARTEN still open, view home)
 PASS A16b steps advance only when the user taps: "Step 2 of 3: tap Journal" → "Step 3 of 3: tap Write in the journal"
 PASS A7a New chat leaves an empty chat (14→0) and archives the old one (1 archived)
-  history {"days":["Monday 23 November"],"rows":["9:49 pm | how many stickers are there","9:48 pm | how do I write in the journal"],"old":false,"full":true}
+  history {"days":["Tuesday 24 November"],"rows":["3:46 am | how many stickers are there","3:46 am | how do I write in the journal"],"old":false,"full":true}
 PASS A6 chat history full screen, grouped by day, 12-hour times
 PASS A6b conversation older than 10 days not shown
 PASS A6c tapping a row opens the whole conversation
@@ -52,7 +52,7 @@ PASS A7b sign-out archived the chat (2 archived), cleared it and the lees-arten*
 PASS A7c after sign-in the chat is empty and History shows the earlier chat (2 rows)
 PASS A11-snap short swipe on ARTEN snaps back
 PASS A11 swipe from y120 to y700 closes ARTEN
-  about [{"h":"About me","rows":["He loves football. | Written by Mrs Lees · Nov 21, 2026"]},{"h":"About Mrs Lees","rows":["She likes sushi. | Written by you · Nov 20, 2026","She likes tulips. | Added by ARTEN · Nov 23, 2026"]}]
+  about [{"h":"About me","rows":["He loves football. | Written by Mrs Lees · Nov 21, 2026"]},{"h":"About Mrs Lees","rows":["She likes sushi. | Written by you · Nov 20, 2026","She likes tulips. | Added by ARTEN · Nov 24, 2026"]}]
 PASS A18a two cards; author labels: Written by you / Written by Mrs Lees / Added by ARTEN
 PASS A18b add in each card: Lewis:I play the guitar. / Agnes:She studies law.
 PASS A18c edit saved
@@ -63,9 +63,9 @@ PASS A17a preview on top, then To / Wax seal / Paper / Open when; 6 seals, 5 pap
 PASS A17b Open when chips: Tomorrow morning, This weekend, Pick a date and time, When Mrs Lees next opens the app
 PASS A17c preview updates with paper and seal ({"paper":"#edf3fb","seal":"#b8892b"})
 PASS A17d Seal enabled only with a body and an open time
-PASS A17e saved the same fields: {"title":"Open when you miss me","seal":"wax-gold","paper":"sky","open_at":"2026-11-24T08:00:00.000Z"}
+PASS A17e saved the same fields: {"title":"Open when you miss me","seal":"wax-gold","paper":"sky","open_at":"2026-11-25T08:00:00.000Z"}
 PASS A17f letter card sent through the normal send path
   thinking ink {"size":15,"color":"rgb(241, 235, 228)","bg":"rgb(33, 29, 26)"}
-  close frames [ms,left,top,w,h] [[13,0,0,390,844],[63,0,0,390,844],[115,144,354,239,482],[147,210,517,169,315],[197,262,643,115,185],[247,286,702,90,125],[297,298,733,76,94],[347,305,749,69,77],[397,308,758,66,68],[429,309,761,65,66],[479,310,762,64,64],[529,0,0,390,844]]
+  close frames [ms,left,top,w,h] [[9,0,0,390,844],[59,0,0,390,844],[113,144,353,239,482],[143,210,517,169,315],[193,262,643,115,185],[243,286,702,90,125],[293,298,733,76,94],[343,305,749,69,77],[393,308,758,66,68],[426,309,761,65,66],[476,310,762,64,64],[526,0,0,390,844]]
 PASS A9-closeframes box shrinks from the viewport back to the flower
 no errors

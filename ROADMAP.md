@@ -3,8 +3,7 @@
 The plan for agents. Keep it current: move items to Done with the version, add what you find to Known issues.
 
 ## Where we are (end of v15, 2026-11-24)
-- Live: v15 core on `main` (7ebfb5e). Waiting for the owner to reconnect GitHub: the polish pass, adaptive
-  rendering, tests and documents on `claude/lees-v15-continuation-m4pvd1`.
+- Live: all of v15 on `main` (pushed from `claude/lees-v15-continuation-m4pvd1`).
 - Waiting for the owner: `supabase/RUN_THIS_v15.sql` (see `OWNER_ACTIONS.md`). The app works before it runs
   (fallbacks), but About and ARTEN history only become account-wide after it.
 
@@ -16,7 +15,7 @@ The plan for agents. Keep it current: move items to Done with the version, add w
   zoom, header, pinned greeting, floating composer, thinking state, structured answers, intents, consent-based
   memory with refusals, cited partner facts, chat history, New chat, sign-out memory, chips with actions, Show me
   the steps; About me and [partner]; sealed letter chooser; sticker count and swipe fix; flower rules; premium
-  polish; adaptive rendering; handover documents.
+  polish; adaptive rendering; composer matching the owner's design with hold to talk; handover documents.
 
 ## Next (v16 candidates, in priority order)
 1. **Verify on the live site with two signed-in people** once the owner provides `LEES_TEST_PASSPHRASE` (or two

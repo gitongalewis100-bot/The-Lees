@@ -25,7 +25,7 @@ module.exports = {
   await page.evaluate(() => { LeesV12._act.load(); });
   await shot('home');
   P(await fabVisible(), 'A8-home', 'flower visible on home');
-  P(await page.evaluate(() => document.getElementById('input').placeholder === 'Reply…'), 'composer', 'placeholder is "Reply…"');
+  P(await page.evaluate(() => document.getElementById('input').placeholder === 'Reply or hold to talk'), 'composer', 'placeholder is "Reply or hold to talk"');
   // ---------- Activity ----------
   await page.click('#people .act13'); await page.waitForTimeout(900);
   await page.evaluate(() => { window.__fake.DB.activity_log = window.__fake.DB.activity_log; });

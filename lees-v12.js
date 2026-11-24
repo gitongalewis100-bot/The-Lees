@@ -814,8 +814,8 @@
       a: "Open the conversation from the card with their name on the home screen. Type in the box at the bottom and tap Send (the paper plane). On a keyboard, Enter sends and Shift+Enter starts a new line.", steps: ["Home › tap their name", "Type in the message box", "Tap Send"], more: "Press and hold Send to schedule the message for later. For five seconds after sending you can tap Undo." },
     { id: "photos", title: "Photos and videos as one set", kw: "photo photos picture pictures image images video videos attach gallery camera stack set album batch many multiple send", q: ["send many photos", "send photos at once", "why do i get many notifications for photos", "stacked photos"], tour: "photos", go: "attach",
       a: "In the chat, tap + and then Attach, and pick as many photos and videos as you like, up to 30. They open in a preview where you can swipe between them, rotate, flip, crop, choose HD, mark View once or Quiet, and add one caption. Send delivers them as one set: one album card in the chat and one notification on their phone, not one per photo.", steps: ["Open the chat", "Tap + and choose photos or videos", "Adjust any of them, add a caption", "Tap Send once"], more: "Tap the album in the chat to see every photo full size. Each one can be loved, replied to, saved, shared or forwarded on its own." },
-    { id: "voice", title: "Voice notes", kw: "voice note record recording audio mic microphone speak listen transcript transcribe", q: ["record a voice note", "send audio"], tour: "voice", go: "mic",
-      a: "In the chat, tap the microphone to start recording. Tap the square to stop and listen back (you can drag along the waveform and change speed), then tap Send. Or tap the plane while recording to send at once.", steps: ["Open the chat", "Tap the microphone", "Tap the square to stop", "Listen, then Send"], more: "If the microphone is not allowed, The Lees shows a short how-to for your browser. Transcripts can be switched on in Settings › Privacy." },
+    { id: "voice", title: "Voice notes", kw: "voice note record recording audio mic microphone speak listen transcript transcribe hold talk press", q: ["record a voice note", "send audio"], tour: "voice", go: "mic",
+      a: "In the chat, press and hold the microphone to talk, and let go to send; slide away before letting go to discard. Or tap the microphone to start recording, tap the square to stop and listen back (you can drag along the waveform and change speed), then tap Send. Tap the plane while recording to send at once.", steps: ["Open the chat", "Tap the microphone", "Tap the square to stop", "Listen, then Send"], more: "If the microphone is not allowed, The Lees shows a short how-to for your browser. Transcripts can be switched on in Settings › Privacy." },
     { id: "lastseen", title: "Online and last seen", kw: "last seen online offline active status presence time date hour green blue red colour color dot not available", q: ["when were they last online", "when was she last online", "when was he last online", "are they online now", "show last seen", "last seen today", "online now status", "what time were they last seen", "what do the status colours mean", "why is the dot red", "why is the status blue", "what does green online mean", "what does not available right now mean"], go: "activity",
       a: "The line under their name shows one of three colours. Green Online means they were active in the last 10 minutes; it appears after about 3 seconds of activity. Blue Last seen means 10 minutes to 10 hours ago, with a 12-hour time such as Last seen today at 6:18 pm. Red means more than 10 hours: Seen early yesterday at 9:05 am if it was yesterday, otherwise Not available right now. The same line shows in the chat header, and tapping the home line opens the chat." },
     { id: "activity", title: "Activity", kw: "activity session sessions actions what did doing list did they do page opened log logs timeline day days grouped clears cleared clearing kept keep ten 10 retention auto delete deleted older filter mine theirs note", q: ["what did they do", "see activity", "open activity", "what are they doing", "activity list", "their activity history", "what did she do today", "show me their sessions", "how long is activity kept", "when does activity clear", "why did old activity disappear", "activity 10 days", "add a note to an activity entry"], go: "activity",
@@ -2405,6 +2405,39 @@
     if (Arten.built) Arten.position();
   });
   addEventListener("resize", function () { if (Arten.built) Arten.position(); });
+  /* v15: hold to talk. Press and hold the microphone for 0.35 s to record; let go to send; slide 80px away before
+     letting go to discard. A short tap still works as before (tap to record, then stop / preview / send). It only
+     presses the app's own buttons (#mic, #recSendNow, #recCancel), so recording and upload stay unchanged. */
+  (function holdToTalk() {
+    var mic = document.getElementById("mic"); if (!mic || mic._hold15) return; mic._hold15 = true;
+    var timer = 0, holding = false, x0 = 0, y0 = 0, swallow = false, away = false;
+    var visible = function (id) { var n = document.getElementById(id); return !!(n && n.offsetParent); };
+    var finish = function () {
+      document.removeEventListener("pointerup", up, true); document.removeEventListener("pointercancel", up, true); document.removeEventListener("pointermove", move, true);
+    };
+    var press = function (id, tries) {
+      if (visible(id)) { document.getElementById(id).click(); return; }
+      if (tries > 0) setTimeout(function () { press(id, tries - 1); }, 100);
+    };
+    var move = function (e) { if (holding) away = Math.hypot(e.clientX - x0, e.clientY - y0) > 80; };
+    var up = function () {
+      clearTimeout(timer); finish();
+      if (!holding) return;
+      holding = false;
+      document.body.classList.remove("hold15");
+      // Wait for the recorder to be running (the first use may ask for the microphone), then send or discard.
+      setTimeout(function () { press(away ? "recCancel" : "recSendNow", 15); }, 250);
+    };
+    mic.addEventListener("pointerdown", function (e) {
+      if (e.button > 0) return;
+      x0 = e.clientX; y0 = e.clientY; away = false; holding = false;
+      document.addEventListener("pointerup", up, true); document.addEventListener("pointercancel", up, true); document.addEventListener("pointermove", move, true);
+      timer = setTimeout(function () { holding = true; swallow = true; document.body.classList.add("hold15"); mic.click(); setTimeout(function () { swallow = false; }, 700); }, 350);
+    });
+    // The click that follows a long press must not toggle the recorder a second time.
+    mic.addEventListener("click", function (e) { if (swallow && !e.isTrusted) return; if (swallow) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+    mic.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+  })();
   document.addEventListener("focusin", function () { if (Arten.built) Arten.position(); });
   document.addEventListener("focusout", function () { setTimeout(function () { if (Arten.built) Arten.position(); }, 60); });
   addEventListener("pagehide", function () { Act.flush(); });

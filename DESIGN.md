@@ -22,6 +22,10 @@ Scoped to signed-in surfaces only (`#home`, `#chat`, `#panel`, `#sheet`, `.cb-sc
 - Page header frosted with a hairline; cards and grouped rows with dividers; empty states with a haloed icon.
 - Pages keep 104px under their last row so the ARTEN flower never sits on the final item.
 
+## Composer
+One floating pill: grey round + (left), the field ("Reply or hold to talk"), grey round microphone, solid dark
+round send (its icon dims when there is nothing to send). ARTEN uses the same pill with only send.
+
 ## Status colours (4.1)
 Light themes: green `#116a3a`, blue `#0a4fc4`, red `#b00020`. Dark themes: `#7ee8a8`, `#9cc2ff`, `#ff9a8f`.
 Measured 5.58:1 or better (`tests/v15-contrast-auto.json`).

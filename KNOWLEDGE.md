@@ -32,12 +32,12 @@ that take turns) is shared by both.
 - Settings and Sign out buttons; the ARTEN flower bottom-right.
 
 ### The conversation
-Messages, photos and videos (sent as one album of up to 30 with one notification), voice notes (tap to record, listen
-back, send; optional transcripts), stickers (46 built-in animated stickers) and emoji, drawing, Send later
+Messages, photos and videos (sent as one album of up to 30 with one notification), voice notes (press and hold the microphone to talk and let go to send, or tap to record,
+listen back and send; optional transcripts), stickers (46 built-in animated stickers) and emoji, drawing, Send later
 (scheduling), message effects. Press and hold a message to reply, love, copy, edit (yours), pin to Moments, forward,
 blur or delete (for you or for both). Double-tap sends a heart. Swipe right to reply. New messages stay softly
 blurred until fully in view; that is how "read" works. The composer is one floating pill: **+** (Attach, Draw,
-Stickers & emoji, Send later), the text field ("Reply…"), the microphone, and Send. Shield blurs the whole chat for
+Stickers & emoji, Send later), the text field ("Reply or hold to talk"), the microphone (grey), and Send (a solid dark circle). Shield blurs the whole chat for
 privacy. The chat header line shows the same Online / Last seen colours and opens Activity.
 
 ### Create (+)

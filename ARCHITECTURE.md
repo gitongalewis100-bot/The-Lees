@@ -70,9 +70,9 @@ sessionStorage: `lees-arten-*` (cleared at sign-out), e.g. `lees-arten-greet-off
 
 ## Caching and releases
 Every changed script or stylesheet needs a higher `?v=` in `index.html`, and `sw.js` needs a new `CACHE` value.
-Current (end of v15): lees-patch.css 31, lees-v8.css 5, lees-v9.css 10, lees-v11.css 5, lees-v12.css 7,
-lees-emoji.js 2, lees-patch.js 18, lees-v8.js 10, lees-v9.js 10, lees-v10.js 2, lees-v11.js 2, lees-v12.js 7;
-CACHE `lees-shell-v15-3`.
+Current (end of v15): lees-patch.css 31, lees-v8.css 5, lees-v9.css 10, lees-v11.css 5, lees-v12.css 10,
+lees-emoji.js 2, lees-patch.js 18, lees-v8.js 10, lees-v9.js 10, lees-v10.js 2, lees-v11.js 2, lees-v12.js 8;
+CACHE `lees-shell-v15-4`.
 
 ## Presence and status (v15)
 `index.html` `publishPresence` tracks `{ts, away}` on a realtime presence channel every 4 seconds; Online needs 3

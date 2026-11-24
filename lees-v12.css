@@ -668,7 +668,7 @@ body:has(.act14) .ar12-fab{z-index:85}
 :is(#home,#chat,#panel,#sheet,.cb-scrim,.act14,.ar15,.an15) .btn:not(.ghost):not(.danger){background-image:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,0) 55%);box-shadow:var(--p-e1),inset 0 1px 0 rgba(255,255,255,.18)}
 :is(#home,#chat,#panel,#sheet,.cb-scrim,.act14,.ar15,.an15) .btn.ghost{border-color:var(--p-hair);box-shadow:var(--p-e1)}
 :is(#home,#chat,#panel,#sheet,.cb-scrim,.act14,.ar15,.an15,.st15) :is(.btn,.ibtn,.chip,.srow,.ar12-chip,.ar12-act,.ar15-tb,.ar15-ai,.act15-row,.ab15-add,.ab15-main,.an15-add,.st15-b,.v9-seg-b,.act14-f,.v8-card,.v8-write,.v9-write,.v8-sw):active{transform:scale(.97)}
-:is(#home,#chat,#panel,#sheet,.cb-scrim,.act14,.ar15,.an15,.st15) :is(button,[role=button],a,.in,input,textarea,select):focus-visible{outline:none;box-shadow:var(--p-ring)!important}
+:is(#home,#chat,#panel,#sheet,.cb-scrim,.act14,.ar15,.an15,.st15) :is(button,[role=button],a,.in,input,textarea,select):not(.ar12-in):not(#input):focus-visible{outline:none;box-shadow:var(--p-ring)!important}
 /* Inputs: calm surface, a ring on focus instead of a hard border */
 :is(#panel,#sheet,.act14,.an15,.ar15) .in{border-radius:var(--p-r2);border-color:var(--p-hair);background:color-mix(in srgb,var(--surface) 70%,var(--bg));transition:border-color .2s,box-shadow .2s,background-color .2s}
 :is(#panel,#sheet,.act14,.an15,.ar15) .in:focus{border-color:color-mix(in srgb,var(--accent) 60%,transparent);background:var(--surface);box-shadow:var(--p-ring)}
@@ -728,3 +728,15 @@ body:has(.act14) .ar12-fab{z-index:85}
 :root[data-perf="low"] .love9-bit:nth-child(n+6){display:none}
 :root[data-perf="low"] .love9-glow{animation:none;opacity:.6}
 :root[data-perf="low"] .ar15 .ar12-list{-webkit-mask-image:none;mask-image:none}
+
+/* v15 composer, final: matches the owner's screenshot. Grey round +, the field, grey round mic, solid black round send.
+   Send stays a solid circle when empty (its icon dims instead), and the mic can be held to talk. */
+#chat #footer #send,#chat #footer #send:disabled{opacity:1;background:var(--ink);color:var(--surface)}
+#chat #footer #send:disabled svg{opacity:.45}
+#chat #footer #mic.tool{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:none}
+body.hold15 #recbar{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 45%,transparent)}
+.ar15 .ar12-form .ar12-send,.ar15 .ar12-form .ar12-send:disabled{opacity:1;background:var(--ink);color:var(--surface)}
+.ar15 .ar12-form .ar12-send:disabled svg{opacity:.45}
+/* ARTEN's box sits higher, clear of the screen edge and the phone's home bar */
+.ar15 .ar12-form{margin-bottom:calc(34px + env(safe-area-inset-bottom,0px))}
+.ar15-dock .ar12-chips{padding-bottom:10px}
