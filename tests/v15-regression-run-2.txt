@@ -1,0 +1,6 @@
+PASS R-letter-open a received letter opens and is marked opened {"body":true,"at":true}
+PASS R-letter-me Delete for me hides it for you only, Agnes keeps it {"dbtn":["Delete selected (1)","Delete all"],"banner":["Cancel","Delete for me","Delete for both"]}
+PASS R-letter-both Delete for both removes it for both
+PASS R-ttt one move played: centre is yours, turn passes to Agnes {"by":"Lewis","turn":"Agnes","board":[null,null,null,null,"Lewis",null,null,null,null]}
+PASS R-voice voice note recorded with the fake microphone and sent (1 audio messages; controls: )
+error Failed to load resource: net::ERR_FILE_NOT_FOUND

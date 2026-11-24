@@ -99,7 +99,11 @@
     unread_count: () => 0,
     mark_read_upto: (a) => { const s = sideOf(userId()); const r = DB.read_markers.find((x) => x.side === s); if (r) r.read_at = a.p_at; else DB.read_markers.push({ pair_id: PAIR, user_id: userId(), side: s, read_at: a.p_at }); emit('read_markers', 'UPDATE', r); return null; },
     set_reaction: (a) => { const m = DB.messages.find((x) => x.id === a.p_id); const s = sideOf(userId()); if (m) { m.hearts = m.hearts.includes(s) ? m.hearts.filter((x) => x !== s) : m.hearts.concat(s); emit('messages', 'UPDATE', m); } return null; },
-    sealed_envelopes: () => DB.sealed_letters.map((l) => ({ ...l, body: undefined })),
+    sealed_envelopes: () => DB.sealed_letters.filter((l) => !(l.hidden_for || []).includes(sideOf(userId()))).map((l) => ({ ...l, body: undefined })),
+    sealed_hide: (a) => { const s = sideOf(userId()); (a.p_ids || []).forEach((id) => { const l = DB.sealed_letters.find((x) => x.id === id); if (!l) return; if (a.p_both && l.author_side === s) { DB.sealed_letters = DB.sealed_letters.filter((x) => x !== l); } else { l.hidden_for = (l.hidden_for || []).concat(s); } }); window.__sealedHide = (window.__sealedHide || []).concat([{ ids: a.p_ids, both: !!a.p_both }]); return null; },
+    game_start: () => { const s = sideOf(userId()); const row = { id: uuid(), pair_id: PAIR, kind: 'tictactoe', status: 'invited', state: { by: s, turn: s, board: [null, null, null, null, null, null, null, null, null] }, created_at: now(), updated_at: now() }; DB.game_sessions.push(row); emit('game_sessions', 'INSERT', row); return row; },
+    game_accept: (a) => { const g = DB.game_sessions.find((x) => x.id === a.p_id); if (g) { g.status = 'active'; emit('game_sessions', 'UPDATE', g); } return g; },
+    game_move: (a) => { const g = DB.game_sessions.find((x) => x.id === a.p_id); const s = sideOf(userId()); if (!g || g.status !== 'active' || g.state.turn !== s || g.state.board[a.p_cell]) throw { message: 'not your move' }; g.state = { ...g.state, board: g.state.board.map((v, i) => (i === a.p_cell ? s : v)), turn: s === 'Lewis' ? 'Agnes' : 'Lewis' }; g.updated_at = now(); emit('game_sessions', 'UPDATE', g); return g; },
     open_sealed_letter: (a) => { const l = DB.sealed_letters.find((x) => x.id === a.p_id); if (!l) return null; if (Date.parse(l.open_at) > Date.now()) throw { message: 'sealed' }; l.opened_at = l.opened_at || now(); return l; },
     trash_list: () => DB.message_trash.map((t) => ({ id: t.message_id, original: t.row, scope: 'both', deleted_by: t.by || 'Agnes', deleted_at: t.deleted_at })),
     trash_restore: (a) => { const t = DB.message_trash.find((x) => x.message_id === a.p_id); if (!t) return false; DB.message_trash = DB.message_trash.filter((x) => x !== t); DB.messages.push(t.row); emit('messages', 'INSERT', t.row); return true; },
@@ -111,7 +115,7 @@
     touch_last_seen: () => { const r = mine(); if (r) { r.last_seen_at = now(); } return null; },
     log_activity: (a) => { (a.p_items || []).forEach((it) => { const row = { id: uuid(), pair_id: PAIR, user_id: userId(), side: sideOf(userId()), at: it.at || now(), action: it.action, detail: it.detail || '' }; DB.activity_log.push(row); emit('activity_log', 'INSERT', row); }); const r = mine(); if (r) r.last_seen_at = now(); return null; },
     purge_retained_for_me: () => { const cut = new Date(); cut.setUTCHours(0, 0, 0, 0); cut.setUTCDate(cut.getUTCDate() - 10); const c = cut.toISOString(); DB.activity_log = DB.activity_log.filter((r) => r.at >= c); DB.arten_conversations = DB.arten_conversations.filter((r) => r.user_id !== userId() || r.started_at >= c); window.__purged = (window.__purged || 0) + 1; return null; },
-    undo_send: () => true, game_start: () => null, delete_for_me: () => null, archive_message: () => null, mark_opened_once: () => null, set_emoji: () => null, set_moment: () => null, set_hidden: () => null
+    undo_send: () => true, delete_for_me: () => null, archive_message: () => null, mark_opened_once: () => null, set_emoji: () => null, set_moment: () => null, set_hidden: () => null
   };
   function rpc(name, args) {
     return Promise.resolve().then(() => {
