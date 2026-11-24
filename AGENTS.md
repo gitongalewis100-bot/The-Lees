@@ -32,6 +32,18 @@ Older files (`PROGRESS.md`, `DEPLOY.md` sections before v12, `PUBLISH_FOR_GROK.m
 9. If a fix breaks something earlier, fix it and re-run the regression list in `TESTING.md`.
 10. Do not include model names in commits or code.
 
+## When you finish: update the documents (mandatory)
+Work is not done until the documents match the code. Before your final commit, update every file your work touched:
+- `CHANGELOG.md`: a section for your version, one line per change.
+- `ROADMAP.md`: move finished items to Done, add new next steps and anything you found to Known issues.
+- `OWNER_ACTIONS.md`: anything the owner must do (SQL to run, pushes to approve, checks only they can make), with steps. Tick items that are done.
+- `DATABASE.md`: any new SQL file, table, column or function, and its run status. New SQL goes in `supabase/RUN_THIS_vNN.sql` and is given to the owner in one copy box with instructions.
+- `KNOWLEDGE.md`: any feature added, changed or removed, described as a person sees it.
+- `ARCHITECTURE.md`: new files, globals, events, storage keys, and the current `?v=` and `CACHE` numbers.
+- `DESIGN.md`: new tokens, components or visual rules. `TESTING.md`: new scenarios and the latest pass counts.
+- `tests/vNN-results.md` and a final report: what was run, with evidence paths and honest labels.
+Say in your final message which documents you updated. If a document needed no change, say that too.
+
 ## How to work
 - Branch: work on the branch you are given; `main` is what is live. Push to `main` only when the owner says so, and only as a fast-forward (run `git fetch` first; if `main` moved, stop and tell the owner).
 - Every changed script or stylesheet gets its `?v=` number bumped in `index.html`, and `sw.js` gets a new `CACHE` name, or phones keep the old files.
