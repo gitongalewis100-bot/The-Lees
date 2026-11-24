@@ -740,3 +740,10 @@ body.hold15 #recbar{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 45%,tra
 /* ARTEN's box sits higher, clear of the screen edge and the phone's home bar */
 .ar15 .ar12-form{margin-bottom:calc(34px + env(safe-area-inset-bottom,0px))}
 .ar15-dock .ar12-chips{padding-bottom:10px}
+
+/* v16: the "Ask" slide. The flower moves left and "Ask" shows in its place, then it slides back. */
+.ar15-askl{position:absolute;left:0;top:8px;width:64px;height:48px;border-radius:24px;display:grid;place-items:center;font:800 16px/1 var(--sans);letter-spacing:.02em;color:#fff;background:var(--ar-body,var(--accent));box-shadow:0 8px 20px -8px rgba(0,0,0,.4);opacity:0;transform:scale(.6);transition:opacity .3s ease .12s,transform .35s cubic-bezier(.2,.8,.2,1) .12s;pointer-events:none!important}
+.ar12-fab .ar12-unit{transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+.ar12-fab.asking .ar12-unit{transform:translateX(-74px)}
+.ar12-fab.asking .ar15-askl{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.ar15-askl{display:none}}

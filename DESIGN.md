@@ -26,6 +26,15 @@ Scoped to signed-in surfaces only (`#home`, `#chat`, `#panel`, `#sheet`, `.cb-sc
 One floating pill: grey round + (left), the field ("Reply or hold to talk"), grey round microphone, solid dark
 round send (its icon dims when there is nothing to send). ARTEN uses the same pill with only send.
 
+## Backup book
+A4 pages in the app theme (`--bg`, `--surface`, `--ink`, `--muted`, `--line`, `--accent`), Georgia headings,
+cards and tables; the conversation box uses the chat theme read from rendered bubbles (mine / theirs colours and
+radius). Times 12-hour, dates "Tuesday 24 November 2026".
+
+## ARTEN "Ask" slide
+After 3 s idle: flower `translateX(-74px)` (0.45 s), an accent pill reading "Ask" scales in where it was, holds
+2.2 s, slides back. Disabled with reduced motion.
+
 ## Status colours (4.1)
 Light themes: green `#116a3a`, blue `#0a4fc4`, red `#b00020`. Dark themes: `#7ee8a8`, `#9cc2ff`, `#ff9a8f`.
 Measured 5.58:1 or better (`tests/v15-contrast-auto.json`).

@@ -49,6 +49,10 @@ and from v15 `purge_retained_for_me` (the app ignores "function missing" until t
 `transcribe-voice` (optional transcripts; needs the owner's API key, see README). Hashes are recorded in
 `tests/v15-baseline.txt` and must not change.
 
+## Backup book (v16)
+No SQL. Built on the device from data the app already loads (messages, signed photo links, settings, journal,
+items, activity, ARTEN history); nothing is written to the server.
+
 ## Retention (v15)
 Activity and ARTEN conversations are kept 10 days. The app hides older days at once; the server deletes them when
 `purge_retained_for_me` runs (after sign-in and when Activity opens) and daily at 03:10 UTC through pg_cron. If

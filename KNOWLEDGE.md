@@ -77,6 +77,14 @@ Mist, Ocean Glass, Forest Ink, Sunset Clay, Peach Linen, Slate Blue, Cocoa Milk,
 Follow the time. A theme is previewed, then kept with Keep; it is saved per person (`user_prefs`) and follows you to
 another device.
 
+### Backup book (v16)
+Settings › Messages & data › **Backup book (PDF)**: one document to keep in case a phone is lost. It holds the two
+of you (names, statuses, time zones, last seen), settings, the whole conversation by day with photos, sealed
+letters (titles and dates only), the journal, About each other, the last 10 days of activity, your ARTEN
+conversations and special days. Paper in your app theme; the conversation in your chat theme's bubbles. It opens
+the phone's print sheet: choose Save as PDF (iPhone: Share › Save to Files). **Backup book (Markdown)** saves the
+same as a text file. Every 24 hours after sign-in the app offers "Your daily backup is ready".
+
 ### Recently deleted and Reset everything
 Messages deleted for both go to Recently deleted, where they can be restored (one or all) or deleted for good. Reset
 everything (passphrase checked on the server) empties the shared data for both and restarts the guide; accounts,
@@ -99,6 +107,7 @@ passphrases, names, photos, themes and settings are kept.
   passwords and secrets.
 - **Chat history**: your own conversations from the last 10 days, grouped by day; New chat and signing out save the
   current one there.
+- When nothing is touched for 3 seconds, the flower slides left and "Ask" shows in its place, then it slides back.
 - Thinking state: the flower turns and pulses; "ARTEN is thinking / cooking / ARTENING"; then "Thought for 1.2 s".
 
 ### Notifications to phones

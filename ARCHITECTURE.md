@@ -41,7 +41,7 @@ Useful methods: `name(side)`, `notice(title, desc, opts)`, `centredBanner({title
 `intentOf`, `items` (saved lines store), `convo` (conversation store), `openAbout()`, `itemSentence`,
 `composePersonal` / `factsReply` (v14, kept for `tests/arten-personal.test.cjs`), `steps` (Show me the steps),
 `stepsFor(id)`, `perf` (adaptive rendering), `beforeSignOut(why)` (called by `confirmSignOut` / `idleSignOut`),
-`log(action, detail)`, `_act`, `_kb`.
+`log(action, detail)`, `_act`, `_kb`, `book` (v16 backup: `pdf()`, `md()`, `gather()`, `html(d, withPhotos)`, `markdown(d)`, `daily()`).
 
 ## Events (`document`)
 `lees:unlocked`, `lees:locked`, `lees:synced` (after a data pull), `lees:render` (home and chat re-render, every few
@@ -65,14 +65,14 @@ by New chat and sign-out, listed for 10 days.
 ## Storage keys (browser)
 localStorage: `pp-*` (core settings, kept on reset where listed in `KEEP_KEYS`), `v8-*` (letter drafts),
 `v9-*`, `v12-*` (activity cache, usage, guide state, tips), `lees-theme-v14`, `pp-apptheme-<side>`,
-`lees-activity-opened-v13`, `v15-arten-conv-<side>` (ARTEN history fallback), `lees-perf` (rendering override).
+`lees-activity-opened-v13`, `v15-arten-conv-<side>` (ARTEN history fallback), `lees-perf` (rendering override), `lees-book-at-<side>` (last backup offer).
 sessionStorage: `lees-arten-*` (cleared at sign-out), e.g. `lees-arten-greet-off`.
 
 ## Caching and releases
 Every changed script or stylesheet needs a higher `?v=` in `index.html`, and `sw.js` needs a new `CACHE` value.
-Current (end of v15): lees-patch.css 31, lees-v8.css 5, lees-v9.css 10, lees-v11.css 5, lees-v12.css 10,
-lees-emoji.js 2, lees-patch.js 18, lees-v8.js 10, lees-v9.js 10, lees-v10.js 2, lees-v11.js 2, lees-v12.js 8;
-CACHE `lees-shell-v15-4`.
+Current (end of v15): lees-patch.css 31, lees-v8.css 5, lees-v9.css 10, lees-v11.css 5, lees-v12.css 11,
+lees-emoji.js 2, lees-patch.js 18, lees-v8.js 10, lees-v9.js 10, lees-v10.js 2, lees-v11.js 2, lees-v12.js 9;
+CACHE `lees-shell-v16-1`.
 
 ## Presence and status (v15)
 `index.html` `publishPresence` tracks `{ts, away}` on a realtime presence channel every 4 seconds; Online needs 3

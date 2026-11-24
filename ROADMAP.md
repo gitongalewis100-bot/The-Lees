@@ -16,6 +16,7 @@ The plan for agents. Keep it current: move items to Done with the version, add w
   memory with refusals, cited partner facts, chat history, New chat, sign-out memory, chips with actions, Show me
   the steps; About me and [partner]; sealed letter chooser; sticker count and swipe fix; flower rules; premium
   polish; adaptive rendering; composer matching the owner's design with hold to talk; handover documents.
+- v16: backup book (PDF in app and chat themes, with photos; Markdown; offered daily); ARTEN "Ask" slide restored.
 
 ## Next (v16 candidates, in priority order)
 1. **Verify on the live site with two signed-in people** once the owner provides `LEES_TEST_PASSPHRASE` (or two
@@ -32,6 +33,10 @@ The plan for agents. Keep it current: move items to Done with the version, add w
    the chat style studio, Notifications rows, Calendar and Media grids under the same tokens.
 7. **Performance**: measure first load on a low-end Android; consider splitting the 6,000-line inline core.
 8. **Accessibility pass**: screen-reader labels for tiles and stat tiles, focus order in sheets, live regions.
+
+## Next for the backup book
+- A server copy (a storage bucket and a scheduled job) so the backup exists even if no one signs in; needs SQL and the owner's approval.
+- Voice notes and videos are listed by name in the book, not embedded (a PDF cannot play them).
 
 ## Later / ideas (ask the owner first; check the banned-names list in AGENTS.md)
 - Offline queue for messages sent with no signal.

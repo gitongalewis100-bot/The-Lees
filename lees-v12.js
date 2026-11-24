@@ -1711,7 +1711,7 @@
       if (this.built) return; this.built = true;
       var fab = btn("ar12-fab", "", "Ask ARTEN, your guide");
       fab.id = "ar12Fab";
-      fab.innerHTML = '<span class="ar12-unit"><canvas width="112" height="112" aria-hidden="true"></canvas></span>';
+      fab.innerHTML = '<span class="ar15-askl" aria-hidden="true">Ask</span><span class="ar12-unit"><canvas width="112" height="112" aria-hidden="true"></canvas></span>';
       document.body.appendChild(fab);
       this.fab = fab;
       var cv = fab.querySelector("canvas");
@@ -2149,11 +2149,23 @@
     },
     set: function (w) { if (!this.body || !this.unit) return; this.curW = w; var s = Math.max(0, Math.min(1, (w - 56) / this.L)); this.body.style.transform = "scaleX(" + s + ")"; this.unit.style.transform = "translate3d(" + (-this.L * s) + "px,0,0)"; },
     tween: function (to, ms, ease) { var self = this; return new Promise(function (res) { var from = self.curW, t0 = performance.now(); var step = function (now) { var k = Math.min(1, (now - t0) / ms); self.set(from + (to - from) * ease(k)); if (k < 1) requestAnimationFrame(step); else res(); }; requestAnimationFrame(step); }); },
-    ok: function () { var a = A(); return !reduce() && !document.hidden && !Arten.isOpen() && !Guide.on && a && a.unlocked && a.view !== "chat" && !Arten.fab.classList.contains("gone"); },
-    play: async function () { this.lastQuiet = Date.now(); },
-    schedule: function () { clearTimeout(this.t); },
-    reset: function () { clearTimeout(this.t); this.busy = false; this.lastQuiet = Date.now(); }
+    ok: function () { var a = A(); return !reduce() && !document.hidden && !Arten.isOpen() && !Guide.on && !Steps.on && a && a.unlocked && a.view !== "chat" && Arten.fab && !Arten.fab.classList.contains("gone"); },
+    // v16: after 3 seconds with no tap, key or scroll, the flower slides left, "Ask" shows where it was, then it slides back.
+    play: async function () {
+      var f = Arten.fab; if (!f || this.busy) return;
+      this.busy = true; f.classList.add("asking");
+      await sleep(2200);
+      f.classList.remove("asking"); await sleep(450);
+      this.busy = false; this.lastQuiet = Date.now(); this.schedule();
+    },
+    schedule: function () {
+      var self = this; clearTimeout(this.t);
+      this.t = setTimeout(function () { if (Date.now() - self.lastQuiet >= 2900 && self.ok()) self.play(); else self.schedule(); }, 1000);
+    },
+    reset: function () { clearTimeout(this.t); this.busy = false; this.lastQuiet = Date.now(); if (Arten.fab) Arten.fab.classList.remove("asking"); }
   };
+  ["pointerdown", "keydown", "touchstart", "wheel", "scroll"].forEach(function (ev) { document.addEventListener(ev, function () { Ask.lastQuiet = Date.now(); if (Arten.fab && Arten.fab.classList.contains("asking") && ev !== "scroll") { Arten.fab.classList.remove("asking"); } }, { passive: true, capture: true }); });
+  document.addEventListener("lees:unlocked", function () { setTimeout(function () { Ask.lastQuiet = Date.now(); Ask.schedule(); }, 2000); });
 
   /* =====================================================================================================
      ALBUM VIEWER: a set opens as a smooth feed (or a grid); any photo opens full screen with swipe,
@@ -2337,6 +2349,150 @@
   }
 
   /* =====================================================================================================
+     v16: THE BACKUP BOOK. Everything in one document you can keep if a phone is lost: a PDF (the page in your
+     app theme, the conversation in your chat theme, photos included) and the same as Markdown. Built on this
+     device from what the app already has; nothing new is stored on the server. Offered once every 24 hours.
+     ===================================================================================================== */
+  var Book = {
+    key: function () { var a = A(); return "lees-book-at-" + (a && a.me); },
+    css: function (n, v) { return (getComputedStyle(n || document.documentElement).getPropertyValue(v) || "").trim(); },
+    colours: function () {
+      var r = document.documentElement, chat = document.getElementById("chat") || r, c = this.css.bind(this);
+      var pick = function (sel, prop, dflt) { var n = document.querySelector(sel); return n ? getComputedStyle(n)[prop] : dflt; };
+      return {
+        bg: c(r, "--bg") || "#f8f4ee", surface: c(r, "--surface") || "#fff", ink: c(r, "--ink") || "#2a2420", muted: c(r, "--muted") || "#7a6f66", line: c(r, "--line") || "#e5dcd2", accent: c(r, "--accent") || "#9a5a48",
+        chatBg: pick("#list", "backgroundColor", "") || c(chat, "--bg") || c(r, "--bg"),
+        mine: pick("#list .row.mine .msg", "backgroundColor", c(chat, "--mine") || c(r, "--mine") || "#e8d5bf"), mineInk: pick("#list .row.mine .msg", "color", c(r, "--mine-ink") || "#2a2420"),
+        theirs: pick("#list .row.theirs .msg", "backgroundColor", c(chat, "--theirs") || c(r, "--theirs") || "#fff"), theirsInk: pick("#list .row.theirs .msg", "color", c(r, "--ink") || "#2a2420"),
+        radius: pick("#list .row .msg", "borderRadius", "18px")
+      };
+    },
+    when: function (t) { return longDay(t) + " " + new Date(t).getFullYear() + ", " + hm12(t); },
+    label: function (m) {
+      var a = A(), card = a.cardOf && m.kind === "text" ? a.cardOf(m.text) : null;
+      var st = /^\[\[sticker:([a-z0-9_-]+)\]\]$/i.exec(m.text || "");
+      if (st) return "Sticker: " + ((a.STICKERS[st[1]] || {}).label || st[1]);
+      if (card) return card.t === "letter" ? "Sealed letter" + (card.title ? ": " + card.title : "") : card.t === "game" ? "Tic-tac-toe challenge" : card.t === "nudge" ? "Thinking of you" : (card.title || "Card");
+      if (m.kind === "audio") return "Voice note" + (m.text ? ": " + m.text : "");
+      if (m.kind === "video") return "Video" + (m.text ? ": " + m.text : "");
+      if (m.kind === "image") return m.text || "";
+      return m.text || "";
+    },
+    gather: async function () {
+      var a = A(), me = a.me, ot = a.other;
+      var msgs = (a.thread() || []).slice().sort(function (x, y) { return x.ts - y.ts; });
+      var rows = []; try { rows = await Items.load(true); } catch (e) {}
+      var convs = []; try { convs = await Convo.list(); } catch (e) {}
+      var letters = ((window.LeesFeatures && LeesFeatures._d && LeesFeatures._d.env) || []).slice();
+      var acts = Act.list(me).concat(Act.list(ot)).filter(function (x) { return keptDay(x.at); }).sort(function (x, y) { return y.at - x.at; });
+      var s = function (sd) { try { return a.settings(sd) || {}; } catch (e) { return {}; } };
+      var theme = (document.documentElement.dataset.theme || "warm"), look = {}; try { look = a.chatLook() || {}; } catch (e) {}
+      return { a: a, me: me, ot: ot, msgs: msgs, items: rows, convs: convs, letters: letters, acts: acts, journal: (a.journal || []).slice(), sMe: s(me), sOt: s(ot), theme: theme, look: look, days: (a.specialDays || []) };
+    },
+    html: async function (d, withPhotos) {
+      var a = d.a, C = this.colours(), self = this, nm = function (sd) { return a.name(sd); };
+      var e = function (x) { return esc(String(x == null ? "" : x)); };
+      var first = d.msgs[0], last = d.msgs[d.msgs.length - 1];
+      var h = [];
+      h.push('<!doctype html><html><head><meta charset="utf-8"><title>The Lees backup, ' + e(longDay(Date.now())) + '</title><style>' +
+        '@page{size:A4;margin:16mm 14mm}*{box-sizing:border-box}body{margin:0;background:' + C.bg + ';color:' + C.ink + ';font:11pt/1.5 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+        'h1{font:600 26pt/1.15 Georgia,serif;margin:0 0 6px}h2{font:600 16pt Georgia,serif;margin:26px 0 10px;padding-bottom:6px;border-bottom:2px solid ' + C.accent + ';break-after:avoid}h3{font:600 11.5pt sans-serif;margin:16px 0 6px;color:' + C.accent + '}' +
+        '.cover{padding:40px 28px;border-radius:18px;background:' + C.surface + ';border:1px solid ' + C.line + ';margin-bottom:18px}.muted{color:' + C.muted + '}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}' +
+        '.card{background:' + C.surface + ';border:1px solid ' + C.line + ';border-radius:14px;padding:12px 14px;break-inside:avoid}.kv{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px dotted ' + C.line + '}.kv b{font-weight:600}' +
+        '.chat{background:' + C.chatBg + ';border-radius:16px;padding:12px 12px 4px;border:1px solid ' + C.line + '}.day{text-align:center;margin:14px 0 8px;font:600 9pt sans-serif;color:' + C.muted + ';text-transform:uppercase;letter-spacing:.06em}' +
+        '.m{display:flex;margin:0 0 7px;break-inside:avoid}.m.me{justify-content:flex-end}.b{max-width:76%;padding:7px 11px;border-radius:' + C.radius + '}.m.me .b{background:' + C.mine + ';color:' + C.mineInk + '}.m.th .b{background:' + C.theirs + ';color:' + C.theirsInk + ';border:1px solid ' + C.line + '}' +
+        '.b small{display:block;font-size:8pt;opacity:.7;margin-top:2px}.b .who{font:600 8.5pt sans-serif;opacity:.8}.b img{display:block;max-width:100%;max-height:260px;border-radius:10px;margin:4px 0}.tag{font-size:9pt;font-style:italic;opacity:.85}' +
+        'table{width:100%;border-collapse:collapse;font-size:9.5pt}td,th{text-align:left;padding:4px 6px;border-bottom:1px solid ' + C.line + ';vertical-align:top}th{color:' + C.muted + ';font-weight:600}.pb{break-before:page}footer{margin-top:24px;font-size:8.5pt;color:' + C.muted + '}' +
+        '</style></head><body>');
+      h.push('<section class="cover"><div class="muted">THE LEES · PRIVATE BACKUP</div><h1>' + e(nm(d.me)) + ' &amp; ' + e(nm(d.ot)) + '</h1><p class="muted">Made by ' + e(nm(d.me)) + ' on ' + e(this.when(Date.now())) + '.<br>' +
+        d.msgs.length + ' messages' + (first ? ', from ' + e(this.when(first.ts)) + ' to ' + e(this.when(last.ts)) : '') + '.<br>App theme: ' + e(d.theme) + (d.look && d.look.t ? ' · Chat theme: ' + e(d.look.t) : '') + '.</p>' +
+        '<p class="muted">Contents: The two of you · Settings · Conversation · Sealed letters · Journal · About each other · Activity (last 10 days) · ARTEN conversations · Special days.</p></section>');
+      // The two of you
+      var person = function (sd, st) { return '<div class="card"><h3>' + e(nm(sd)) + (sd === d.me ? ' (you)' : '') + '</h3>' + [["Status", st.status], ["Time zone", st.tz], ["Last seen", (function () { var x = statusOf(sd); return x && x.text; })()]].map(function (r) { return '<div class="kv"><span>' + r[0] + '</span><b>' + e(r[1] || "—") + '</b></div>'; }).join("") + '</div>'; };
+      h.push('<h2>The two of you</h2><div class="grid">' + person(d.me, d.sMe) + person(d.ot, d.sOt) + '</div>');
+      // Settings
+      var set = function (o) { return Object.keys(o || {}).filter(function (k) { var v = o[k]; return v != null && typeof v !== "object" && k !== "pass" && !/secret|token|key|hash|answer/i.test(k); }).slice(0, 40).map(function (k) { return '<div class="kv"><span>' + e(k) + '</span><b>' + e(String(o[k])) + '</b></div>'; }).join(""); };
+      h.push('<h2>Settings</h2><div class="grid"><div class="card"><h3>' + e(nm(d.me)) + '</h3>' + (set(d.sMe) || '<span class="muted">Defaults</span>') + '</div><div class="card"><h3>Shared and chat look</h3>' + set(d.look) + '<div class="kv"><span>App theme</span><b>' + e(d.theme) + '</b></div></div></div>');
+      // Conversation
+      h.push('<h2 class="pb">Conversation</h2><div class="chat">');
+      var lastDay = "", photos = 0;
+      for (var i = 0; i < d.msgs.length; i++) {
+        var m = d.msgs[i], day = longDay(m.ts) + " " + new Date(m.ts).getFullYear();
+        if (day !== lastDay) { lastDay = day; h.push('<div class="day">' + e(day) + '</div>'); }
+        var mine = m.from === d.me, img = "";
+        if (withPhotos && m.kind === "image" && m.mid && photos < 400) { try { var u = await a.mediaURL(m.mid); if (u) { img = '<img src="' + e(u) + '" alt="Photo">'; photos++; } } catch (er) {} }
+        var lab = this.label(m), isText = m.kind === "text" && !/^(Sticker|Sealed letter|Tic-tac-toe|Thinking of you)/.test(lab);
+        h.push('<div class="m ' + (mine ? "me" : "th") + '"><div class="b"><div class="who">' + e(nm(m.from)) + '</div>' + img + (m.kind === "image" && !img ? '<div class="tag">Photo</div>' : '') + (lab ? (isText ? '<div>' + e(lab).replace(/\n/g, "<br>") + '</div>' : '<div class="tag">' + e(lab) + '</div>') : '') + '<small>' + e(hm12(m.ts)) + '</small></div></div>');
+      }
+      if (!d.msgs.length) h.push('<p class="muted">No messages yet.</p>');
+      h.push('</div>');
+      // Letters
+      h.push('<h2>Sealed letters</h2>' + (d.letters.length ? '<table><tr><th>From</th><th>To</th><th>Title</th><th>Opens</th><th>Opened</th></tr>' + d.letters.map(function (l) { return '<tr><td>' + e(nm(l.from)) + '</td><td>' + e(nm(l.to)) + '</td><td>' + e(l.title || "A letter") + '</td><td>' + e(self.when(l.openAt)) + '</td><td>' + (l.openedAt ? e(self.when(l.openedAt)) : "Not yet") + '</td></tr>'; }).join("") + '</table><p class="muted">Letter text stays sealed in the app until it opens.</p>' : '<p class="muted">None.</p>'));
+      // Journal
+      h.push('<h2 class="pb">Journal</h2>' + (d.journal.length ? d.journal.slice().sort(function (x, y) { return (Date.parse(x.created_at || x.at || 0) || x.ts || 0) - (Date.parse(y.created_at || y.at || 0) || y.ts || 0); }).map(function (j) { var t = Date.parse(j.created_at || j.at || 0) || j.ts || 0; return '<div class="card" style="margin-bottom:8px"><div class="muted">' + e(nm(j.author_side || j.side || j.from) || "") + (t ? ' · ' + e(self.when(t)) : '') + '</div><div>' + e(j.text || j.body || "").replace(/\n/g, "<br>") + '</div></div>'; }).join("") : '<p class="muted">No pages yet.</p>'));
+      // About each other
+      var about = function (sd) { var l = d.items.filter(function (x) { return x.subject === sd; }); return '<div class="card"><h3>About ' + e(nm(sd)) + '</h3>' + (l.length ? l.map(function (x) { return '<div class="kv"><span>' + e(x.body) + '</span><b class="muted">' + (x.source === "arten" ? "Added by ARTEN" : "Written by " + e(nm(x.author))) + '</b></div>'; }).join("") : '<span class="muted">Nothing saved.</span>') + '</div>'; };
+      h.push('<h2>About each other</h2><div class="grid">' + about(d.me) + about(d.ot) + '</div>');
+      // Activity
+      h.push('<h2 class="pb">Activity (last 10 days)</h2>' + (d.acts.length ? '<table><tr><th>When</th><th>Who</th><th>What</th><th>Detail</th></tr>' + d.acts.slice(0, 600).map(function (x) { return '<tr><td>' + e(self.when(x.at)) + '</td><td>' + e(nm(x.side)) + '</td><td>' + e((ACT[x.action] || ACT.panel)[0]) + '</td><td>' + e(x.detail) + '</td></tr>'; }).join("") + '</table>' : '<p class="muted">Nothing in the last 10 days.</p>'));
+      // ARTEN
+      h.push('<h2>ARTEN conversations (yours, last 10 days)</h2>' + (d.convs.length ? d.convs.map(function (c) { return '<div class="card" style="margin-bottom:8px"><h3>' + e(self.when(c.started_at)) + '</h3>' + c.messages.map(function (m) { return '<div><b>' + (m.r === "u" ? e(nm(d.me)) : "ARTEN") + ':</b> ' + e(m.t) + '</div>'; }).join("") + '</div>'; }).join("") : '<p class="muted">None.</p>'));
+      // Special days
+      var sd = Array.isArray(d.days) ? d.days : [];
+      h.push('<h2>Special days</h2>' + (sd.length ? '<table>' + sd.map(function (x) { return '<tr><td>' + e(x.title || x.name || x.label || "") + '</td><td>' + e(x.date || x.on || "") + '</td></tr>'; }).join("") + '</table>' : '<p class="muted">None saved.</p>'));
+      h.push('<footer>The Lees · private to ' + e(nm(d.me)) + ' and ' + e(nm(d.ot)) + ' · made ' + e(this.when(Date.now())) + '. Keep this file somewhere safe.</footer></body></html>');
+      return h.join("");
+    },
+    markdown: function (d) {
+      var a = d.a, nm = function (sd) { return a.name(sd); }, self = this, out = [];
+      out.push("# The Lees backup: " + nm(d.me) + " & " + nm(d.ot), "", "Made by " + nm(d.me) + " on " + this.when(Date.now()) + ". " + d.msgs.length + " messages.", "");
+      out.push("## The two of you", "- " + nm(d.me) + ": " + (d.sMe.status || "no status") + " (" + (d.sMe.tz || "") + ")", "- " + nm(d.ot) + ": " + (d.sOt.status || "no status") + " (" + (d.sOt.tz || "") + ")", "");
+      out.push("## Conversation");
+      var lastDay = "";
+      d.msgs.forEach(function (m) { var day = longDay(m.ts) + " " + new Date(m.ts).getFullYear(); if (day !== lastDay) { lastDay = day; out.push("", "### " + day); } out.push("- **" + nm(m.from) + "** (" + hm12(m.ts) + "): " + (m.kind === "image" ? "[Photo] " : "") + String(self.label(m)).replace(/\n/g, " ")); });
+      out.push("", "## Sealed letters"); d.letters.forEach(function (l) { out.push("- " + nm(l.from) + " to " + nm(l.to) + ": " + (l.title || "A letter") + ", opens " + self.when(l.openAt) + (l.openedAt ? ", opened " + self.when(l.openedAt) : "")); });
+      out.push("", "## Journal"); d.journal.forEach(function (j) { out.push("- " + String(j.text || j.body || "").replace(/\n/g, " ")); });
+      out.push("", "## About each other"); d.items.forEach(function (x) { out.push("- About " + nm(x.subject) + ": " + x.body + " (" + (x.source === "arten" ? "Added by ARTEN" : "Written by " + nm(x.author)) + ")"); });
+      out.push("", "## Activity (last 10 days)"); d.acts.slice(0, 600).forEach(function (x) { out.push("- " + self.when(x.at) + " · " + nm(x.side) + " · " + (ACT[x.action] || ACT.panel)[0] + (x.detail ? " · " + x.detail : "")); });
+      out.push("", "## ARTEN conversations"); d.convs.forEach(function (c) { out.push("### " + self.when(c.started_at)); c.messages.forEach(function (m) { out.push("- " + (m.r === "u" ? nm(d.me) : "ARTEN") + ": " + m.t); }); });
+      return out.join("\n") + "\n";
+    },
+    // PDF: the book opens in the system print sheet; choose "Save as PDF" (on iPhone: Share › Save to Files).
+    pdf: async function () {
+      var a = A(); if (!a || !a.unlocked) return;
+      a.notice("Making your backup", "Gathering messages and photos…", { kind: "info", duration: 2500 });
+      var d = await this.gather(), html = await this.html(d, true);
+      var old = document.getElementById("book15"); if (old) old.remove();
+      var f = document.createElement("iframe"); f.id = "book15"; f.setAttribute("aria-hidden", "true");
+      f.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none";
+      document.body.appendChild(f);
+      var w = f.contentWindow; w.document.open(); w.document.write(html); w.document.close();
+      var imgs = [].slice.call(w.document.images);
+      await Promise.race([Promise.all(imgs.map(function (im) { return im.complete ? 1 : new Promise(function (r) { im.onload = im.onerror = r; }); })), sleep(12000)]);
+      LS.set(this.key(), Date.now());
+      Act.log("panel", "Backup PDF");
+      try { w.focus(); w.print(); } catch (e) { a.notice("Couldn't open the print sheet", "Use Download Markdown instead.", { error: true }); }
+    },
+    md: async function () {
+      var a = A(); if (!a || !a.unlocked) return;
+      var d = await this.gather(), blob = new Blob([this.markdown(d)], { type: "text/markdown" });
+      var link = document.createElement("a"); link.href = URL.createObjectURL(blob);
+      var t = new Date(); link.download = "the-lees-backup-" + t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0") + ".md";
+      document.body.appendChild(link); link.click(); setTimeout(function () { URL.revokeObjectURL(link.href); link.remove(); }, 1500);
+      LS.set(this.key(), Date.now());
+    },
+    // Once every 24 hours after sign-in: offer the fresh backup.
+    daily: function () {
+      var a = A(); if (!a || !a.unlocked) return;
+      var last = LS.get(this.key(), 0);
+      if (last && Date.now() - last < 864e5) return;
+      if (!last) { LS.set(this.key(), Date.now() - 864e5 + 3600e3); return; }
+      a.notice("Your daily backup is ready", "Everything from the last day, in one PDF.", { kind: "info", duration: 15000, action: { label: "Save PDF", run: function () { Book.pdf(); } } });
+      LS.set(this.key(), Date.now());
+    }
+  };
+
+  /* =====================================================================================================
      SETTINGS ENTRIES
      ===================================================================================================== */
   function wrapSettings() {
@@ -2348,6 +2504,8 @@
         { cat: "help", id: "tour", label: "Take the tour", sub: "Everything, most important first", keywords: "guide tour help tutorial walkthrough onboarding learn", icon: "sparkle", run: function () { Guide.start("full"); } },
         { cat: "help", id: "guide-on", label: "Guide", sub: "Tour after a reset, and tips for things you haven't tried", keywords: "guide tips hints onboarding tour switch off on", icon: "bell", toggle: { get: function () { return Guide.enabled(); }, set: function (v) { Guide.setEnabled(v); a.notice(v ? "Guide on" : "Guide off", v ? "Tips and the tour after a reset are back." : "No more tips. You can still take the tour here."); } } },
         { cat: "help", id: "ask-arten", label: "Ask ARTEN", sub: "Questions about anything in the app", keywords: "arten assistant ask question help flower", icon: "chat", run: function () { while (A().view === "panel") { A().goBack(); if (A().view !== "panel") break; } setTimeout(function () { Arten.open(); }, 260); } },
+        { cat: "data", id: "book", label: "Backup book (PDF)", sub: "Everything in one PDF: conversation with photos, settings, journal, activity", keywords: "backup pdf export download print save book conversation photos lost phone", icon: "download", run: function () { Book.pdf(); } },
+        { cat: "data", id: "bookmd", label: "Backup book (Markdown)", sub: "The same backup as a text file", keywords: "backup markdown md export download text", icon: "download", run: function () { Book.md(); } },
         { cat: "data", id: "vault", label: "Recently deleted", sub: "Restore, or delete for good", keywords: "recently deleted restore bin trash vault recover undelete permanently", icon: "undo", run: function () { a.openVault(); } },
         { cat: "data", id: "reset", label: "Reset everything", sub: "Back to day one, for both of you", keywords: "reset factory wipe start over default erase everything", icon: "trash", danger: true, run: openReset },
         { cat: "privacy", id: "activity", label: "Last seen and activity", sub: "What each of you did, session by session", keywords: "last seen online activity history presence status", icon: "history", run: function () { openActivity(a.other); } },
@@ -2374,6 +2532,7 @@
     Act.beat = setInterval(function () { Act.touch(); paintSeen(); Arten.position(); }, 60000);
     Act.touch();
     setTimeout(purgeRetained, 2500);
+    setTimeout(function () { try { Book.daily(); } catch (e) {} }, 9000);
     setTimeout(function () { var A2 = A(); if (!A2 || !A2.unlocked) return; if (Guide.enabled() && !LS.get("v12-guide-done-" + A2.me, 0) && n <= 1) Guide.start("full"); else setTimeout(maybeTip, 5000); }, 1600);
     started = true;
   }
@@ -2460,7 +2619,7 @@
       try { if (Arten.convo && Arten.convo.messages.length) await Promise.race([Convo.archive(Arten.convo), sleep(2500)]); } catch (e) {}
       clearArtenHistory(); await Act.flush();
     },
-    steps: Steps, stepsFor: stepsFor, perf: Perf,
+    steps: Steps, stepsFor: stepsFor, perf: Perf, book: Book,
     _act: Act, _usage: Usage, _kb: KB, maybeTip: maybeTip
   };
 })();

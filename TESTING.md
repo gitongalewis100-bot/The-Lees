@@ -28,6 +28,7 @@ Anything run against the local harness must say **(local, stand-in backend)**.
 | `theme.js` | theme preview, Keep, restore from user_prefs after sign-in |
 | `contrast.js` | pixel-sampled contrast of tiles and status colours in three themes (`PERF=low` for the low tier); writes `tests/v15-contrast-*.json` (needs `pngjs`) |
 | `tour.js` | screenshots of every main screen (`THEME=warm|ink|sage`, `PERF=low`, `DESK=1`) |
+| `book.js` | v16 backup book (sections, names, 12-hour times, Markdown, a real PDF via page.pdf) and the ARTEN "Ask" slide |
 | `composer.js` | the chat composer and ARTEN box against the owner's screenshot; hold to talk, slide to discard, tap still works (`FAKEMIC=1`) |
 | `flowertype.js` | the flower steps aside while typing in a page field |
 | `v15.js`, `arten.js`, `smoke15.js`, `explore.js` | quick checks and selector discovery |

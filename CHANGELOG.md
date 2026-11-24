@@ -241,3 +241,10 @@ Live on main at 7ebfb5e (core); overnight polish and documents are committed on 
 - Regression, part 2 (local, stand-in backend): sealed letters open / delete for me / delete for both, a tic-tac-toe move and a voice note (fake microphone) now pass.
 - Composer final: placeholder "Reply or hold to talk"; hold the microphone to talk and let go to send (slide away to discard; a tap works as before); send is a solid dark circle even when empty; ARTEN's box the same pill with only send. Cache: lees-v12.css?v=10, lees-v12.js?v=8, CACHE lees-shell-v15-4.
 - Project documents for anyone taking over: AGENTS.md (start here), KNOWLEDGE.md, ARCHITECTURE.md, DATABASE.md, DESIGN.md, TESTING.md, ROADMAP.md, OWNER_ACTIONS.md; README.md and DEPLOY.md rewritten; older documents marked historical.
+
+## v16 (2026-11-24)
+- Backup book: Settings › Messages & data › Backup book (PDF) builds one document with the two of you (names, statuses, time zones, last seen), settings, the whole conversation by day with photos, sealed letters (titles and dates; text stays sealed), journal, About each other, activity (last 10 days), your ARTEN conversations and special days. The page uses your app theme; the conversation uses your chat theme's bubbles. Saved through the system print sheet (Save as PDF; on iPhone: Share › Save to Files).
+- Backup book (Markdown): the same content as a .md file download.
+- Daily: once every 24 hours after sign-in the app offers "Your daily backup is ready" with Save PDF. Built on the device; nothing new is stored on the server; no SQL needed.
+- ARTEN "Ask" slide restored: after 3 seconds without a tap, key or scroll, the flower slides left, "Ask" shows in its place, then it slides back. Off with reduced motion; stops on any touch.
+- Cache: lees-v12.css?v=11, lees-v12.js?v=9, CACHE lees-shell-v16-1. Test: tests/harness/s/book.js (6/6, local, stand-in backend); sample PDF tests/screenshots/v16-backup-sample.pdf.
