@@ -3,7 +3,7 @@
 Keep this file current. Tick a line when it is done, with the date.
 
 ## 1. Push the finished v15 work (needs GitHub connected)
-- [ ] Connect GitHub, then tell the agent "push". It pushes branch `claude/lees-v15-continuation-m4pvd1`, then
+- [x] 2026-11-24: pushed; main = 1cac30e, live and verified. (Was: connect GitHub, then tell the agent "push".) It pushes branch `claude/lees-v15-continuation-m4pvd1`, then
   fast-forwards `main`. Vercel deploys `main` within about a minute.
 - What is already live: v15 core (main = 7ebfb5e). What the push adds: the polish pass, adaptive rendering, the
   flower stepping aside while you type, the regression tests and all project documents.
